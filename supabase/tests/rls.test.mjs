@@ -68,6 +68,13 @@ const col = (await as(A, `insert into public.collections (name) values ('Cene ve
 await as(A, `insert into public.collection_items (collection_id, recipe_id) values ('${col}', '${rec.id}')`);
 await fails(() => as(A, `insert into public.collection_items (collection_id, recipe_id) values ('${col}', '${rec.id}')`), 'la stessa ricetta non entra due volte nella collezione');
 await fails(() => as(A, `insert into public.collection_items (collection_id) values ('${col}')`), 'un elemento di collezione deve essere ricetta O posto');
+ok((await as(B, `select * from public.collections`)).rows.length === 0, 'Bruno NON vede le collezioni di Anna');
+ok((await as(B, `select * from public.collection_items`)).rows.length === 0, 'Bruno NON vede cosa c\'è nelle collezioni di Anna');
+const recB = (await as(B, `insert into public.recipes (title) values ('Pasta di Bruno') returning id`)).rows[0].id;
+await fails(() => as(B, `insert into public.collection_items (collection_id, recipe_id) values ('${col}', '${recB}')`), 'Bruno NON può aggiungere elementi alla collezione di Anna');
+const colB = (await as(B, `insert into public.collections (name) values ('Mie') returning id`)).rows[0].id;
+await fails(() => as(B, `insert into public.collection_items (collection_id, recipe_id) values ('${colB}', '${rec.id}')`), 'Bruno NON può mettere la ricetta di Anna nella sua collezione');
+ok(((await as(B, `delete from public.collections where id = '${col}'`)).affectedRows ?? 0) === 0, 'Bruno NON può cancellare la collezione di Anna');
 await fails(() => as(A, `insert into public.recipes (title, rating) values ('x', 6)`), 'voto oltre 5 rifiutato');
 await fails(() => as(A, `insert into public.shopping_items (week_start, name) values ('2026-10-21', 'uova')`), 'week_start deve essere un lunedì');
 await as(A, `insert into public.shopping_items (week_start, name) values ('2026-10-19', 'uova')`);

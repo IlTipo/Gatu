@@ -8,6 +8,7 @@ import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { CollectionButton } from '@/components/CollectionButton';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
@@ -173,6 +174,7 @@ function PlaceDetails({ place: p }: { place: Place }) {
             variant="secondary"
             onPress={() => router.push({ pathname: '/place/[id]/edit', params: { id: p.id } })}
           />
+          <CollectionButton target={{ placeId: p.id }} />
         </View>
 
         {p.recommended_dishes.length ? (

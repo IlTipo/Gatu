@@ -117,6 +117,15 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 13. **Locali**: apri un locale → **Quanto dista da me?** (il browser chiede il permesso della posizione), **🤍 Voglio andarci** per la lista desideri, **Cerca telefono, sito e orari** se mancano.
 14. **Libreria → 📍 Cosa c'è vicino a me?**: i posti salvati entro 2/5/10/25 km, prima quelli "Voglio andarci".
 
+## Cosa provare nella Fase 3 — Libreria
+
+1. Apri **Libreria**: in alto la ricerca, sotto le schede **Ricette · Posti · Link** (con quanti ne hai).
+2. **Cerca**: scrivi "zucchine" o "cocco" → trova le ricette anche dagli ingredienti; nei Posti cerca per nome, città, cucina o piatto. Maiuscole e accenti non contano ("creme" trova "Crème brûlée").
+3. **Filtri**: nelle Ricette tocca le etichette (es. *veloce*, *vegetariano*; se ne scegli due, devono esserci entrambe). Nei Posti filtra per **città** o **❤️ Voglio andarci**. **Togli i filtri** li azzera.
+4. **Collezioni**: tocca **+ Nuova collezione**, dai un nome (es. "Cene veloci") e scegli un'icona → **Crea collezione**.
+5. Apri una ricetta o un posto → **📁 Aggiungi a una collezione** → tocca le collezioni per mettere o togliere (puoi anche crearne una al volo) → **Fatto**. Una collezione può mescolare ricette e posti.
+6. In Libreria tocca la collezione: vedi solo ciò che contiene. **✏️ Modifica collezione** per rinominarla o eliminarla (ricette e posti restano nella Libreria).
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

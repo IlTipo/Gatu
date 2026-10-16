@@ -1,31 +1,90 @@
 import { router } from 'expo-router';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { Chip } from '@/components/Chip';
 import { Icon } from '@/components/Icon';
+import { PlaceCard } from '@/components/PlaceCard';
+import { RecipeCard } from '@/components/RecipeCard';
 import { Screen } from '@/components/Screen';
+import { SearchBar } from '@/components/SearchBar';
 import { SourceCard } from '@/components/SourceCard';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
+import { useCollections } from '@/features/collections/api';
+import type { Collection } from '@/features/collections/types';
+import { useLibraryPlaces, useLibraryRecipes } from '@/features/library/api';
+import { cityCounts, filterPlaces, filterRecipes, matchesQuery, tagCounts } from '@/features/library/filter';
 import { useSources } from '@/features/sources/api';
 import { errorMessage } from '@/lib/errors';
-import { spacing, useTheme } from '@/theme';
+import { radius, spacing, useTheme } from '@/theme';
+
+type Tab = 'recipes' | 'places' | 'links';
 
 export default function LibraryScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const sources = useSources();
   const columns = width >= 700 ? 3 : 2;
+
+  const recipes = useLibraryRecipes();
+  const places = useLibraryPlaces();
+  const sources = useSources();
+  const collections = useCollections();
+
+  const [tab, setTab] = useState<Tab>('recipes');
+  const [query, setQuery] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [city, setCity] = useState<string | null>(null);
+  const [wishlistOnly, setWishlistOnly] = useState(false);
+  const [collectionId, setCollectionId] = useState<string | null>(null);
+
+  const collection = collections.data?.find((c) => c.id === collectionId) ?? null;
+  const scope = useMemo(
+    () => (collection ? { recipeIds: collection.recipeIds, placeIds: collection.placeIds } : null),
+    [collection],
+  );
+
+  const visibleRecipes = useMemo(
+    () => filterRecipes(recipes.data ?? [], { query, tags, collection: scope }),
+    [recipes.data, query, tags, scope],
+  );
+  const visiblePlaces = useMemo(
+    () => filterPlaces(places.data ?? [], { query, wishlistOnly, city, collection: scope }),
+    [places.data, query, wishlistOnly, city, scope],
+  );
+  const visibleSources = useMemo(
+    () => (sources.data ?? []).filter((s) => matchesQuery([s.title, s.author_name, s.url, s.description], query)),
+    [sources.data, query],
+  );
+
+  // le etichette e le città proposte sono quelle presenti (nella collezione scelta, se c'è)
+  const tagOptions = useMemo(
+    () => tagCounts(filterRecipes(recipes.data ?? [], { query: '', tags: [], collection: scope })),
+    [recipes.data, scope],
+  );
+  const cityOptions = useMemo(
+    () => cityCounts(filterPlaces(places.data ?? [], { query: '', wishlistOnly: false, city: null, collection: scope })),
+    [places.data, scope],
+  );
+
   const goToAdd = () => router.push('/add');
+  const filtersActive = !!query.trim() || tags.length > 0 || !!city || wishlistOnly;
+  function clearFilters() {
+    setQuery('');
+    setTags([]);
+    setCity(null);
+    setWishlistOnly(false);
+  }
+  const toggleTag = (tag: string) => setTags((old) => (old.includes(tag) ? old.filter((x) => x !== tag) : [...old, tag]));
+
+  const active = tab === 'recipes' ? recipes : tab === 'places' ? places : sources;
+  const libraryEmpty = recipes.data?.length === 0 && places.data?.length === 0 && sources.data?.length === 0;
 
   let content;
-  if (sources.isPending) {
-    content = <LoadingState />;
-  } else if (sources.isError) {
-    content = <ErrorState message={errorMessage(sources.error, t)} onRetry={() => sources.refetch()} />;
-  } else if (sources.data.length === 0) {
+  if (libraryEmpty) {
     content = (
       <EmptyState
         icon={<Icon name={{ ios: 'book', android: 'menu_book' }} size={32} color={colors.primary} />}
@@ -34,33 +93,146 @@ export default function LibraryScreen() {
         action={<Button label={t('library.emptyAction')} onPress={goToAdd} />}
       />
     );
+  } else if (active.isError) {
+    content = <ErrorState message={errorMessage(active.error, t)} onRetry={() => active.refetch()} />;
+  } else if (active.isPending) {
+    content = <LoadingState />;
   } else {
-    content = (
-      <FlatList
-        key={columns} // cambiando il numero di colonne la lista va ricreata
-        data={sources.data}
-        keyExtractor={(item) => item.id}
-        numColumns={columns}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.list}
-        refreshing={sources.isRefetching}
-        onRefresh={() => sources.refetch()}
-        ListHeaderComponent={
-          <View style={styles.listHeader}>
-            <Button label={t('nearby.button')} variant="secondary" onPress={() => router.push('/nearby')} />
-            <AppText variant="caption" tone="secondary" style={styles.sectionTitle}>
-              {t('library.recentTitle')}
+    const count = tab === 'recipes' ? visibleRecipes.length : tab === 'places' ? visiblePlaces.length : visibleSources.length;
+    const header = (
+      <View style={styles.listHeader}>
+        {tab !== 'links' ? (
+          <CollectionsRow
+            collections={collections.data ?? []}
+            selected={collectionId}
+            onSelect={(id) => {
+              setCollectionId(id);
+              setTags([]);
+              setCity(null);
+            }}
+          />
+        ) : null}
+        {collection ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/collection/[id]', params: { id: collection.id } })}
+            accessibilityRole="button">
+            <AppText variant="caption" tone="primary">
+              ✏️ {t('library.editCollection')}
             </AppText>
+          </Pressable>
+        ) : null}
+
+        {tab === 'recipes' && tagOptions.length ? (
+          <ChipRow>
+            {tagOptions.map(({ value, count: n }) => (
+              <Chip key={value} label={`${value} · ${n}`} selected={tags.includes(value)} onPress={() => toggleTag(value)} />
+            ))}
+          </ChipRow>
+        ) : null}
+        {tab === 'places' ? (
+          <>
+            <Button label={t('nearby.button')} variant="secondary" onPress={() => router.push('/nearby')} />
+            <ChipRow>
+              <Chip label={t('library.wishlistOnly')} selected={wishlistOnly} onPress={() => setWishlistOnly((v) => !v)} />
+              {cityOptions.map(({ value, count: n }) => (
+                <Chip
+                  key={value}
+                  label={`${value} · ${n}`}
+                  selected={city === value}
+                  onPress={() => setCity((old) => (old === value ? null : value))}
+                />
+              ))}
+            </ChipRow>
+          </>
+        ) : null}
+
+        {filtersActive ? (
+          <View style={styles.resultsRow}>
+            <AppText variant="caption" tone="secondary">
+              {t('library.count', { count })}
+            </AppText>
+            <Pressable onPress={clearFilters} accessibilityRole="button">
+              <AppText variant="caption" tone="primary">
+                {t('library.clearFilters')}
+              </AppText>
+            </Pressable>
           </View>
-        }
-        renderItem={({ item }) => (
-          <View style={{ flex: 1 / columns }}>
-            <SourceCard source={item} onPress={() => router.push({ pathname: '/source/[id]', params: { id: item.id } })} />
-          </View>
-        )}
-      />
+        ) : null}
+      </View>
     );
+
+    const empty = filtersActive ? (
+      <EmptyState
+        title={t('library.noResults')}
+        body={t('library.noResultsBody')}
+        action={<Button label={t('library.clearFilters')} variant="secondary" onPress={clearFilters} />}
+      />
+    ) : collection && tab !== 'links' ? (
+      <EmptyState title={t('library.emptyCollection')} body={t('library.emptyCollectionBody')} />
+    ) : tab === 'recipes' ? (
+      <EmptyState title={t('library.noRecipes')} body={t('library.noRecipesBody')} />
+    ) : (
+      <EmptyState title={t('library.noPlaces')} body={t('library.noPlacesBody')} />
+    );
+
+    const common = {
+      numColumns: columns,
+      columnWrapperStyle: styles.row,
+      contentContainerStyle: styles.list,
+      ListHeaderComponent: header,
+      ListEmptyComponent: empty,
+      keyboardShouldPersistTaps: 'handled' as const,
+      keyboardDismissMode: 'on-drag' as const,
+    };
+    // cambiando tab o colonne la lista va ricreata
+    const listKey = `${tab}-${columns}`;
+    const cell = (child: ReactNode) => <View style={{ flex: 1 / columns }}>{child}</View>;
+
+    content =
+      tab === 'recipes' ? (
+        <FlatList
+          key={listKey}
+          {...common}
+          data={visibleRecipes}
+          keyExtractor={(item) => item.id}
+          refreshing={recipes.isRefetching}
+          onRefresh={() => recipes.refetch()}
+          renderItem={({ item }) =>
+            cell(<RecipeCard recipe={item} onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: item.id } })} />)
+          }
+        />
+      ) : tab === 'places' ? (
+        <FlatList
+          key={listKey}
+          {...common}
+          data={visiblePlaces}
+          keyExtractor={(item) => item.id}
+          refreshing={places.isRefetching}
+          onRefresh={() => places.refetch()}
+          renderItem={({ item }) =>
+            cell(<PlaceCard place={item} onPress={() => router.push({ pathname: '/place/[id]', params: { id: item.id } })} />)
+          }
+        />
+      ) : (
+        <FlatList
+          key={listKey}
+          {...common}
+          data={visibleSources}
+          keyExtractor={(item) => item.id}
+          refreshing={sources.isRefetching}
+          onRefresh={() => sources.refetch()}
+          renderItem={({ item }) =>
+            cell(<SourceCard source={item} onPress={() => router.push({ pathname: '/source/[id]', params: { id: item.id } })} />)
+          }
+        />
+      );
   }
+
+  const tabs: { key: Tab; label: string; count: number | undefined }[] = [
+    { key: 'recipes', label: t('library.recipesTab'), count: recipes.data?.length },
+    { key: 'places', label: t('library.placesTab'), count: places.data?.length },
+    { key: 'links', label: t('library.linksTab'), count: sources.data?.length },
+  ];
 
   return (
     <Screen>
@@ -72,15 +244,90 @@ export default function LibraryScreen() {
           icon={<Icon name={{ ios: 'plus', android: 'add' }} size={20} color={colors.onPrimary} />}
         />
       </View>
+      {libraryEmpty ? null : (
+        <View style={styles.controls}>
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('library.searchPlaceholder')}
+            label={t('library.search')}
+            clearLabel={t('library.clearSearch')}
+          />
+          <View style={[styles.segments, { backgroundColor: colors.surfaceMuted }]} accessibilityRole="tablist">
+            {tabs.map((s) => {
+              const selected = tab === s.key;
+              return (
+                <Pressable
+                  key={s.key}
+                  onPress={() => setTab(s.key)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  style={[styles.segment, selected && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <AppText variant="bodyStrong" tone={selected ? 'default' : 'secondary'} numberOfLines={1}>
+                    {s.label}
+                    {s.count !== undefined ? ` · ${s.count}` : ''}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
       {content}
     </Screen>
   );
 }
 
+function ChipRow({ children }: { children: ReactNode }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+      {children}
+    </ScrollView>
+  );
+}
+
+/** "Tutto", le collezioni e "+ Nuova collezione". */
+function CollectionsRow({
+  collections,
+  selected,
+  onSelect,
+}: {
+  collections: Collection[];
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ChipRow>
+      <Chip label={t('library.all')} selected={selected === null} onPress={() => onSelect(null)} />
+      {collections.map((c) => (
+        <Chip
+          key={c.id}
+          label={`${c.emoji ?? '📁'} ${c.name} · ${c.recipeIds.length + c.placeIds.length}`}
+          selected={selected === c.id}
+          onPress={() => onSelect(selected === c.id ? null : c.id)}
+        />
+      ))}
+      <Chip label={t('library.newCollection')} onPress={() => router.push({ pathname: '/collection/[id]', params: { id: 'new' } })} />
+    </ChipRow>
+  );
+}
+
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  controls: { gap: spacing.md, marginBottom: spacing.md },
+  segments: { flexDirection: 'row', borderRadius: radius.md, padding: 3, gap: 3 },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md - 2,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
   list: { gap: spacing.md, paddingBottom: spacing.xl },
   row: { gap: spacing.md },
   listHeader: { gap: spacing.md },
-  sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.6 },
+  chipRow: { gap: spacing.sm, paddingRight: spacing.md },
+  resultsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

@@ -72,6 +72,8 @@ function RootNavigator() {
         <Stack.Screen name="place/[id]/index" />
         <Stack.Screen name="place/[id]/edit" />
         <Stack.Screen name="nearby" />
+        <Stack.Screen name="collection/[id]" />
+        <Stack.Screen name="collect" options={{ presentation: 'modal' }} />
       </Stack.Protected>
       {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
       <Stack.Protected guard={!signedIn}>

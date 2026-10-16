@@ -8,6 +8,7 @@ import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { CollectionButton } from '@/components/CollectionButton';
 import { Notice } from '@/components/Notice';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
@@ -111,6 +112,7 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             variant="secondary"
             onPress={() => router.push({ pathname: '/recipe/[id]/edit', params: { id: r.id } })}
           />
+          <CollectionButton target={{ recipeId: r.id }} />
           {r.sources?.url ? (
             <Button label={t('recipe.openSource')} variant="ghost" onPress={() => openExternalUrl(r.sources!.url)} />
           ) : null}
