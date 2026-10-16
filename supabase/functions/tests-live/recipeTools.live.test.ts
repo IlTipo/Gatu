@@ -3,6 +3,7 @@
 import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import { createGeminiRecipeTools } from '../_shared/gemini.ts';
+import { buildCatalog, cleanAnswer } from '../_shared/ask.ts';
 import { cleanInsights, cleanVariant, type RecipeForAi } from '../_shared/recipeTools.ts';
 import { throttled } from './throttle.ts';
 
@@ -46,4 +47,52 @@ Deno.test({ name: 'variante vegetariana della carbonara: niente guanciale', igno
   assert(!v.ingredients.some((i) => /guanciale|pancetta/i.test(i.name)), 'ancora carne negli ingredienti');
   assert(v.changes.length > 0, 'elenco delle modifiche');
   assertEquals(v.tags.includes('carne'), false);
+});
+
+Deno.test({ name: "chiedi all'AI: sceglie la ricetta giusta dalla libreria", ignore: !tools }, async () => {
+  const { text, refs } = buildCatalog(
+    [
+      {
+        id: 'carbonara',
+        title: 'Spaghetti alla carbonara',
+        tags: ['primo', 'carne'],
+        total_minutes: 25,
+        kcal_per_serving: 700,
+        difficulty: 'media',
+        recipe_ingredients: [{ name: 'guanciale' }, { name: 'uova' }],
+      },
+      {
+        id: 'insalata',
+        title: 'Insalata di pollo e avocado',
+        tags: ['light', 'veloce'],
+        total_minutes: 15,
+        kcal_per_serving: 380,
+        difficulty: 'facile',
+        recipe_ingredients: [{ name: 'pollo' }, { name: 'avocado' }],
+      },
+      {
+        id: 'tiramisu',
+        title: 'Tiramisù',
+        tags: ['dolce'],
+        total_minutes: 30,
+        kcal_per_serving: 450,
+        difficulty: 'facile',
+        recipe_ingredients: [{ name: 'mascarpone' }],
+      },
+    ],
+    [{
+      id: 'sushi',
+      name: 'Sushi Bar Hana',
+      city: 'Milano',
+      cuisine: 'giapponese',
+      price_level: 2,
+      recommended_dishes: ['uramaki'],
+      wishlist: true,
+    }],
+  );
+  const outcome = await throttled(() => tools!.ask('qualcosa di leggero col pollo per stasera', text));
+  assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
+  const answer = cleanAnswer(outcome.answer, refs);
+  console.log(' ', answer.message, JSON.stringify(answer.items));
+  assertEquals(answer.items[0]?.id, 'insalata');
 });

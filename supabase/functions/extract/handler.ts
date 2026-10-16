@@ -9,6 +9,7 @@
 //   { action: 'recipe_insights', recipeId }  calorie e valori per porzione, difficoltà, costo
 //   { action: 'recipe_variant', recipeId, kind }  variante vegana / senza glutine / light… (non salvata)
 //   { action: 'refresh_place', placeId }  aggiorna indirizzo, telefono, sito e orari di un locale
+//   { action: 'ask_library', question }  "Chiedi all'AI": sceglie tra le ricette e i locali salvati
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
@@ -16,7 +17,8 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 import type { DoseEstimator, Extractor, RecipeTools } from '../_shared/ai.ts';
 import { cleanInsights } from '../_shared/insights.ts';
 import { isVariantKind } from '../_shared/recipeTools.ts';
-import { recipeInsights, recipeVariant, refreshPlace } from './actions.ts';
+import { MAX_QUESTION_LENGTH } from '../_shared/ask.ts';
+import { askLibrary, recipeInsights, recipeVariant, refreshPlace } from './actions.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
@@ -100,6 +102,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     recipeId?: unknown;
     placeId?: unknown;
     kind?: unknown;
+    question?: unknown;
     imageBase64?: unknown;
     mimeType?: unknown;
   };
@@ -129,6 +132,11 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (body.action === 'refresh_place') {
     if (typeof body.placeId !== 'string') return errorResponse('invalid_body', 400);
     return json(await refreshPlace(body.placeId, ctx));
+  }
+  if (body.action === 'ask_library') {
+    const question = typeof body.question === 'string' ? body.question.trim() : '';
+    if (question.length < 2 || question.length > MAX_QUESTION_LENGTH) return errorResponse('invalid_body', 400);
+    return json(await askLibrary(question, ctx));
   }
 
   // ---- Foto di una ricetta

@@ -2,10 +2,19 @@
 //   recipe_insights  → calorie e valori per porzione, difficoltà, costo
 //   recipe_variant   → variante (vegana, senza glutine, light…) da mostrare e, se piace, salvare
 //   refresh_place    → aggiorna indirizzo, coordinate, telefono, sito e orari di un locale
+//   ask_library      → "Chiedi all'AI": sceglie tra ricette e locali salvati in base a una domanda
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 
 import type { RecipeTools } from '../_shared/ai.ts';
+import {
+  buildCatalog,
+  type CatalogPlace,
+  type CatalogRecipe,
+  type CleanAnswer,
+  cleanAnswer,
+  MAX_CATALOG_ITEMS,
+} from '../_shared/ask.ts';
 import type { Geocoder } from '../_shared/geocode.ts';
 import { type CleanInsights, cleanInsights } from '../_shared/insights.ts';
 import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } from '../_shared/recipeTools.ts';
@@ -157,4 +166,33 @@ export async function refreshPlace(placeId: string, ctx: Ctx): Promise<{ status:
     return { status: 'error', reason: 'save_failed' };
   }
   return { status: 'done' };
+}
+
+/** Risponde a una domanda scegliendo tra le ricette e i locali salvati dall'utente. */
+export async function askLibrary(
+  question: string,
+  ctx: Ctx,
+): Promise<({ status: 'done' } & CleanAnswer) | { status: 'empty' } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  const [recipes, places] = await Promise.all([
+    ctx.supabase
+      .from('recipes')
+      .select('id, title, tags, total_minutes, kcal_per_serving, difficulty, recipe_ingredients(name)')
+      .order('created_at', { ascending: false })
+      .limit(MAX_CATALOG_ITEMS),
+    ctx.supabase
+      .from('places')
+      .select('id, name, city, cuisine, price_level, recommended_dishes, wishlist')
+      .order('created_at', { ascending: false })
+      .limit(MAX_CATALOG_ITEMS),
+  ]);
+  if (recipes.error) throw recipes.error;
+  if (places.error) throw places.error;
+  const catalog = buildCatalog((recipes.data ?? []) as CatalogRecipe[], (places.data ?? []) as CatalogPlace[]);
+  if (!catalog.refs.size) return { status: 'empty' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+
+  const outcome = await ctx.recipeTools.ask(question, catalog.text);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  return { status: 'done', ...cleanAnswer(outcome.answer, catalog.refs) };
 }

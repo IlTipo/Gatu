@@ -2,6 +2,7 @@
 // La chiave GEMINI_API_KEY esiste solo come segreto della Edge Function: mai nel sito.
 
 import type { DoseEstimator, Extractor, Failure, RecipeTools } from './ai.ts';
+import { ASK_SYSTEM_PROMPT, AskSchema, buildAskMessage, GEMINI_ASK_SCHEMA } from './ask.ts';
 import { buildDoseMessage, DOSE_SYSTEM_PROMPT, DoseSchema, GEMINI_DOSE_SCHEMA } from './doses.ts';
 import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT } from './extraction.ts';
 import { GEMINI_INSIGHTS_SCHEMA, INSIGHTS_SYSTEM_PROMPT, InsightsSchema } from './insights.ts';
@@ -271,6 +272,13 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = VariantSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, variant: parsed.data, model: r.model, usage: r.usage };
+    },
+    async ask(question, catalog) {
+      const r = await generate(ASK_SYSTEM_PROMPT, buildAskMessage(question, catalog), GEMINI_ASK_SCHEMA);
+      if (!r.ok) return r;
+      const parsed = AskSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, answer: parsed.data, model: r.model, usage: r.usage };
     },
   };
 }

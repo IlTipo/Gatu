@@ -12,6 +12,7 @@ on:
       - supabase/functions/_shared/extraction.ts
       - supabase/functions/_shared/insights.ts
       - supabase/functions/_shared/recipeTools.ts
+      - supabase/functions/_shared/ask.ts
       - supabase/functions/tests-live/**
       - .github/workflows/test-ai.yml
 

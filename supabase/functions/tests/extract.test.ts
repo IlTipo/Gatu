@@ -1,4 +1,4 @@
-import { assertEquals } from 'jsr:@std/assert@1';
+import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import type { Extractor } from '../_shared/ai.ts';
 import type { RawExtraction } from '../_shared/extraction.ts';
@@ -466,6 +466,19 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  ask: (question: string, catalog: string) => {
+    calls.push(`ask:${question}`);
+    calls.push(catalog);
+    return Promise.resolve({
+      ok: true as const,
+      answer: {
+        message: 'Ecco cosa ti propongo',
+        items: [{ ref: 'R1', reason: 'veloce' }, { ref: 'R99', reason: 'inventata' }, { ref: 'p1', reason: 'vicino' }],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
 });
 
 Deno.test("foto di una ricetta: salvata nello storage e letta dall'AI", async () => {
@@ -591,4 +604,74 @@ Deno.test('aggiorna locale: telefono, sito e orari', async () => {
   assertEquals(updates[0].patch.phone, '+39 051 266894');
   assertEquals(updates[0].patch.verified, true);
   assertEquals(updates[0].patch.latitude, 44.49);
+});
+
+function listFake(tables: Record<string, unknown[]>, quota = true) {
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER } }, error: null }) },
+    from: (table: string) => {
+      const q = {
+        select: () => q,
+        order: () => q,
+        limit: () => Promise.resolve({ data: tables[table] ?? [], error: null }),
+      };
+      return q;
+    },
+    rpc: () => Promise.resolve({ data: quota, error: null }),
+  };
+  return client;
+}
+
+const libraryTables = {
+  recipes: [{
+    id: 'rec-1',
+    title: 'Pollo al limone',
+    tags: ['secondo'],
+    total_minutes: 20,
+    kcal_per_serving: 400,
+    difficulty: 'facile',
+    recipe_ingredients: [{ name: 'pollo' }],
+  }],
+  places: [{
+    id: 'pl-1',
+    name: 'Sushi Bar',
+    city: 'Milano',
+    cuisine: 'giapponese',
+    price_level: 2,
+    recommended_dishes: [],
+    wishlist: true,
+  }],
+};
+
+Deno.test("chiedi all'AI: sceglie solo tra le cose salvate", async () => {
+  const calls: string[] = [];
+  const d = deps(listFake(libraryTables));
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(post({ action: 'ask_library', question: 'qualcosa di veloce' }), d)).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.message, 'Ecco cosa ti propongo');
+  assertEquals(res.items, [
+    { type: 'recipe', id: 'rec-1', reason: 'veloce' },
+    { type: 'place', id: 'pl-1', reason: 'vicino' },
+  ]); // R99 non esiste → scartata
+  assertEquals(calls[0], 'ask:qualcosa di veloce');
+  assert(calls[1].includes('R1 | Pollo al limone') && calls[1].includes('P1 | Sushi Bar'));
+  assert(!calls[1].includes('rec-1'), "gli id veri non arrivano all'AI");
+});
+
+Deno.test("chiedi all'AI: libreria vuota, limite, domanda non valida", async () => {
+  const d = deps(listFake({}));
+  d.recipeTools = tools([]);
+  assertEquals(
+    (await (await handleRequest(post({ action: 'ask_library', question: 'ciao' }), d)).json()).status,
+    'empty',
+  );
+  const d2 = deps(listFake(libraryTables, false));
+  d2.recipeTools = tools([]);
+  assertEquals(await (await handleRequest(post({ action: 'ask_library', question: 'ciao' }), d2)).json(), {
+    status: 'skipped',
+    reason: 'quota_exceeded',
+  });
+  assertEquals((await handleRequest(post({ action: 'ask_library', question: 'x'.repeat(301) }), d)).status, 400);
+  assertEquals((await handleRequest(post({ action: 'ask_library' }), d)).status, 400);
 });

@@ -161,5 +161,17 @@ await as(A, `select public.save_extraction('${src5}', '${placeInfo}'::jsonb, 'do
 const pinfo = (await as(A, `select phone, website, opening_hours, wishlist from public.places where source_id = '${src5}'`)).rows[0];
 ok(pinfo.phone === '+39 010 123456' && pinfo.website === 'https://dagino.it' && pinfo.opening_hours === 'Mo-Sa 12:00-15:00' && pinfo.wishlist === false, 'telefono, sito e orari del locale salvati');
 
+// --- Fase 3+: collezioni automatiche e ordine ---
+const mk = async (uid, name, pos) => (await as(uid, `insert into public.collections (name, position) values ('${name}', ${pos}) returning id`)).rows[0].id;
+const a1 = await mk(A, 'Uno', 0), a2 = await mk(A, 'Due', 1), b1 = await mk(B, 'DiBruno', 0);
+await as(A, `update public.collections set rules = '{"tags":["vegetariano"],"max_minutes":30}' where id = '${a1}'`);
+ok((await as(A, `select rules->>'max_minutes' m from public.collections where id = '${a1}'`)).rows[0].m === '30', 'regole della collezione automatica salvate');
+await fails(() => as(A, `update public.collections set rules = '[1,2]' where id = '${a1}'`), 'le regole devono essere un oggetto');
+await fails(() => as(A, `update public.collections set rules = jsonb_build_object('x', repeat('a', 5000)) where id = '${a1}'`), 'regole troppo grandi rifiutate');
+await as(A, `select public.reorder_collections(array['${a2}', '${a1}', '${b1}']::uuid[])`);
+const order = (await as(A, `select id, position from public.collections where id in ('${a1}', '${a2}')`)).rows;
+ok(order.find((r) => r.id === a2).position === 0 && order.find((r) => r.id === a1).position === 1, 'riordino delle collezioni');
+ok((await as(B, `select position from public.collections where id = '${b1}'`)).rows[0].position === 0, 'il riordino di Anna NON tocca le collezioni di Bruno');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);
