@@ -12,7 +12,7 @@
   },
   "config": {
     "missingTitle": "Configurazione mancante",
-    "missingBody": "Mancano le chiavi di Supabase. Copia il file .env.example in .env, inserisci URL e chiave del tuo progetto e riavvia con \"npx expo start --clear\"."
+    "missingBody": "Morso non è ancora collegato a Supabase. Segui i 3 passi del README (\"Mettere il sito online\") e rilancia la pubblicazione da GitHub → Actions."
   },
   "auth": {
     "welcomeTitle": "Il tuo cibo, tutto in un posto",

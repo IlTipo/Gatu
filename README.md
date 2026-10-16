@@ -12,71 +12,44 @@ Tecnologia: Expo (React Native per il web) + TypeScript + Expo Router, Supabase 
 
 ---
 
-## Mettere il sito online (una volta sola, tutto dal browser)
+## Mettere il sito online (una volta sola, 3 passi dal browser)
 
-### 1. Supabase: crea il progetto e le tabelle
+Quasi tutto è automatico: a ogni aggiornamento GitHub crea/aggiorna il progetto Supabase (tabelle, accesso, funzioni) e pubblica il sito. Servono solo questi passi:
 
-1. Su [supabase.com/dashboard](https://supabase.com/dashboard) premi **New project**.
-   Nome: `morso`. Regione: **Central EU (Frankfurt)**. Scegli una password per il database e salvala.
-2. Quando il progetto è pronto, apri **SQL Editor → New query**.
-3. Apri il file [`supabase/migrations/20261016120000_initial_schema.sql`](supabase/migrations/20261016120000_initial_schema.sql), premi l'icona **Copy raw file**, incolla nell'editor e premi **Run**. Deve comparire "Success. No rows returned".
+### 1. Crea un account Supabase
 
-### 2. Supabase: copia le due chiavi pubbliche
+Vai su [supabase.com/dashboard](https://supabase.com/dashboard) e registrati (il modo più rapido: **Continue with GitHub**). Non serve creare nessun progetto: lo fa Morso da solo.
 
-- **Project Settings → Data API** → copia il **Project URL** (tipo `https://xxxx.supabase.co`)
-- **Project Settings → API Keys** → copia la **Publishable key** (inizia con `sb_publishable_`; va bene anche la vecchia chiave `anon`)
+### 2. Crea un "token di accesso" e dallo a GitHub
 
-> Queste chiavi sono pubbliche: i dati sono protetti dalle regole del database. **Non** usare mai la chiave `secret`/`service_role`.
+1. Su Supabase apri **[Account → Access Tokens](https://supabase.com/dashboard/account/tokens)** → **Generate new token** → nome `github-morso` → **copia** il token (inizia con `sbp_`).
+2. Su GitHub apri **[Settings → Secrets and variables → Actions](https://github.com/IlTipo/Gatu/settings/secrets/actions)** → **New repository secret**:
+   - **Name**: `SUPABASE_ACCESS_TOKEN`
+   - **Secret**: incolla il token → **Add secret**
 
-### 3. GitHub: incolla le chiavi
+> Il token è **segreto**: incollalo solo lì, non mandarlo in chat a nessuno (nemmeno a me).
 
-Nel repository su GitHub: **Settings → Secrets and variables → Actions → scheda "Variables" → New repository variable**. Creane due:
+### 3. Avvia la pubblicazione
 
-| Name | Value |
-|---|---|
-| `SUPABASE_URL` | il Project URL |
-| `SUPABASE_KEY` | la Publishable key |
+Apri **[Actions → Pubblica il sito](https://github.com/IlTipo/Gatu/actions/workflows/deploy-web.yml)** → **Run workflow** → branch `claude/morso-food-app-3op2rx` → **Run workflow**.
 
-### 3b. GitHub: permesso di pubblicare le funzioni del server
+La prima volta ci mette circa **5 minuti** (Supabase deve creare il progetto). Quando compare la spunta verde ✅, apri **https://iltipo.github.io/Gatu/** e registrati.
 
-Morso usa una piccola funzione su Supabase ("extract") che legge titolo, caption e miniatura dei link. GitHub la pubblica da solo, ma serve un permesso:
+Cosa fa da solo, in ordine: crea il progetto `morso` su Supabase (regione Francoforte) · crea le tabelle con le regole di sicurezza · imposta l'indirizzo del sito e l'accesso senza email di conferma · pubblica la funzione che legge i link · costruisce e pubblica il sito.
 
-1. Su Supabase vai su **[Account → Access Tokens](https://supabase.com/dashboard/account/tokens)** → **Generate new token**, nome `github-morso` → copia il token (inizia con `sbp_`).
-2. Su GitHub: **Settings → Secrets and variables → Actions → scheda "Secrets" → New repository secret**
-   - Name: `SUPABASE_ACCESS_TOKEN`
-   - Secret: il token appena copiato
-
-> Questo token è **segreto** (per questo va in "Secrets" e non in "Variables"): non condividerlo con nessuno.
-
-### 4. GitHub: costruisci il sito
-
-Scheda **Actions** → a sinistra **"Pubblica il sito"** → **Run workflow** → scegli il branch `claude/morso-food-app-3op2rx` → **Run workflow**.
-Dopo 2–3 minuti compare la spunta verde ✅: il sito è costruito e la funzione "extract" è pubblicata su Supabase (la trovi in Supabase → **Edge Functions**). Il sito si ricostruisce da solo a ogni aggiornamento del codice.
-
-### 5. GitHub: accendi GitHub Pages
-
-**Settings → Pages** → in "Build and deployment":
-- **Source**: *Deploy from a branch*
-- **Branch**: `gh-pages`, cartella `/ (root)` → **Save**
-
-Dopo un minuto il sito è su **https://iltipo.github.io/Gatu/**.
-
-### 6. Supabase: autorizza l'indirizzo del sito
-
-**Authentication → URL Configuration**:
-- **Site URL**: `https://iltipo.github.io/Gatu/`
-- **Redirect URLs** → Add URL: `https://iltipo.github.io/Gatu/**`
-
-Per provare in fretta puoi spegnere la conferma email: **Authentication → Sign In / Providers → Email → "Confirm email"**. Se la lasci accesa, dopo la registrazione ti arriva un'email con un link che riporta su Morso.
-
-### 7. Aggiungilo alla schermata Home del telefono
+### 4. Aggiungilo alla schermata Home del telefono
 
 - **iPhone (Safari)**: apri il sito → pulsante **Condividi** → **Aggiungi alla schermata Home**
-- **Android (Chrome)**: apri il sito → menu **⋮** → **Installa app** (o "Aggiungi a schermata Home")
+- **Android (Chrome)**: apri il sito → menu **⋮** → **Installa app**
 
-Si apre a schermo intero con l'icona di Morso, come un'app.
+<details>
+<summary>Configurazione manuale (solo se preferisci non usare il token)</summary>
 
----
+1. Crea un progetto su Supabase e incolla in **SQL Editor** il file [`supabase/migrations/20261016120000_initial_schema.sql`](supabase/migrations/20261016120000_initial_schema.sql) → **Run**.
+2. In GitHub → **Settings → Secrets and variables → Actions → Variables** crea `SUPABASE_URL` (Project URL) e `SUPABASE_KEY` (Publishable key).
+3. In Supabase → **Authentication → URL Configuration** imposta Site URL `https://iltipo.github.io/Gatu/` e aggiungi il Redirect URL `https://iltipo.github.io/Gatu/**`.
+4. La funzione "extract" va pubblicata con la Supabase CLI: `npx supabase functions deploy extract --project-ref <ref> --use-api --no-verify-jwt`.
+</details>
 
 ## Cosa provare nella Fase 0 — Accesso
 

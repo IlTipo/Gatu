@@ -1,5 +1,6 @@
-# Pubblica il sito di Morso su GitHub Pages a ogni push.
-# Il sito costruito viene salvato nel branch "gh-pages" (lo crea questo workflow).
+# Pubblica Morso a ogni push:
+#  - prepara/aggiorna Supabase (progetto, tabelle, accesso, funzioni) se c'è il secret SUPABASE_ACCESS_TOKEN
+#  - costruisce il sito e lo salva nel branch "gh-pages" (servito da GitHub Pages)
 # Impostazioni da fare una volta sola: vedi README → "Mettere il sito online".
 name: Pubblica il sito
 
@@ -13,7 +14,7 @@ permissions:
 
 concurrency:
   group: deploy-web
-  cancel-in-progress: true
+  cancel-in-progress: false # non interrompere a metà la preparazione di Supabase
 
 jobs:
   deploy:
@@ -38,23 +39,29 @@ jobs:
           npm run lint:functions
           npm run test:functions
 
-      # Pubblica le Edge Functions su Supabase (solo se è stato impostato il secret SUPABASE_ACCESS_TOKEN)
+      # Prepara Supabase in automatico (solo se è stato impostato il secret SUPABASE_ACCESS_TOKEN)
+      - name: Prepara Supabase (progetto, tabelle, accesso)
+        id: supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: node scripts/setup-supabase.mjs
+
       - name: Pubblica le funzioni del server su Supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-        if: env.SUPABASE_ACCESS_TOKEN != ''
-        run: |
-          # https://abcdefgh.supabase.co  →  abcdefgh
-          PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's#^https?://([^.]+)\..*#\1#')
-          npx --yes supabase@2.121.0 functions deploy extract --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
+        if: steps.supabase.outputs.project_ref != ''
+        run: npx --yes supabase@2.121.0 functions deploy extract --project-ref "${{ steps.supabase.outputs.project_ref }}" --use-api --no-verify-jwt
 
       - name: Costruisci il sito
         env:
           EXPO_BASE_URL: /${{ github.event.repository.name }}
-          # Chiavi PUBBLICHE di Supabase, impostate in Settings → Secrets and variables → Actions → Variables
-          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+          # Chiavi PUBBLICHE di Supabase: lette in automatico dal passo precedente
+          # (oppure, in alternativa, dalle Variables SUPABASE_URL / SUPABASE_KEY del repository)
+          EXPO_PUBLIC_SUPABASE_URL: ${{ steps.supabase.outputs.supabase_url || vars.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_KEY: ${{ steps.supabase.outputs.supabase_key || vars.SUPABASE_KEY }}
         run: npm run build:web
 
       - name: Pubblica nel branch gh-pages
