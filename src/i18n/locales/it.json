@@ -1,0 +1,75 @@
+{
+  "common": {
+    "appName": "Morso",
+    "retry": "Riprova",
+    "loading": "Caricamento…",
+    "genericError": "Qualcosa è andato storto. Riprova tra poco.",
+    "networkError": "Connessione assente o instabile. Controlla la rete e riprova.",
+    "or": "oppure"
+  },
+  "config": {
+    "missingTitle": "Configurazione mancante",
+    "missingBody": "Mancano le chiavi di Supabase. Copia il file .env.example in .env, inserisci URL e chiave del tuo progetto e riavvia con \"npx expo start --clear\"."
+  },
+  "auth": {
+    "welcomeTitle": "Il tuo cibo, tutto in un posto",
+    "welcomeSubtitle": "Salva ricette e ristoranti dai social e trasformali in pasti e uscite vere.",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "Almeno 8 caratteri",
+    "signIn": "Accedi",
+    "signUp": "Crea account",
+    "goToSignUp": "Non hai un account? Registrati",
+    "goToSignIn": "Hai già un account? Accedi",
+    "continueWithGoogle": "Continua con Google",
+    "continueWithApple": "Continua con Apple",
+    "checkEmailTitle": "Controlla la tua email",
+    "checkEmailBody": "Ti abbiamo mandato un link per confermare l'account. Aprilo dal telefono per entrare in Morso.",
+    "callbackLoading": "Accesso in corso…",
+    "errors": {
+      "emailInvalid": "Inserisci un'email valida.",
+      "passwordTooShort": "La password deve avere almeno 8 caratteri.",
+      "invalidCredentials": "Email o password non corrette.",
+      "emailNotConfirmed": "Devi prima confermare l'email: controlla la posta.",
+      "userAlreadyExists": "Esiste già un account con questa email. Prova ad accedere.",
+      "weakPassword": "Password troppo debole: usa almeno 8 caratteri con lettere e numeri.",
+      "rateLimited": "Troppi tentativi. Aspetta qualche minuto e riprova.",
+      "oauthCancelled": "Accesso annullato.",
+      "oauthFailed": "Accesso non riuscito. Riprova.",
+      "appleUnavailable": "L'accesso con Apple non è disponibile su questo dispositivo."
+    }
+  },
+  "tabs": {
+    "library": "Libreria",
+    "planner": "Planner",
+    "shopping": "Spesa",
+    "map": "Mappa",
+    "profile": "Profilo"
+  },
+  "library": {
+    "title": "Libreria",
+    "emptyTitle": "Ancora niente qui",
+    "emptyBody": "Presto potrai incollare un link da TikTok, Instagram, YouTube o da un sito e salvare ricette e posti."
+  },
+  "planner": {
+    "title": "Planner",
+    "emptyTitle": "La settimana è libera",
+    "emptyBody": "Qui organizzerai pranzi e cene da lunedì a domenica."
+  },
+  "shopping": {
+    "title": "Spesa",
+    "emptyTitle": "Lista vuota",
+    "emptyBody": "La lista della spesa si creerà da sola a partire dal planner."
+  },
+  "map": {
+    "title": "Mappa",
+    "emptyTitle": "Nessun posto sulla mappa",
+    "emptyBody": "I ristoranti che salvi compariranno qui."
+  },
+  "profile": {
+    "title": "Profilo",
+    "signedInAs": "Accesso effettuato come",
+    "signOut": "Esci",
+    "version": "Versione {{version}}"
+  }
+}

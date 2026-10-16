@@ -1,0 +1,87 @@
+import '@/i18n';
+
+import { QueryClientProvider } from '@tanstack/react-query';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { Screen } from '@/components/Screen';
+import { EmptyState } from '@/components/StateViews';
+import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { config } from '@/lib/env';
+import { queryClient } from '@/lib/queryClient';
+import { useTheme } from '@/theme';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+export default function RootLayout() {
+  const { scheme, colors } = useTheme();
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+    },
+  };
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      {config ? (
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
+        </QueryClientProvider>
+      ) : (
+        <MissingConfig />
+      )}
+    </ThemeProvider>
+  );
+}
+
+function RootNavigator() {
+  const { session, initializing } = useAuth();
+
+  useEffect(() => {
+    if (!initializing) SplashScreen.hideAsync().catch(() => {});
+  }, [initializing]);
+
+  // Lo splash resta visibile finché non sappiamo se l'utente è già collegato.
+  if (initializing) return null;
+
+  const signedIn = !!session;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      {/* Le tab sono visibili solo a chi ha fatto l'accesso... */}
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Screen name="auth/callback" />
+    </Stack>
+  );
+}
+
+function MissingConfig() {
+  const { t } = useTranslation();
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+  return (
+    <Screen>
+      <EmptyState title={t('config.missingTitle')} body={t('config.missingBody')} />
+    </Screen>
+  );
+}

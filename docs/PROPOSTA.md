@@ -1,4 +1,6 @@
-# Morso — Proposta tecnica (da approvare prima di scrivere codice)
+# Morso — Proposta tecnica
+
+> ✅ Approvata il 16/10/2026. Piccola differenza rispetto alla bozza: con Expo SDK 58 le schermate stanno in `src/app/` invece che in `app/`.
 
 Questo documento contiene tre cose:
 
@@ -200,14 +202,15 @@ In più:
 
 ```
 morso/
-├── app/                          # Schermate (Expo Router: ogni file = una pagina)
+├── src/app/                      # Schermate (Expo Router: ogni file = una pagina)
 │   ├── _layout.tsx               # layout radice: tema, i18n, sessione
 │   ├── (auth)/                   # login, registrazione
 │   │   ├── sign-in.tsx
 │   │   └── sign-up.tsx
+│   ├── index.tsx                 # smista verso Libreria o accesso
 │   ├── (tabs)/                   # barra in basso
 │   │   ├── _layout.tsx
-│   │   ├── index.tsx             # Libreria (Ricette | Posti)
+│   │   ├── library.tsx           # Libreria (Ricette | Posti)
 │   │   ├── planner.tsx           # Meal planner
 │   │   ├── shopping.tsx          # Lista della spesa
 │   │   ├── map.tsx               # Mappa
@@ -220,7 +223,7 @@ morso/
 │   ├── place/[id]/index.tsx
 │   ├── place/[id]/edit.tsx
 │   └── collection/[id].tsx
-├── src/
+├── src/  (oltre a src/app)
 │   ├── components/               # pezzi di UI riutilizzabili (Card, Button, TagChip, EmptyState, ErrorState…)
 │   ├── features/                 # logica per funzionalità
 │   │   ├── import/               # salvataggio link, share intent
@@ -251,7 +254,7 @@ morso/
 │       │   └── extract.test.ts   # TEST della funzione di estrazione
 │       └── places/               # proxy verso Google Places
 ├── assets/                       # icona, splash, font
-├── app.config.ts
+├── app.json
 ├── package.json
 └── README.md                     # come avviare tutto, passo per passo
 ```
