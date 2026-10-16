@@ -1,4 +1,5 @@
-// Edge Function "extract": salva un link e lo trasforma in ricetta o locali con Claude.
+// Edge Function "extract": salva un link e lo trasforma in ricetta o locali
+// (scheda ricetta del sito quando c'è, altrimenti AI Gemini).
 //
 // Richieste (POST):
 //   { url?: string, text?: string }      salva un nuovo link (il link può anche stare dentro "text") e lo analizza
@@ -7,7 +8,7 @@
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import type { Extractor } from '../_shared/claude.ts';
+import type { Extractor } from '../_shared/ai.ts';
 import {
   type CleanExtraction,
   cleanExtraction,
@@ -16,6 +17,7 @@ import {
   statusFor,
 } from '../_shared/extraction.ts';
 import type { Geocoder } from '../_shared/geocode.ts';
+import { isItalian, recipeFromJsonLd } from '../_shared/jsonld.ts';
 import { corsHeaders, errorResponse, json } from '../_shared/http.ts';
 import { extractUrl, normalizeUrl } from '../_shared/links.ts';
 import {
@@ -30,7 +32,7 @@ export type Deps = {
   /** Crea un client Supabase che agisce come l'utente della richiesta (rispetta le regole RLS). */
   supabaseForRequest: (req: Request) => SupabaseClient | null;
   fetch: FetchLike;
-  /** null se ANTHROPIC_API_KEY non è configurata: il link viene salvato senza analisi. */
+  /** null se GEMINI_API_KEY non è configurata: si usano solo le schede ricetta dei siti. */
   extractor: Extractor | null;
   geocoder: Geocoder;
   dailyLimit: number;
@@ -185,13 +187,25 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   );
 }
 
-/** Chiede a Claude cosa contiene il link e salva ricetta o locali. Non lancia errori: li scrive nel link. */
+/**
+ * Capisce cosa contiene il link e salva ricetta o locali. Non lancia errori: li scrive nel link.
+ * 1. pagina con scheda ricetta in italiano → lettura diretta, senza AI (gratis, istantanea)
+ * 2. altrimenti → AI (Gemini), se configurata
+ */
 export async function analyze(
   source: Source,
   recipeJsonLd: Record<string, unknown> | null,
   supabase: SupabaseClient,
   deps: Deps,
 ): Promise<Analysis> {
+  if (recipeJsonLd) {
+    const direct = recipeFromJsonLd(recipeJsonLd);
+    // Le schede in altre lingue le facciamo tradurre all'AI, se c'è.
+    if (direct && (isItalian(recipeJsonLd, source.url) || !deps.extractor)) {
+      return await saveResult(source, direct, { model: 'schema.org', usage: null }, supabase, deps);
+    }
+  }
+
   if (!deps.extractor) return { status: 'skipped', reason: 'not_configured' };
 
   const input: ExtractionInput = {
@@ -221,7 +235,16 @@ export async function analyze(
     return { status: 'error', reason: outcome.reason };
   }
 
-  const result = cleanExtraction(outcome.extraction);
+  return await saveResult(source, cleanExtraction(outcome.extraction), outcome, supabase, deps);
+}
+
+async function saveResult(
+  source: Source,
+  result: CleanExtraction,
+  origin: { model: string; usage: { input: number; output: number } | null },
+  supabase: SupabaseClient,
+  deps: Deps,
+): Promise<Analysis> {
   const status = statusFor(result);
 
   // Verifica dei locali: indirizzo e coordinate per la mappa.
@@ -246,11 +269,11 @@ export async function analyze(
     p_result: { kind: result.kind, recipe: result.recipe, places },
     p_status: status,
     p_ai_result: {
-      model: outcome.model,
+      model: origin.model,
       kind: result.kind,
       confidence: result.confidence,
       missing_info: result.missingInfo,
-      usage: outcome.usage,
+      usage: origin.usage,
       extracted_at: new Date().toISOString(),
     },
   });

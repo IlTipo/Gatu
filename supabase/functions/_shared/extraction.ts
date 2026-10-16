@@ -1,8 +1,9 @@
-// Estrazione con l'AI: forma dei dati che Claude deve restituire, istruzioni (prompt)
+// Estrazione con l'AI: forma dei dati che l'AI deve restituire, istruzioni (prompt)
 // Nota: i valori "a scelta" (tag, reparti, tipo) sono stringhe libere con l'elenco nella descrizione,
-// perché lo schema JSON inviato all'API non li impone; li controlla cleanExtraction().
+// e i campi mancanti diventano null/[]: il risultato dell'AI non viene mai scartato per un dettaglio;
+// li controlla e ripulisce cleanExtraction().
 // e pulizia del risultato prima di salvarlo. Nessuna chiamata di rete qui dentro:
-// la chiamata vera è in claude.ts, così questo file si può testare a costo zero.
+// la chiamata vera è in gemini.ts, così questo file si può testare a costo zero.
 
 import { z } from 'npm:zod@4.6.7';
 
@@ -48,58 +49,61 @@ export const AISLES = [
 ] as const;
 
 const Ingredient = z.object({
-  quantity: z.number().nullable().describe('Quantità numerica (es. 200, 0.5). null se "q.b." o non indicata.'),
+  quantity: z.number().nullish().describe('Quantità numerica (es. 200, 0.5). null se "q.b." o non indicata.'),
   unit: z
     .string()
-    .nullable()
+    .nullish()
     .describe(
       'Unità in italiano: g, kg, ml, l, cucchiaio, cucchiaino, tazza, pezzo, spicchio, pizzico, fetta, mazzetto. null se non serve.',
     ),
   name: z.string().describe('Nome dell\'ingrediente in italiano, minuscolo, senza quantità (es. "farina 00").'),
-  note: z.string().nullable().describe('Dettagli facoltativi (es. "a temperatura ambiente", "q.b.").'),
-  aisle: z.string().describe(`Reparto del supermercato, uno tra: ${AISLES.join(', ')}.`),
+  note: z.string().nullish().describe('Dettagli facoltativi (es. "a temperatura ambiente", "q.b.").'),
+  aisle: z.string().default('altro').describe(`Reparto del supermercato, uno tra: ${AISLES.join(', ')}.`),
 });
 
 const Step = z.object({
   text: z.string().describe("Un singolo passaggio, in italiano, all'imperativo."),
-  timer_seconds: z.number().nullable().describe(
+  timer_seconds: z.number().nullish().describe(
     'Se il passaggio indica un tempo di attesa o cottura, la durata in secondi; altrimenti null.',
   ),
 });
 
 const Recipe = z.object({
   title: z.string().describe('Nome del piatto in italiano.'),
-  description: z.string().nullable().describe('Una frase che descrive il piatto.'),
-  servings: z.number().nullable().describe('Numero di porzioni.'),
-  prep_minutes: z.number().nullable(),
-  cook_minutes: z.number().nullable(),
-  total_minutes: z.number().nullable(),
-  tags: z.array(z.string()).describe(`Solo tra questi: ${RECIPE_TAGS.join(', ')}.`),
-  ingredients: z.array(Ingredient),
-  steps: z.array(Step),
+  description: z.string().nullish().describe('Una frase che descrive il piatto.'),
+  servings: z.number().nullish().describe('Numero di porzioni.'),
+  prep_minutes: z.number().nullish(),
+  cook_minutes: z.number().nullish(),
+  total_minutes: z.number().nullish(),
+  tags: z.array(z.string()).default([]).describe(`Solo tra questi: ${RECIPE_TAGS.join(', ')}.`),
+  ingredients: z.array(Ingredient).default([]),
+  steps: z.array(Step).default([]),
 });
 
 const Place = z.object({
   name: z.string().describe('Nome del locale, come scritto nel post.'),
-  city: z.string().nullable(),
-  address: z.string().nullable().describe('Indirizzo se indicato (via e numero), altrimenti null. Non inventarlo.'),
-  cuisine: z.string().nullable().describe(
+  city: z.string().nullish(),
+  address: z.string().nullish().describe('Indirizzo se indicato (via e numero), altrimenti null. Non inventarlo.'),
+  cuisine: z.string().nullish().describe(
     'Tipo di cucina in italiano (es. "pizza napoletana", "sushi", "trattoria ligure").',
   ),
-  recommended_dishes: z.array(z.string()).describe('Piatti consigliati nel post.'),
-  price_level: z.number().nullable().describe('Fascia di prezzo da 1 (€) a 4 (€€€€), solo se si capisce dal post.'),
+  recommended_dishes: z.array(z.string()).default([]).describe('Piatti consigliati nel post.'),
+  price_level: z.number().nullish().describe('Fascia di prezzo da 1 (€) a 4 (€€€€), solo se si capisce dal post.'),
 });
 
 export const ExtractionSchema = z.object({
-  kind: z.string().describe('Uno tra: recipe (una ricetta), places (uno o più locali), unknown (nessuno dei due).'),
-  confidence: z.string().describe(
+  kind: z.string().default('unknown').describe(
+    'Uno tra: recipe (una ricetta), places (uno o più locali), unknown (nessuno dei due).',
+  ),
+  confidence: z.string().default('medium').describe(
     'Uno tra: high, medium, low. Quanto il testo contiene davvero le informazioni estratte.',
   ),
   missing_info: z
     .array(z.string())
+    .default([])
     .describe('Cosa manca e l\'utente potrebbe completare a mano, in italiano breve (es. "dosi degli ingredienti").'),
-  recipe: Recipe.nullable().describe('Compilato solo se kind = recipe.'),
-  places: z.array(Place).describe('Tutti i locali citati se kind = places, altrimenti lista vuota.'),
+  recipe: Recipe.nullish().describe('Compilato solo se kind = recipe.'),
+  places: z.array(Place).default([]).describe('Tutti i locali citati se kind = places, altrimenti lista vuota.'),
 });
 
 export type RawExtraction = z.infer<typeof ExtractionSchema>;
@@ -132,7 +136,7 @@ export type ExtractionInput = {
 
 const MAX_FIELD = 8000;
 
-/** Costruisce il messaggio per Claude. Il contenuto del post sta dentro tag, separato dalle istruzioni. */
+/** Costruisce il messaggio per l'AI. Il contenuto del post sta dentro tag, separato dalle istruzioni. */
 export function buildUserMessage(input: ExtractionInput): string {
   const parts = [
     `<link piattaforma="${input.platform}">${input.url}</link>`,
@@ -188,11 +192,25 @@ export type CleanIngredient = {
   note: string | null;
   aisle: Aisle;
 };
-export type CleanRecipe = Omit<NonNullable<RawExtraction['recipe']>, 'ingredients' | 'tags'> & {
+export type CleanRecipe = {
+  title: string;
+  description: string | null;
+  servings: number | null;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  total_minutes: number | null;
   tags: string[];
   ingredients: CleanIngredient[];
+  steps: { text: string; timer_seconds: number | null }[];
 };
-export type CleanPlace = RawExtraction['places'][number];
+export type CleanPlace = {
+  name: string;
+  city: string | null;
+  address: string | null;
+  cuisine: string | null;
+  recommended_dishes: string[];
+  price_level: number | null;
+};
 export type CleanExtraction = {
   kind: 'recipe' | 'places' | 'unknown';
   confidence: Confidence;
@@ -212,7 +230,7 @@ const text = (s: string | null | undefined, max: number) => {
 };
 
 /**
- * Controlla e ripulisce ciò che arriva da Claude: numeri nei limiti del database,
+ * Controlla e ripulisce ciò che arriva dall'AI: numeri nei limiti del database,
  * testi non vuoti, niente doppioni. Restituisce "unknown" se non resta nulla di utile.
  */
 export function cleanExtraction(raw: RawExtraction): CleanExtraction {
@@ -230,7 +248,7 @@ export function cleanExtraction(raw: RawExtraction): CleanExtraction {
     const title = text(r.title, 200);
     const ingredients = r.ingredients
       .map((i) => ({
-        quantity: i.quantity !== null && Number.isFinite(i.quantity) && i.quantity >= 0
+        quantity: typeof i.quantity === 'number' && Number.isFinite(i.quantity) && i.quantity >= 0
           ? Math.round(i.quantity * 1000) / 1000
           : null,
         unit: text(i.unit, 30),

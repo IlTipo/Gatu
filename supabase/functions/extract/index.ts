@@ -1,17 +1,18 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import { createClaudeExtractor } from '../_shared/claude.ts';
+import { createGeminiExtractor } from '../_shared/gemini.ts';
 import { createGeocoder } from '../_shared/geocode.ts';
 import { errorResponse } from '../_shared/http.ts';
 import { handleRequest } from './handler.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL'); // facoltativo: di base "gemini-flash-latest"
 const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
-// Massimo di analisi AI al giorno per utente (per evitare costi a sorpresa).
+// Massimo di analisi AI al giorno per utente (resta dentro i limiti del piano gratuito).
 const DAILY_LIMIT = Number(Deno.env.get('DAILY_EXTRACTION_LIMIT') ?? 40);
 
-const extractor = ANTHROPIC_API_KEY ? createClaudeExtractor(ANTHROPIC_API_KEY) : null;
+const extractor = GEMINI_API_KEY ? createGeminiExtractor(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined }) : null;
 const geocoder = createGeocoder({ googleApiKey: GOOGLE_PLACES_API_KEY, fetch });
 
 Deno.serve(async (req) => {

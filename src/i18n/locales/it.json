@@ -99,7 +99,7 @@
     "textLabel": "Testo del post (facoltativo)",
     "textHint": "Se l'app non riesce a leggere la caption (succede spesso con Instagram), copiala e incollala qui.",
     "save": "Salva",
-    "saving": "Sto leggendo il link e analizzando con l'AI… (fino a 30 secondi)",
+    "saving": "Sto leggendo il link e analizzandolo… (fino a 30 secondi)",
     "linkRequired": "Incolla un link per continuare.",
     "duplicate": "Questo link era già nella tua libreria."
   },
@@ -133,7 +133,7 @@
     "reanalyze": "Rianalizza",
     "reanalyzeConfirm": "Rianalizzare il link? Ricette e locali già estratti da questo link verranno sostituiti (comprese le tue correzioni).",
     "skipped": {
-      "not_configured": "L'analisi AI non è ancora attiva: manca la chiave di Claude (vedi README, \"Attivare l'AI\").",
+      "not_configured": "L'analisi AI dei post social non è ancora attiva: manca la chiave gratuita di Gemini (vedi README, \"Attiva l'AI\"). Le pagine dei siti di ricette funzionano anche senza.",
       "quota_exceeded": "Hai raggiunto il limite di analisi per oggi. Il link è salvato: riprova domani.",
       "needs_text": "Serve il testo del post per analizzarlo.",
       "already_done": "Questo link era già stato analizzato."
@@ -142,9 +142,9 @@
       "refusal": "L'AI non ha voluto analizzare questo contenuto.",
       "truncated": "Il contenuto è troppo lungo da analizzare tutto insieme.",
       "invalid_output": "L'AI ha risposto in modo confuso. Riprova.",
-      "rate_limited": "Troppe analisi in poco tempo. Riprova tra un minuto.",
+      "rate_limited": "Hai superato il limite gratuito di analisi AI per ora. Il link è salvato: riprova più tardi.",
       "overloaded": "Il servizio AI è sovraccarico. Riprova tra poco.",
-      "auth": "La chiave di Claude non è valida o non ha credito (vedi README).",
+      "auth": "La chiave di Gemini non è valida (vedi README, \"Attiva l'AI\").",
       "api_error": "Errore del servizio AI. Riprova tra poco.",
       "save_failed": "Non sono riuscito a salvare il risultato. Riprova."
     }

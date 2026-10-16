@@ -1,6 +1,6 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 
-import type { Extractor } from '../_shared/claude.ts';
+import type { Extractor } from '../_shared/ai.ts';
 import type { RawExtraction } from '../_shared/extraction.ts';
 import type { Geocoder } from '../_shared/geocode.ts';
 import { type Deps, handleRequest } from '../extract/handler.ts';
@@ -80,7 +80,7 @@ function deps(
     state.aiCalls++;
     return Promise.resolve(
       extraction
-        ? { ok: true, extraction, model: 'claude-sonnet-5-5', usage: { input: 1000, output: 200 } }
+        ? { ok: true, extraction, model: 'gemini-flash-latest', usage: { input: 1000, output: 200 } }
         : { ok: false, reason: 'refusal' },
     );
   };
@@ -132,7 +132,7 @@ Deno.test('link mancante o non valido → 400', async () => {
   assertEquals(d.aiCalls, 0);
 });
 
-Deno.test('nuovo link: salva, analizza con Claude e salva la ricetta', async () => {
+Deno.test("nuovo link: salva, analizza con l'AI e salva la ricetta", async () => {
   const { client, rows, uploads, rpcCalls, statusHistory } = fakeSupabase({ userId: USER });
   const res = await handleRequest(post({ text: `Guarda! ${PAGE}?utm_source=whatsapp` }), deps(client));
   assertEquals(res.status, 201);
@@ -162,7 +162,7 @@ Deno.test('post con più locali: verifica gli indirizzi', async () => {
   assertEquals(places[1].latitude, null);
 });
 
-Deno.test('senza chiave Claude: salva il link e basta', async () => {
+Deno.test('senza chiave AI: salva il link e basta', async () => {
   const { client } = fakeSupabase({ userId: USER });
   const body = await (await handleRequest(post({ url: PAGE }), deps(client, recipeExtraction, { extractor: null })))
     .json();
@@ -170,7 +170,7 @@ Deno.test('senza chiave Claude: salva il link e basta', async () => {
   assertEquals(body.analysis, { status: 'skipped', reason: 'not_configured' });
 });
 
-Deno.test('limite giornaliero raggiunto: niente chiamata a Claude', async () => {
+Deno.test("limite giornaliero raggiunto: niente chiamata all'AI", async () => {
   const { client } = fakeSupabase({ userId: USER, quotaAllowed: false });
   const d = deps(client);
   const body = await (await handleRequest(post({ url: PAGE }), d)).json();
@@ -179,7 +179,7 @@ Deno.test('limite giornaliero raggiunto: niente chiamata a Claude', async () => 
   assertEquals(d.aiCalls, 0);
 });
 
-Deno.test('Claude rifiuta: il link resta salvato con lo stato di errore', async () => {
+Deno.test("L'AI rifiuta: il link resta salvato con lo stato di errore", async () => {
   const { client } = fakeSupabase({ userId: USER });
   const body = await (await handleRequest(post({ url: PAGE }), deps(client, null))).json();
   assertEquals(body.analysis, { status: 'error', reason: 'refusal' });
@@ -248,4 +248,56 @@ Deno.test('errore nel salvataggio: stato "error", nessun crash', async () => {
   const body = await (await handleRequest(post({ url: PAGE }), deps(client))).json();
   assertEquals(body.analysis, { status: 'error', reason: 'save_failed' });
   assertEquals(body.source.status, 'error');
+});
+
+const jsonLdPage = (page: string, recipe: Record<string, unknown>) =>
+  fakeFetch({
+    [page]: html(`<title>Ricetta</title><script type="application/ld+json">${JSON.stringify(recipe)}</script>`),
+  }).fetch;
+
+Deno.test('sito con scheda ricetta in italiano: niente AI, niente limite consumato', async () => {
+  const page = 'https://www.ricette.example.it/tiramisu';
+  const { client, rpcCalls } = fakeSupabase({ userId: USER });
+  const d = deps(client);
+  d.fetch = jsonLdPage(page, {
+    '@type': 'Recipe',
+    name: 'Tiramisù',
+    recipeIngredient: ['500 g mascarpone', '4 uova'],
+    recipeInstructions: 'Monta le uova.\nAggiungi il mascarpone.',
+  });
+  const body = await (await handleRequest(post({ url: page }), d)).json();
+  assertEquals(body.analysis.status, 'done');
+  assertEquals(body.analysis.kind, 'recipe');
+  assertEquals(d.aiCalls, 0);
+  assertEquals(rpcCalls.map((c) => c.name), ['save_extraction']);
+  assertEquals((rpcCalls[0].args.p_ai_result as { model: string }).model, 'schema.org');
+});
+
+Deno.test("scheda ricetta in inglese: la traduce l'AI", async () => {
+  const page = 'https://www.recipes.example.com/brownies';
+  const { client } = fakeSupabase({ userId: USER });
+  const d = deps(client);
+  d.fetch = jsonLdPage(page, {
+    '@type': 'Recipe',
+    inLanguage: 'en',
+    name: 'Brownies',
+    recipeIngredient: ['1 cup sugar'],
+  });
+  await handleRequest(post({ url: page }), d);
+  assertEquals(d.aiCalls, 1);
+});
+
+Deno.test('senza chiave AI la scheda ricetta funziona lo stesso (anche in inglese)', async () => {
+  const page = 'https://www.recipes.example.com/brownies';
+  const { client } = fakeSupabase({ userId: USER });
+  const d = deps(client, recipeExtraction, { extractor: null });
+  d.fetch = jsonLdPage(page, {
+    '@type': 'Recipe',
+    inLanguage: 'en',
+    name: 'Brownies',
+    recipeIngredient: ['1 cup sugar'],
+  });
+  const body = await (await handleRequest(post({ url: page }), d)).json();
+  assertEquals(body.analysis.status, 'needs_review'); // niente passaggi → da completare
+  assertEquals(body.analysis.kind, 'recipe');
 });

@@ -1,6 +1,6 @@
 // Legge la configurazione pubblica dell'app (variabili EXPO_PUBLIC_* nel file .env).
 // Queste chiavi possono stare nell'app: sono "pubbliche" e protette dalle regole RLS.
-// Le chiavi segrete (Claude, Google Places) NON vanno mai qui: stanno nelle Edge Functions.
+// Le chiavi segrete (Gemini, Google Places) NON vanno mai qui: stanno nelle Edge Functions.
 
 export type AppConfig = {
   supabaseUrl: string;

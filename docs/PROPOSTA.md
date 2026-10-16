@@ -2,6 +2,8 @@
 
 > ✅ Approvata il 16/10/2026.
 >
+> 🔄 **Costo zero (17/10/2026)**: al posto dell'API di Claude (a pagamento) l'estrazione usa le **schede ricetta dei siti** (senza AI) e **Google Gemini con il piano gratuito** per i post social.
+>
 > 🔄 **Cambio di rotta (16/10/2026): Morso diventa un sito web** (installabile sulla schermata Home), pubblicato gratis su GitHub Pages. Il codice resta Expo/React Native, quindi in futuro si potrà ancora farne un'app da store. Le differenze rispetto al piano originale sono nella sezione "Versione sito" in fondo.
 > Piccola differenza rispetto alla bozza: con Expo SDK 58 le schermate stanno in `src/app/` invece che in `app/`.
 
