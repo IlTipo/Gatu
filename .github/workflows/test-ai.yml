@@ -1,9 +1,17 @@
-# Prova l'estrazione con Gemini vero su 5 caption di esempio (si lancia a mano da Actions).
+# Prova l'estrazione con Gemini vero su 5 caption di esempio.
+# Parte da sola quando cambia il codice dell'AI (oppure a mano da Actions).
 # Usa il secret GEMINI_API_KEY e qualche richiesta della quota gratuita.
 name: Prova l'AI
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main, claude/morso-food-app-3op2rx]
+    paths:
+      - supabase/functions/_shared/gemini.ts
+      - supabase/functions/_shared/extraction.ts
+      - supabase/functions/tests-live/**
+      - .github/workflows/test-ai.yml
 
 permissions:
   contents: read
