@@ -1,0 +1,24 @@
+# Prova l'estrazione con Gemini vero su 5 caption di esempio (si lancia a mano da Actions).
+# Usa il secret GEMINI_API_KEY e qualche richiesta della quota gratuita.
+name: Prova l'AI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Estrazione con Gemini su caption di esempio
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run test:ai-live
