@@ -91,5 +91,41 @@ await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false)
 await fails(() => db.query(`select public.consume_extraction_quota(5)`), 'un utente non collegato non può usare la funzione quota');
 ok((await db.query(`select * from public.recipes`)).rows.length === 0, 'un utente non collegato non vede nulla');
 
+
+// --- Fase 2: save_extraction ---
+const src2 = (await as(A, `insert into public.sources (url, platform, thumbnail_url) values ('https://www.tiktok.com/@x/video/2','tiktok','https://img/x.jpg') returning id`)).rows[0].id;
+const recipeResult = JSON.stringify({ kind: 'recipe', recipe: { title: 'Pasta al limone', description: null, servings: 2, prep_minutes: 5, cook_minutes: 10, total_minutes: 15, tags: ['veloce', 'primo'],
+  ingredients: [{ quantity: 160, unit: 'g', name: 'spaghetti', note: null, aisle: 'dispensa' }, { quantity: null, unit: null, name: 'pepe', note: 'q.b.', aisle: 'dispensa' }],
+  steps: [{ text: 'Cuoci la pasta', timer_seconds: 600 }, { text: 'Manteca con il limone', timer_seconds: null }] } }).replace(/'/g, "''");
+const saved = (await as(A, `select public.save_extraction('${src2}', '${recipeResult}'::jsonb, 'done', '{"model":"x"}'::jsonb) as r`)).rows[0].r;
+ok(!!saved.recipe_id, 'save_extraction crea la ricetta');
+const rec2 = (await as(A, `select title, servings, tags, image_url from public.recipes where id = '${saved.recipe_id}'`)).rows[0];
+ok(rec2.title === 'Pasta al limone' && rec2.servings === 2 && rec2.tags.join() === 'veloce,primo' && rec2.image_url === 'https://img/x.jpg', 'dati della ricetta e foto salvati');
+const ings = (await as(A, `select name, quantity, position from public.recipe_ingredients where recipe_id = '${saved.recipe_id}' order by position`)).rows;
+ok(ings.length === 2 && ings[0].name === 'spaghetti' && ings[1].quantity === null, 'ingredienti in ordine, "q.b." senza quantità');
+ok((await as(A, `select count(*)::int n from public.recipe_steps where recipe_id = '${saved.recipe_id}'`)).rows[0].n === 2, 'passaggi salvati');
+ok((await as(A, `select status from public.sources where id = '${src2}'`)).rows[0].status === 'done', 'stato del link aggiornato');
+
+const placesResult = JSON.stringify({ kind: 'places', places: [
+  { name: 'Trattoria Anna Maria', city: 'Bologna', address: 'Via Belle Arti 17/A', latitude: 44.49, longitude: 11.35, verified: true, cuisine: 'emiliana', price_level: 2, recommended_dishes: ['tortellini in brodo'] },
+  { name: "Osteria dell'Orsa", city: 'Bologna', address: null, latitude: null, longitude: null, verified: false, cuisine: null, price_level: null, recommended_dishes: [] }] }).replace(/'/g, "''");
+const saved2 = (await as(A, `select public.save_extraction('${src2}', '${placesResult}'::jsonb, 'needs_review', '{}'::jsonb) as r`)).rows[0].r;
+ok(saved2.place_ids.length === 2 && saved2.recipe_id === null, 'una nuova analisi salva i locali...');
+ok((await as(A, `select count(*)::int n from public.recipes where source_id = '${src2}'`)).rows[0].n === 0, '...e sostituisce la ricetta precedente');
+ok((await as(A, `select count(*)::int n from public.recipe_ingredients where recipe_id = '${saved.recipe_id}'`)).rows[0].n === 0, 'gli ingredienti vecchi spariscono con la ricetta');
+await fails(() => as(B, `select public.save_extraction('${src2}', '${placesResult}'::jsonb, 'done', '{}'::jsonb)`), 'Bruno NON può salvare risultati sul link di Anna');
+ok((await as(A, `select count(*)::int n from public.places where source_id = '${src2}'`)).rows[0].n === 2, 'i locali di Anna restano intatti');
+
+// --- update_recipe ---
+const src3 = (await as(A, `insert into public.sources (url) values ('https://example.com/r3') returning id`)).rows[0].id;
+const r3 = (await as(A, `select public.save_extraction('${src3}', '${recipeResult}'::jsonb, 'done', '{}'::jsonb) as r`)).rows[0].r.recipe_id;
+const edited = JSON.stringify({ title: 'Pasta al limone (mia versione)', description: null, servings: 3, prep_minutes: 5, cook_minutes: 12, total_minutes: 17, tags: ['primo'],
+  ingredients: [{ quantity: 240, unit: 'g', name: 'spaghetti', note: '', aisle: 'dispensa' }, { quantity: 1, unit: '', name: 'limone', note: null, aisle: 'frutta_verdura' }, { quantity: 30, unit: 'g', name: 'burro', note: null, aisle: 'latticini' }],
+  steps: [{ text: 'Cuoci', timer_seconds: 720 }] }).replace(/'/g, "''");
+await as(A, `select public.update_recipe('${r3}', '${edited}'::jsonb)`);
+const after3 = (await as(A, `select title, servings, (select count(*)::int from public.recipe_ingredients where recipe_id = '${r3}') ni, (select count(*)::int from public.recipe_steps where recipe_id = '${r3}') ns, (select unit from public.recipe_ingredients where recipe_id = '${r3}' and name = 'limone') lu from public.recipes where id = '${r3}'`)).rows[0];
+ok(after3.title === 'Pasta al limone (mia versione)' && after3.servings === 3 && after3.ni === 3 && after3.ns === 1 && after3.lu === null, 'update_recipe salva le correzioni (campi vuoti → null)');
+await fails(() => as(B, `select public.update_recipe('${r3}', '${edited}'::jsonb)`), 'Bruno NON può modificare la ricetta di Anna');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

@@ -66,6 +66,10 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="add" options={{ presentation: 'modal' }} />
         <Stack.Screen name="source/[id]" />
+        <Stack.Screen name="recipe/[id]/index" />
+        <Stack.Screen name="recipe/[id]/edit" />
+        <Stack.Screen name="place/[id]/index" />
+        <Stack.Screen name="place/[id]/edit" />
       </Stack.Protected>
       {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
       <Stack.Protected guard={!signedIn}>

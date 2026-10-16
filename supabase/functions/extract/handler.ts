@@ -1,24 +1,70 @@
-// Edge Function "extract" — Fase 1: salva un link con i suoi metadati pubblici.
-// (Nella Fase 2 qui verrà aggiunta l'estrazione della ricetta/dei locali con Claude.)
+// Edge Function "extract": salva un link e lo trasforma in ricetta o locali con Claude.
 //
-// Richiesta:  POST { url?: string, text?: string }   (basta uno dei due: il link viene cercato anche nel testo)
-// Risposta:   { source, duplicate, needsText }
+// Richieste (POST):
+//   { url?: string, text?: string }      salva un nuovo link (il link può anche stare dentro "text") e lo analizza
+//   { sourceId: string, text?: string }  rianalizza un link già salvato (es. dopo aver incollato la caption)
+// Risposta: { source, duplicate, needsText, analysis }
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 
+import type { Extractor } from '../_shared/claude.ts';
+import {
+  type CleanExtraction,
+  cleanExtraction,
+  type ExtractionInput,
+  hasEnoughText,
+  statusFor,
+} from '../_shared/extraction.ts';
+import type { Geocoder } from '../_shared/geocode.ts';
 import { corsHeaders, errorResponse, json } from '../_shared/http.ts';
 import { extractUrl, normalizeUrl } from '../_shared/links.ts';
-import { type FetchLike, fetchLinkMetadata, safeFetch, UnsafeUrlError } from '../_shared/metadata.ts';
+import {
+  type FetchLike,
+  fetchLinkMetadata,
+  type LinkMetadata,
+  safeFetch,
+  UnsafeUrlError,
+} from '../_shared/metadata.ts';
 
 export type Deps = {
   /** Crea un client Supabase che agisce come l'utente della richiesta (rispetta le regole RLS). */
   supabaseForRequest: (req: Request) => SupabaseClient | null;
   fetch: FetchLike;
+  /** null se ANTHROPIC_API_KEY non è configurata: il link viene salvato senza analisi. */
+  extractor: Extractor | null;
+  geocoder: Geocoder;
+  dailyLimit: number;
+  /** Pausa tra una ricerca di indirizzo e l'altra (OpenStreetMap chiede max 1 al secondo). */
+  geocodeDelayMs: number;
 };
+
+type Source = Record<string, unknown> & {
+  id: string;
+  url: string;
+  platform: string;
+  title: string | null;
+  description: string | null;
+  author_name: string | null;
+  shared_text: string | null;
+  status: string;
+};
+
+export type Analysis =
+  | {
+    status: 'done' | 'needs_review';
+    kind: CleanExtraction['kind'];
+    recipeId: string | null;
+    placeIds: string[];
+    missingInfo: string[];
+  }
+  | { status: 'skipped'; reason: 'not_configured' | 'needs_text' | 'quota_exceeded' | 'already_done' }
+  | { status: 'error'; reason: string };
 
 const MAX_TEXT_LENGTH = 10_000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_GEOCODED_PLACES = 10;
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function handleRequest(req: Request, deps: Deps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -31,18 +77,42 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const user = userData?.user;
   if (userError || !user) return errorResponse('unauthorized', 401);
 
-  let body: { url?: unknown; text?: unknown };
+  let body: { url?: unknown; text?: unknown; sourceId?: unknown };
   try {
     body = await req.json();
   } catch {
     return errorResponse('invalid_body', 400);
   }
   const text = typeof body.text === 'string' ? body.text.trim().slice(0, MAX_TEXT_LENGTH) : '';
+
+  // ---- Rianalisi di un link già salvato
+  if (typeof body.sourceId === 'string') {
+    const { data: source, error } = await supabase.from('sources').select('*').eq('id', body.sourceId).maybeSingle();
+    if (error) throw error;
+    if (!source) return errorResponse('not_found', 404);
+    let current = source as Source;
+    if (text && text !== current.shared_text) {
+      const { data: updated, error: updateError } = await supabase
+        .from('sources')
+        .update({ shared_text: text })
+        .eq('id', current.id)
+        .select('*')
+        .single();
+      if (updateError) throw updateError;
+      current = updated as Source;
+    }
+    // Per le pagine web rileggiamo la scheda ricetta (non viene salvata nel database).
+    const meta = current.platform === 'web' ? await fetchLinkMetadata(current.url, deps.fetch).catch(() => null) : null;
+    const analysis = await analyze(current, meta?.recipeJsonLd ?? null, supabase, deps);
+    return json({ source: await reload(supabase, current.id), duplicate: false, needsText: false, analysis });
+  }
+
+  // ---- Nuovo link
   const rawUrl = (typeof body.url === 'string' && body.url.trim()) || extractUrl(text);
   const normalized = rawUrl ? normalizeUrl(rawUrl) : null;
   if (!normalized) return errorResponse('invalid_url', 400);
 
-  let meta;
+  let meta: LinkMetadata;
   try {
     meta = await fetchLinkMetadata(normalized, deps.fetch);
   } catch (e) {
@@ -58,14 +128,21 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     .limit(1)
     .maybeSingle();
   if (existingError) throw existingError;
-  if (existing) return json({ source: existing, duplicate: true, needsText: false });
+  if (existing) {
+    const src = existing as Source;
+    // I link salvati prima dell'arrivo dell'AI (o falliti) vengono analizzati adesso.
+    const analysis: Analysis = src.status === 'pending' || src.status === 'error'
+      ? await analyze(src, meta.recipeJsonLd, supabase, deps)
+      : { status: 'skipped', reason: 'already_done' };
+    return json({ source: await reload(supabase, src.id), duplicate: true, needsText: false, analysis });
+  }
 
   const thumbnailUrl = meta.thumbnailUrl
     ? await copyThumbnail(meta.thumbnailUrl, user.id, supabase, deps.fetch).catch(() => meta.thumbnailUrl)
     : null;
 
   const sharedText = text && text !== rawUrl ? text : null;
-  const { data: source, error: insertError } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from('sources')
     .insert({
       url: meta.url,
@@ -83,12 +160,124 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     // doppio clic: l'altra richiesta l'ha appena salvato
     if (insertError.code === '23505') {
       const { data: again } = await supabase.from('sources').select('*').eq('url', meta.url).maybeSingle();
-      if (again) return json({ source: again, duplicate: true, needsText: false });
+      if (again) {
+        return json({
+          source: again,
+          duplicate: true,
+          needsText: false,
+          analysis: { status: 'skipped', reason: 'already_done' },
+        });
+      }
     }
     throw insertError;
   }
 
-  return json({ source, duplicate: false, needsText: meta.needsText && !sharedText }, 201);
+  const source = inserted as Source;
+  const analysis = await analyze(source, meta.recipeJsonLd, supabase, deps);
+  return json(
+    {
+      source: await reload(supabase, source.id),
+      duplicate: false,
+      needsText: analysis.status === 'skipped' && analysis.reason === 'needs_text',
+      analysis,
+    },
+    201,
+  );
+}
+
+/** Chiede a Claude cosa contiene il link e salva ricetta o locali. Non lancia errori: li scrive nel link. */
+export async function analyze(
+  source: Source,
+  recipeJsonLd: Record<string, unknown> | null,
+  supabase: SupabaseClient,
+  deps: Deps,
+): Promise<Analysis> {
+  if (!deps.extractor) return { status: 'skipped', reason: 'not_configured' };
+
+  const input: ExtractionInput = {
+    url: source.url,
+    platform: source.platform,
+    title: source.title,
+    description: source.description,
+    author: source.author_name,
+    sharedText: source.shared_text,
+    recipeJsonLd,
+  };
+  if (!hasEnoughText(input)) {
+    await setStatus(supabase, source.id, 'needs_review', 'needs_text');
+    return { status: 'skipped', reason: 'needs_text' };
+  }
+
+  const { data: allowed, error: quotaError } = await supabase.rpc('consume_extraction_quota', {
+    daily_limit: deps.dailyLimit,
+  });
+  if (quotaError) throw quotaError;
+  if (!allowed) return { status: 'skipped', reason: 'quota_exceeded' };
+
+  await setStatus(supabase, source.id, 'processing', null);
+  const outcome = await deps.extractor(input);
+  if (!outcome.ok) {
+    await setStatus(supabase, source.id, 'error', `ai_${outcome.reason}`);
+    return { status: 'error', reason: outcome.reason };
+  }
+
+  const result = cleanExtraction(outcome.extraction);
+  const status = statusFor(result);
+
+  // Verifica dei locali: indirizzo e coordinate per la mappa.
+  const places = [];
+  for (const [index, place] of result.places.entries()) {
+    const geo = index < MAX_GEOCODED_PLACES ? await deps.geocoder(place) : null;
+    if (geo?.provider === 'osm' && deps.geocodeDelayMs) await sleep(deps.geocodeDelayMs);
+    places.push({
+      ...place,
+      address: place.address ?? geo?.address ?? null,
+      city: place.city ?? geo?.city ?? null,
+      latitude: geo?.latitude ?? null,
+      longitude: geo?.longitude ?? null,
+      google_place_id: geo?.googlePlaceId ?? null,
+      price_level: place.price_level ?? geo?.priceLevel ?? null,
+      verified: !!geo,
+    });
+  }
+
+  const { data: saved, error: saveError } = await supabase.rpc('save_extraction', {
+    p_source_id: source.id,
+    p_result: { kind: result.kind, recipe: result.recipe, places },
+    p_status: status,
+    p_ai_result: {
+      model: outcome.model,
+      kind: result.kind,
+      confidence: result.confidence,
+      missing_info: result.missingInfo,
+      usage: outcome.usage,
+      extracted_at: new Date().toISOString(),
+    },
+  });
+  if (saveError) {
+    console.error('save_extraction failed', saveError);
+    await setStatus(supabase, source.id, 'error', 'save_failed');
+    return { status: 'error', reason: 'save_failed' };
+  }
+
+  const ids = saved as { recipe_id: string | null; place_ids: string[] | null };
+  return {
+    status,
+    kind: result.kind,
+    recipeId: ids.recipe_id,
+    placeIds: ids.place_ids ?? [],
+    missingInfo: result.missingInfo,
+  };
+}
+
+async function setStatus(supabase: SupabaseClient, id: string, status: string, errorMessage: string | null) {
+  const { error } = await supabase.from('sources').update({ status, error_message: errorMessage }).eq('id', id);
+  if (error) console.error('status update failed', error);
+}
+
+async function reload(supabase: SupabaseClient, id: string) {
+  const { data } = await supabase.from('sources').select('*').eq('id', id).maybeSingle();
+  return data;
 }
 
 /**

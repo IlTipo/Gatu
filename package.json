@@ -58,7 +58,8 @@
     "build:web": "node scripts/build-web.mjs",
     "start:phone": "expo start",
     "test:functions": "deno test --config supabase/functions/deno.json --allow-env --no-prompt supabase/functions/tests/",
-    "lint:functions": "deno lint --config supabase/functions/deno.json supabase/functions && deno check --config supabase/functions/deno.json supabase/functions/extract/index.ts"
+    "lint:functions": "deno lint --config supabase/functions/deno.json supabase/functions && deno check --config supabase/functions/deno.json supabase/functions/extract/index.ts",
+    "test:ai-live": "deno test --config supabase/functions/deno.json --allow-env --allow-net --no-prompt supabase/functions/tests-live/"
   },
   "private": true,
   "jest": {

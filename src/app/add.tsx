@@ -11,6 +11,7 @@ import { InlineError } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { useSaveLink } from '@/features/sources/api';
 import { findUrl, readSharedParams } from '@/features/sources/helpers';
+import { analysisMessageKey, destinationAfterSave } from '@/features/sources/status';
 import { errorMessage } from '@/lib/errors';
 import { spacing } from '@/theme';
 
@@ -52,11 +53,13 @@ export default function AddLinkScreen() {
       { url, text: text.trim() || undefined },
       {
         onSuccess: (result) => {
+          const dest = destinationAfterSave(result.source.id, result.analysis);
+          const notice = analysisMessageKey(result.analysis);
           router.replace({
-            pathname: '/source/[id]',
+            pathname: dest.pathname,
             params: {
-              id: result.source.id,
-              ...(result.needsText ? { needsText: '1' } : {}),
+              id: dest.id,
+              ...(dest.pathname === '/source/[id]' && notice ? { notice } : {}),
               ...(result.duplicate ? { duplicate: '1' } : {}),
             },
           });

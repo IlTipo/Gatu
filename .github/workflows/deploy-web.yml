@@ -49,6 +49,22 @@ jobs:
         if: env.SUPABASE_ACCESS_TOKEN != ''
         run: node scripts/setup-supabase.mjs
 
+      # Chiavi segrete delle funzioni (Claude, e facoltativa Google Places): da GitHub Secrets a Supabase.
+      # Non finiscono mai nel sito.
+      - name: Imposta le chiavi segrete delle funzioni
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+        if: steps.supabase.outputs.project_ref != '' && (env.ANTHROPIC_API_KEY != '' || env.GOOGLE_PLACES_API_KEY != '')
+        run: |
+          umask 077
+          ENV_FILE=$(mktemp)
+          [ -n "$ANTHROPIC_API_KEY" ] && echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> "$ENV_FILE"
+          [ -n "$GOOGLE_PLACES_API_KEY" ] && echo "GOOGLE_PLACES_API_KEY=$GOOGLE_PLACES_API_KEY" >> "$ENV_FILE"
+          npx --yes supabase@2.121.0 secrets set --project-ref "${{ steps.supabase.outputs.project_ref }}" --env-file "$ENV_FILE"
+          rm -f "$ENV_FILE"
+
       - name: Pubblica le funzioni del server su Supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

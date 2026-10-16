@@ -26,10 +26,14 @@ export const jsonRoute = (data: unknown): Route => ({
 });
 export const redirect = (location: string): Route => ({ status: 301, headers: { location } });
 
-/** Finto client Supabase: tiene le righe di "sources" in memoria. */
-export function fakeSupabase(opts: { userId?: string | null; rows?: Record<string, unknown>[] } = {}) {
+/** Finto client Supabase: tiene le righe di "sources" in memoria e registra le chiamate rpc. */
+export function fakeSupabase(
+  opts: { userId?: string | null; rows?: Record<string, unknown>[]; quotaAllowed?: boolean; saveFails?: boolean } = {},
+) {
   const rows = opts.rows ?? [];
   const uploads: string[] = [];
+  const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
+  const statusHistory: string[] = [];
   const client = {
     auth: {
       getUser: (token: string) =>
@@ -41,25 +45,66 @@ export function fakeSupabase(opts: { userId?: string | null; rows?: Record<strin
     },
     from(_table: string) {
       let filter: (r: Record<string, unknown>) => boolean = () => true;
-      let pending: Record<string, unknown> | null = null;
+      let pendingInsert: Record<string, unknown> | null = null;
+      let pendingUpdate: Record<string, unknown> | null = null;
+      const applyUpdate = () => {
+        if (!pendingUpdate) return;
+        for (const r of rows.filter(filter)) {
+          Object.assign(r, pendingUpdate);
+          if (typeof pendingUpdate.status === 'string') statusHistory.push(pendingUpdate.status);
+        }
+        pendingUpdate = null;
+      };
       const q = {
         select: () => q,
         in: (col: string, values: unknown[]) => ((filter = (r) => values.includes(r[col])), q),
         eq: (col: string, value: unknown) => ((filter = (r) => r[col] === value), q),
         limit: () => q,
-        insert: (row: Record<string, unknown>) => ((pending = row), q),
+        insert: (row: Record<string, unknown>) => ((pendingInsert = row), q),
+        update: (patch: Record<string, unknown>) => ((pendingUpdate = patch), q),
         maybeSingle: () => Promise.resolve({ data: rows.find(filter) ?? null, error: null }),
         single: () => {
-          if (!pending) return Promise.resolve({ data: null, error: { message: 'nothing' } });
-          if (rows.some((r) => r.url === pending!.url)) {
+          if (pendingUpdate) {
+            applyUpdate();
+            return Promise.resolve({ data: rows.find(filter) ?? null, error: null });
+          }
+          if (!pendingInsert) return Promise.resolve({ data: null, error: { message: 'nothing' } });
+          if (rows.some((r) => r.url === pendingInsert!.url)) {
             return Promise.resolve({ data: null, error: { code: '23505' } });
           }
-          const row = { id: crypto.randomUUID(), user_id: opts.userId, ...pending };
+          const row = { id: crypto.randomUUID(), user_id: opts.userId, ...pendingInsert };
           rows.push(row);
           return Promise.resolve({ data: row, error: null });
         },
+        // "await supabase.from(...).update(...).eq(...)" senza select
+        then: (resolve: (v: unknown) => void) => {
+          applyUpdate();
+          resolve({ data: null, error: null });
+        },
       };
       return q;
+    },
+    rpc(name: string, args: Record<string, unknown>) {
+      rpcCalls.push({ name, args });
+      if (name === 'consume_extraction_quota') return Promise.resolve({ data: opts.quotaAllowed ?? true, error: null });
+      if (name === 'save_extraction') {
+        if (opts.saveFails) return Promise.resolve({ data: null, error: { message: 'boom' } });
+        const row = rows.find((r) => r.id === args.p_source_id);
+        if (row) {
+          row.status = args.p_status;
+          row.ai_result = args.p_ai_result;
+          statusHistory.push(String(args.p_status));
+        }
+        const result = args.p_result as { kind: string; places: unknown[] };
+        return Promise.resolve({
+          data: {
+            recipe_id: result.kind === 'recipe' ? 'recipe-1' : null,
+            place_ids: result.places.map((_, i) => `place-${i + 1}`),
+          },
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: { message: `rpc ${name} sconosciuta` } });
     },
     storage: {
       from: (_bucket: string) => ({
@@ -70,5 +115,5 @@ export function fakeSupabase(opts: { userId?: string | null; rows?: Record<strin
       }),
     },
   };
-  return { client, rows, uploads };
+  return { client, rows, uploads, rpcCalls, statusHistory };
 }

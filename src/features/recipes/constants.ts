@@ -1,0 +1,40 @@
+// Stessi valori usati dalla funzione del server (supabase/functions/_shared/extraction.ts).
+
+export const RECIPE_TAGS = [
+  'veloce',
+  'vegetariano',
+  'vegano',
+  'senza glutine',
+  'senza lattosio',
+  'dolce',
+  'salato',
+  'colazione',
+  'antipasto',
+  'primo',
+  'secondo',
+  'contorno',
+  'piatto unico',
+  'zuppa',
+  'insalata',
+  'pane e lievitati',
+  'pesce',
+  'carne',
+  'forno',
+  'friggitrice ad aria',
+  'economico',
+  'light',
+  'piccante',
+  'festività',
+  'bevanda',
+] as const;
+
+export const AISLE_LABELS: Record<string, string> = {
+  frutta_verdura: 'Frutta e verdura',
+  latticini: 'Latticini e uova',
+  carne_pesce: 'Carne e pesce',
+  dispensa: 'Dispensa',
+  surgelati: 'Surgelati',
+  panetteria: 'Pane e forno',
+  bevande: 'Bevande',
+  altro: 'Altro',
+};

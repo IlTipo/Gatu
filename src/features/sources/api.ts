@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 
+import type { Place } from '../places/types';
+import type { Recipe } from '../recipes/types';
 import type { SaveLinkResult, Source } from './types';
 
 export const sourcesKeys = {
@@ -18,7 +20,8 @@ export class ApiError extends Error {
   }
 }
 
-async function saveLink(input: { url: string; text?: string }): Promise<SaveLinkResult> {
+/** Chiama la funzione "extract": salva un link nuovo ({ url }) o rianalizza un link salvato ({ sourceId }). */
+async function callExtract(input: { url: string; text?: string } | { sourceId: string; text?: string }): Promise<SaveLinkResult> {
   const { data, error } = await supabase.functions.invoke<SaveLinkResult>('extract', { body: input });
   if (error) {
     if (error instanceof FunctionsHttpError) {
@@ -32,13 +35,42 @@ async function saveLink(input: { url: string; text?: string }): Promise<SaveLink
   return data;
 }
 
-export function useSaveLink() {
+function useExtractMutation<T extends Parameters<typeof callExtract>[0]>() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: saveLink,
+    mutationFn: (input: T) => callExtract(input),
     onSuccess: (result) => {
       queryClient.setQueryData(sourcesKeys.detail(result.source.id), result.source);
+      // ricette, locali e link possono essere cambiati: si ricaricano alla prossima visita
       queryClient.invalidateQueries({ queryKey: sourcesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['places'] });
+      queryClient.invalidateQueries({ queryKey: ['source-results', result.source.id] });
+    },
+  });
+}
+
+/** Salva un link nuovo e lo fa analizzare dall'AI. */
+export const useSaveLink = () => useExtractMutation<{ url: string; text?: string }>();
+
+/** Rianalizza un link già salvato (eventualmente con il testo del post incollato a mano). */
+export const useReanalyze = () => useExtractMutation<{ sourceId: string; text?: string }>();
+
+/** Ricette e locali estratti da un link. */
+export function useSourceResults(sourceId: string) {
+  return useQuery({
+    queryKey: ['source-results', sourceId],
+    queryFn: async () => {
+      const [recipes, places] = await Promise.all([
+        supabase.from('recipes').select('id, title, image_url, total_minutes, tags').eq('source_id', sourceId),
+        supabase.from('places').select('id, name, city, cuisine, verified').eq('source_id', sourceId).order('created_at'),
+      ]);
+      if (recipes.error) throw recipes.error;
+      if (places.error) throw places.error;
+      return {
+        recipes: recipes.data as Pick<Recipe, 'id' | 'title' | 'image_url' | 'total_minutes' | 'tags'>[],
+        places: places.data as Pick<Place, 'id' | 'name' | 'city' | 'cuisine' | 'verified'>[],
+      };
     },
   });
 }

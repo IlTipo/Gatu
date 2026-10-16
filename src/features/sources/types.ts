@@ -15,6 +15,7 @@ export type Source = {
   shared_text: string | null;
   status: ImportStatus;
   error_message: string | null;
+  ai_result: AiResult | null;
   created_at: string;
   updated_at: string;
 };
@@ -23,4 +24,24 @@ export type SaveLinkResult = {
   source: Source;
   duplicate: boolean;
   needsText: boolean;
+  analysis: Analysis;
 };
+
+export type AiResult = {
+  model?: string;
+  kind?: 'recipe' | 'places' | 'unknown';
+  confidence?: 'high' | 'medium' | 'low';
+  missing_info?: string[];
+};
+
+/** Risultato dell'analisi AI restituito dalla funzione "extract". */
+export type Analysis =
+  | {
+    status: 'done' | 'needs_review';
+    kind: 'recipe' | 'places' | 'unknown';
+    recipeId: string | null;
+    placeIds: string[];
+    missingInfo: string[];
+  }
+  | { status: 'skipped'; reason: 'not_configured' | 'needs_text' | 'quota_exceeded' | 'already_done' }
+  | { status: 'error'; reason: string };
