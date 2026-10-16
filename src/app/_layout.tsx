@@ -64,6 +64,8 @@ function RootNavigator() {
       {/* Le tab sono visibili solo a chi ha fatto l'accesso... */}
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="source/[id]" />
       </Stack.Protected>
       {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
       <Stack.Protected guard={!signedIn}>

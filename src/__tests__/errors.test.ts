@@ -22,3 +22,11 @@ describe('errorMessage', () => {
     expect(errorMessage(null, t)).toBe('common.genericError');
   });
 });
+
+describe('errorMessage: errori delle Edge Functions', () => {
+  it('traduce i codici restituiti dalla funzione extract', () => {
+    expect(errorMessage({ code: 'invalid_url' }, t)).toBe('errors.invalidUrl');
+    expect(errorMessage({ code: 'function_unavailable' }, t)).toBe('errors.functionUnavailable');
+    expect(errorMessage({ code: 'network' }, t)).toBe('common.networkError');
+  });
+});

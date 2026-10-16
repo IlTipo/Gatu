@@ -5,7 +5,10 @@
     "loading": "Caricamento…",
     "genericError": "Qualcosa è andato storto. Riprova tra poco.",
     "networkError": "Connessione assente o instabile. Controlla la rete e riprova.",
-    "or": "oppure"
+    "or": "oppure",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "back": "Indietro"
   },
   "config": {
     "missingTitle": "Configurazione mancante",
@@ -49,7 +52,10 @@
   "library": {
     "title": "Libreria",
     "emptyTitle": "Ancora niente qui",
-    "emptyBody": "Presto potrai incollare un link da TikTok, Instagram, YouTube o da un sito e salvare ricette e posti."
+    "emptyBody": "Incolla un link da TikTok, Instagram, YouTube, Pinterest o da un sito di ricette per iniziare.",
+    "add": "Aggiungi",
+    "recentTitle": "Salvati di recente",
+    "emptyAction": "Aggiungi il primo link"
   },
   "planner": {
     "title": "Planner",
@@ -71,5 +77,38 @@
     "signedInAs": "Accesso effettuato come",
     "signOut": "Esci",
     "version": "Versione {{version}}"
+  },
+  "errors": {
+    "invalidUrl": "Questo non sembra un link valido. Copia l'indirizzo completo (inizia con https://).",
+    "unauthorized": "La sessione è scaduta: esci e accedi di nuovo.",
+    "functionUnavailable": "Il servizio che legge i link non risponde. Se hai appena configurato Morso, controlla che la funzione \"extract\" sia stata pubblicata (vedi README).",
+    "notFound": "Non trovato: forse è stato eliminato."
+  },
+  "add": {
+    "title": "Aggiungi un link",
+    "subtitle": "Incolla il link di un video, di un post o di una pagina con una ricetta o un ristorante.",
+    "linkLabel": "Link",
+    "linkPlaceholder": "https://www.tiktok.com/@…",
+    "paste": "Incolla",
+    "pasteFailed": "Non riesco a leggere gli appunti: tieni premuto nel campo e scegli \"Incolla\".",
+    "textLabel": "Testo del post (facoltativo)",
+    "textHint": "Se l'app non riesce a leggere la caption (succede spesso con Instagram), copiala e incollala qui.",
+    "save": "Salva",
+    "saving": "Sto leggendo il link…",
+    "linkRequired": "Incolla un link per continuare.",
+    "duplicate": "Questo link era già nella tua libreria."
+  },
+  "source": {
+    "title": "Link salvato",
+    "openOriginal": "Apri l'originale",
+    "by": "di {{author}}",
+    "noTitle": "Senza titolo",
+    "statusPending": "In attesa di analisi",
+    "statusPendingBody": "Presto Morso capirà da solo se è una ricetta o un ristorante e ne estrarrà ingredienti, passaggi o indirizzi.",
+    "needsTextTitle": "Manca il testo del post",
+    "needsTextBody": "Non sono riuscito a leggere la caption. Nella prossima versione potrai incollarla qui per aiutare l'analisi.",
+    "sharedText": "Testo che hai aggiunto",
+    "deleteConfirm": "Eliminare questo link dalla libreria?",
+    "savedOn": "Salvato il {{date}}"
   }
 }

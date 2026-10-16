@@ -38,6 +38,12 @@ const manifest = {
   orientation: 'portrait',
   background_color: '#FBF7F2',
   theme_color: '#E0592A',
+  // Android: il sito installato compare nel menu "Condividi" delle altre app (TikTok, Instagram, Chrome…)
+  share_target: {
+    action: `${baseUrl}/add`,
+    method: 'GET',
+    params: { title: 'title', text: 'text', url: 'url' },
+  },
   icons: [
     { src: `${baseUrl}/icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
     { src: `${baseUrl}/icons/icon-512.png`, sizes: '512x512', type: 'image/png' },

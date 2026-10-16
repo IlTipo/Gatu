@@ -1,0 +1,6 @@
+# Configurazione minima per la Supabase CLI (serve a pubblicare le Edge Functions).
+project_id = "morso"
+
+[functions.extract]
+# Il controllo dell'utente lo fa la funzione stessa (compatibile con le nuove chiavi di Supabase).
+verify_jwt = false
