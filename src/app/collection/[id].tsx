@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -11,7 +11,11 @@ import { Screen } from '@/components/Screen';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { useCollections, useCreateCollection, useDeleteCollection, useUpdateCollection } from '@/features/collections/api';
+import { applyRules, cleanRules, type CollectionRules, KCAL_CHOICES, MINUTE_CHOICES } from '@/features/collections/rules';
 import { type Collection, COLLECTION_EMOJIS } from '@/features/collections/types';
+import { useLibraryPlaces, useLibraryRecipes } from '@/features/library/api';
+import { cityCounts } from '@/features/library/filter';
+import { RECIPE_TAGS } from '@/features/recipes/constants';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { spacing } from '@/theme';
@@ -60,6 +64,21 @@ function CollectionForm({ existing, position }: { existing?: Collection; positio
   const [name, setName] = useState(existing?.name ?? '');
   const [emoji, setEmoji] = useState<string>(existing?.emoji ?? COLLECTION_EMOJIS[0]);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [automatic, setAutomatic] = useState(!!existing?.rules);
+  const [rules, setRules] = useState<CollectionRules>(existing?.rules ?? {});
+  const [rulesError, setRulesError] = useState<string | null>(null);
+  const recipes = useLibraryRecipes();
+  const places = useLibraryPlaces();
+  const cleaned = useMemo(() => cleanRules(rules), [rules]);
+  const preview = useMemo(
+    () => (cleaned ? applyRules(cleaned, recipes.data ?? [], places.data ?? []) : null),
+    [cleaned, recipes.data, places.data],
+  );
+  const cities = useMemo(() => cityCounts(places.data ?? []).slice(0, 8), [places.data]);
+  const patch = (p: Partial<CollectionRules>) => {
+    setRules((old) => ({ ...old, ...p }));
+    setRulesError(null);
+  };
   const create = useCreateCollection();
   const update = useUpdateCollection(existing?.id ?? '');
   const remove = useDeleteCollection(existing?.id ?? '');
@@ -71,7 +90,11 @@ function CollectionForm({ existing, position }: { existing?: Collection; positio
       setNameError(t('collections.nameRequired'));
       return;
     }
-    const draft = { name: name.trim().slice(0, 60), emoji };
+    if (automatic && !cleaned) {
+      setRulesError(t('collections.rulesRequired'));
+      return;
+    }
+    const draft = { name: name.trim().slice(0, 60), emoji, rules: automatic ? cleaned : null };
     if (existing) update.mutate(draft, { onSuccess: close });
     else create.mutate({ draft, position }, { onSuccess: close });
   }
@@ -114,7 +137,84 @@ function CollectionForm({ existing, position }: { existing?: Collection; positio
             ))}
           </View>
         </View>
-        {existing ? (
+        <View style={styles.chips}>
+          <Chip label={t('collections.manual')} selected={!automatic} onPress={() => setAutomatic(false)} />
+          <Chip label={t('collections.automatic')} selected={automatic} onPress={() => setAutomatic(true)} />
+        </View>
+
+        {automatic ? (
+          <View style={styles.rules}>
+            <AppText tone="secondary">{t('collections.automaticHint')}</AppText>
+            <RuleBlock label={t('collections.rulesTags')}>
+              {RECIPE_TAGS.map((tag) => {
+                const on = rules.tags?.includes(tag) ?? false;
+                return (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    selected={on}
+                    onPress={() => patch({ tags: on ? rules.tags!.filter((x) => x !== tag) : [...(rules.tags ?? []), tag] })}
+                  />
+                );
+              })}
+            </RuleBlock>
+            <RuleBlock label={t('collections.rulesTime')}>
+              <Chip label={t('collections.any')} selected={!rules.max_minutes} onPress={() => patch({ max_minutes: null })} />
+              {MINUTE_CHOICES.map((m) => (
+                <Chip key={m} label={`≤ ${m} min`} selected={rules.max_minutes === m} onPress={() => patch({ max_minutes: m })} />
+              ))}
+            </RuleBlock>
+            <RuleBlock label={t('collections.rulesKcal')}>
+              <Chip label={t('collections.any')} selected={!rules.max_kcal} onPress={() => patch({ max_kcal: null })} />
+              {KCAL_CHOICES.map((k) => (
+                <Chip key={k} label={`≤ ${k} kcal`} selected={rules.max_kcal === k} onPress={() => patch({ max_kcal: k })} />
+              ))}
+            </RuleBlock>
+            <RuleBlock label={t('collections.rulesDifficulty')}>
+              <Chip label={t('collections.any')} selected={!rules.difficulty} onPress={() => patch({ difficulty: null })} />
+              {(['facile', 'media', 'difficile'] as const).map((d) => (
+                <Chip
+                  key={d}
+                  label={t(`recipe.difficultyLevel.${d}`)}
+                  selected={rules.difficulty === d}
+                  onPress={() => patch({ difficulty: d })}
+                />
+              ))}
+            </RuleBlock>
+            <TextField
+              label={t('collections.rulesCity')}
+              value={rules.city ?? ''}
+              onChangeText={(v) => patch({ city: v })}
+              placeholder={t('collections.rulesCityPlaceholder')}
+              maxLength={60}
+            />
+            {cities.length ? (
+              <View style={styles.chips}>
+                {cities.map(({ value }) => (
+                  <Chip
+                    key={value}
+                    label={value}
+                    selected={rules.city === value}
+                    onPress={() => patch({ city: rules.city === value ? null : value })}
+                  />
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.chips}>
+              <Chip
+                label={`❤️ ${t('collections.rulesWishlist')}`}
+                selected={!!rules.wishlist}
+                onPress={() => patch({ wishlist: !rules.wishlist })}
+              />
+            </View>
+            {preview ? (
+              <AppText variant="bodyStrong" tone="primary">
+                {t('collections.autoItems', { count: preview.recipeIds.length + preview.placeIds.length })}
+              </AppText>
+            ) : null}
+            <InlineError message={rulesError} />
+          </View>
+        ) : existing ? (
           <AppText tone="secondary">
             {t('collections.items', { count: existing.recipeIds.length + existing.placeIds.length })}
           </AppText>
@@ -129,7 +229,19 @@ function CollectionForm({ existing, position }: { existing?: Collection; positio
   );
 }
 
+function RuleBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={styles.block}>
+      <AppText variant="caption" tone="secondary">
+        {label}
+      </AppText>
+      <View style={styles.chips}>{children}</View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  rules: { gap: spacing.lg },
   container: { gap: spacing.lg, paddingBottom: spacing.xl },
   block: { gap: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
 import { type CollectionRow, groupCollections, type ItemRow } from './helpers';
-import type { CollectionDraft, CollectionTarget } from './types';
+import type { Collection, CollectionDraft, CollectionTarget } from './types';
 
 export { collectionsContaining } from './helpers';
 
@@ -17,7 +17,7 @@ export function useCollections() {
       const [collections, items] = await Promise.all([
         supabase
           .from('collections')
-          .select('id, name, emoji, position, created_at')
+          .select('id, name, emoji, position, created_at, rules')
           .order('position')
           .order('created_at'),
         supabase.from('collection_items').select('collection_id, recipe_id, place_id').limit(10_000),
@@ -36,7 +36,7 @@ export function useCreateCollection() {
     mutationFn: async ({ draft, target, position }: { draft: CollectionDraft; target?: CollectionTarget; position: number }) => {
       const { data, error } = await supabase
         .from('collections')
-        .insert({ name: draft.name.trim(), emoji: draft.emoji, position })
+        .insert({ name: draft.name.trim(), emoji: draft.emoji, rules: draft.rules ?? null, position })
         .select('id')
         .single();
       if (error) throw error;
@@ -52,7 +52,7 @@ export function useUpdateCollection(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (draft: CollectionDraft) => {
-      const { error } = await supabase.from('collections').update({ name: draft.name.trim(), emoji: draft.emoji }).eq('id', id);
+      const { error } = await supabase.from('collections').update({ name: draft.name.trim(), emoji: draft.emoji, rules: draft.rules ?? null }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionKeys.all }),
@@ -89,5 +89,32 @@ export function useToggleCollectionItem() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: collectionKeys.all }),
+  });
+}
+
+/** Nuovo ordine delle collezioni (la prima va in cima). Aggiorna subito lo schermo, poi salva. */
+export function useReorderCollections() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.rpc('reorder_collections', { p_ids: ids });
+      if (error) throw error;
+    },
+    onMutate: async (ids) => {
+      await queryClient.cancelQueries({ queryKey: collectionKeys.all });
+      const previous = queryClient.getQueryData<Collection[]>(collectionKeys.all);
+      if (previous) {
+        const byId = new Map(previous.map((c) => [c.id, c]));
+        queryClient.setQueryData(
+          collectionKeys.all,
+          ids.map((id, position) => ({ ...byId.get(id)!, position })).filter((c) => c.id),
+        );
+      }
+      return { previous };
+    },
+    onError: (_e, _ids, context) => {
+      if (context?.previous) queryClient.setQueryData(collectionKeys.all, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: collectionKeys.all }),
   });
 }

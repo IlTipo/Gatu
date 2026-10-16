@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { placeKeys } from '@/features/places/api';
 import { recipeKeys } from '@/features/recipes/api';
+import { invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
 import type { LibraryPlace, LibraryRecipe } from './filter';
@@ -37,5 +38,24 @@ export function useLibraryPlaces() {
       if (error) throw error;
       return data as LibraryPlace[];
     },
+  });
+}
+
+export type AskItem = { type: 'recipe' | 'place'; id: string; reason: string | null };
+export type AskResult =
+  | { status: 'done'; message: string | null; items: AskItem[] }
+  | { status: 'empty' }
+  | { status: 'skipped'; reason: 'not_configured' | 'quota_exceeded' }
+  | { status: 'error'; reason: string };
+
+/** "Chiedi all'AI": la stessa domanda non si ripete (resta in memoria per mezz'ora). */
+export function useAskLibrary(question: string) {
+  return useQuery({
+    queryKey: ['ask-library', question],
+    queryFn: () => invokeExtract<AskResult>({ action: 'ask_library', question }),
+    enabled: question.trim().length >= 2,
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
   });
 }

@@ -126,6 +126,14 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 5. Apri una ricetta o un posto → **📁 Aggiungi a una collezione** → tocca le collezioni per mettere o togliere (puoi anche crearne una al volo) → **Fatto**. Una collezione può mescolare ricette e posti.
 6. In Libreria tocca la collezione: vedi solo ciò che contiene. **✏️ Modifica collezione** per rinominarla o eliminarla (ricette e posti restano nella Libreria).
 
+### Novità della Libreria
+
+7. **🧊 Cosa cucino con ciò che ho** (scheda Ricette): scrivi "uova, zucchine e parmigiano" → vedi le ricette che puoi fare, prima quelle a cui manca meno ("✅ Hai tutto!" oppure "Manca 1: panna"). Sale, pepe e olio li do per scontati; "pasta" vale per spaghetti, penne…
+8. **🎲 Che cucino stasera?**: pesca una ricetta a caso tra quelle che vedi (rispetta filtri e collezione). **Un'altra** per ripescare.
+9. **✨ Chiedi all'AI**: scrivi nella ricerca come parleresti ("qualcosa di leggero col pollo") e tocca **Chiedi all'AI**: sceglie solo tra le tue ricette e i tuoi posti, spiegando il perché. Usa una delle analisi AI del giorno.
+10. **Collezioni automatiche**: in **+ Nuova collezione** scegli **⚡ Automatica** e le regole (es. *vegetariano* + *≤ 30 min*, oppure posti a *Milano* "Voglio andarci"). Vedi subito quanti elementi contiene; si aggiorna da sola quando salvi cose nuove.
+11. **↕ Riordina** (con almeno 2 collezioni): sposta le collezioni con le frecce.
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

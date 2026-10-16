@@ -1,3 +1,4 @@
+import { applyRules } from './rules';
 import type { Collection, CollectionTarget } from './types';
 
 export type CollectionRow = Omit<Collection, 'recipeIds' | 'placeIds'>;
@@ -12,9 +13,19 @@ export function groupCollections(rows: CollectionRow[], items: ItemRow[]): Colle
   }));
 }
 
-/** In quali collezioni si trova un elemento. */
+/** Cosa contiene una collezione: gli elementi scelti, oppure (se automatica) quelli che rispettano le regole. */
+export function resolveCollection(
+  c: Collection,
+  recipes: Parameters<typeof applyRules>[1],
+  places: Parameters<typeof applyRules>[2],
+): { recipeIds: string[]; placeIds: string[] } {
+  return c.rules ? applyRules(c.rules, recipes, places) : { recipeIds: c.recipeIds, placeIds: c.placeIds };
+}
+
+/** In quali collezioni (scelte a mano) si trova un elemento. */
 export function collectionsContaining(collections: Collection[], target: CollectionTarget): Collection[] {
   return collections.filter((c) =>
-    'recipeId' in target ? c.recipeIds.includes(target.recipeId) : c.placeIds.includes(target.placeId),
+    !c.rules &&
+    ('recipeId' in target ? c.recipeIds.includes(target.recipeId) : c.placeIds.includes(target.placeId)),
   );
 }

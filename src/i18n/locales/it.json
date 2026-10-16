@@ -82,7 +82,12 @@
     "emptyCollectionBody": "Apri una ricetta o un posto e tocca \"Aggiungi a una collezione\".",
     "count_one": "{{count}} risultato",
     "count_other": "{{count}} risultati",
-    "minutes": "{{value}} min"
+    "minutes": "{{value}} min",
+    "askAi": "✨ Chiedi all'AI: «{{q}}»",
+    "pantryButton": "🧊 Cosa cucino con ciò che ho",
+    "diceButton": "🎲 Che cucino stasera?",
+    "reorder": "↕ Riordina",
+    "auto": "⚡"
   },
   "planner": {
     "title": "Planner",
@@ -317,6 +322,60 @@
     "quickCreate": "Crea e aggiungi",
     "done": "Fatto",
     "items_one": "{{count}} elemento",
-    "items_other": "{{count}} elementi"
+    "items_other": "{{count}} elementi",
+    "manual": "Scelgo io",
+    "automatic": "⚡ Automatica",
+    "automaticHint": "Si riempie da sola con le ricette e i posti che rispettano queste regole.",
+    "rulesTags": "Ricette con le etichette",
+    "rulesTime": "Tempo massimo",
+    "rulesKcal": "Calorie massime per porzione",
+    "rulesDifficulty": "Difficoltà",
+    "rulesCity": "Posti in città",
+    "rulesCityPlaceholder": "Es. Milano",
+    "rulesWishlist": "Solo posti \"Voglio andarci\"",
+    "any": "Qualsiasi",
+    "rulesRequired": "Scegli almeno una regola.",
+    "autoItems_one": "Ora contiene {{count}} elemento",
+    "autoItems_other": "Ora contiene {{count}} elementi",
+    "reorderTitle": "Ordine delle collezioni",
+    "reorderHint": "Usa le frecce per spostare. La prima compare per prima nella Libreria.",
+    "up": "Sposta su",
+    "down": "Sposta giù",
+    "autoNotPickable": "Le collezioni automatiche si riempiono da sole e non compaiono qui."
+  },
+  "ask": {
+    "title": "Chiedi all'AI",
+    "thinking": "Sto guardando la tua libreria…",
+    "empty": "La tua libreria è vuota: salva qualche ricetta o posto e riprova.",
+    "noMatch": "Niente nella tua libreria risponde a questa domanda.",
+    "placeholder": "Es. qualcosa di light col pollo per stasera",
+    "ask": "Chiedi",
+    "hint": "L'AI sceglie solo tra le ricette e i posti che hai salvato.",
+    "recipe": "Ricetta",
+    "place": "Posto",
+    "missing": "Non trovato: forse è stato eliminato."
+  },
+  "pantry": {
+    "title": "Cosa cucino con ciò che ho",
+    "subtitle": "Scrivi cosa hai in frigo e in dispensa: ti mostro le ricette che puoi fare.",
+    "label": "Ingredienti che hai",
+    "placeholder": "Es. uova, zucchine, parmigiano",
+    "add": "Aggiungi",
+    "hint": "Sale, pepe, olio e acqua li do per scontati. \"Pasta\" vale per spaghetti, penne…; \"formaggio\" per parmigiano, pecorino…",
+    "clear": "Svuota",
+    "empty": "Aggiungi qualche ingrediente per vedere cosa puoi cucinare.",
+    "noMatch": "Nessuna ricetta usa questi ingredienti.",
+    "all": "✅ Hai tutto!",
+    "missing_one": "Manca {{count}}: {{list}}",
+    "missing_other": "Mancano {{count}}: {{list}}",
+    "have": "Hai: {{list}}"
+  },
+  "dice": {
+    "title": "🎲 Stasera cucini…",
+    "again": "🎲 Un'altra",
+    "open": "Apri la ricetta",
+    "close": "Chiudi",
+    "none": "Nessuna ricetta con questi filtri.",
+    "filtersNote": "Pescata tra le ricette che vedi (filtri e collezione compresi)."
   }
 }

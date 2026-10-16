@@ -39,7 +39,9 @@ export default function CollectScreen() {
   } else if (collections.isError) {
     body = <ErrorState message={errorMessage(collections.error, t)} onRetry={() => collections.refetch()} />;
   } else {
-    const list = collections.data;
+    // le automatiche si riempiono da sole
+    const list = collections.data.filter((c) => !c.rules);
+    const hasAutomatic = list.length < collections.data.length;
     const contains = (c: (typeof list)[number]) =>
       'recipeId' in target ? c.recipeIds.includes(target.recipeId) : c.placeIds.includes(target.placeId);
 
@@ -50,7 +52,7 @@ export default function CollectScreen() {
     const quickCreate = () => {
       if (!name.trim()) return;
       create.mutate(
-        { draft: { name: name.trim().slice(0, 60), emoji: '📁' }, target, position: list.length },
+        { draft: { name: name.trim().slice(0, 60), emoji: '📁' }, target, position: collections.data.length },
         { onSuccess: () => setName('') },
       );
     };
@@ -98,6 +100,11 @@ export default function CollectScreen() {
           );
         })}
         <InlineError message={toggle.isError ? errorMessage(toggle.error, t) : null} />
+        {hasAutomatic ? (
+          <AppText variant="caption" tone="secondary">
+            {t('collections.autoNotPickable')}
+          </AppText>
+        ) : null}
 
         <View style={styles.create}>
           <View style={styles.flex}>

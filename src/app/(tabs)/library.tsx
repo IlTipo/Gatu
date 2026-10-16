@@ -6,6 +6,7 @@ import { FlatList, Pressable, ScrollView, StyleSheet, useWindowDimensions, View 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { DiceModal } from '@/components/DiceModal';
 import { Icon } from '@/components/Icon';
 import { PlaceCard } from '@/components/PlaceCard';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -14,6 +15,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { SourceCard } from '@/components/SourceCard';
 import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { useCollections } from '@/features/collections/api';
+import { resolveCollection } from '@/features/collections/helpers';
 import type { Collection } from '@/features/collections/types';
 import { useLibraryPlaces, useLibraryRecipes } from '@/features/library/api';
 import { cityCounts, filterPlaces, filterRecipes, matchesQuery, tagCounts } from '@/features/library/filter';
@@ -41,11 +43,18 @@ export default function LibraryScreen() {
   const [wishlistOnly, setWishlistOnly] = useState(false);
   const [collectionId, setCollectionId] = useState<string | null>(null);
 
+  const [diceOpen, setDiceOpen] = useState(false);
+
   const collection = collections.data?.find((c) => c.id === collectionId) ?? null;
+  // automatiche: il contenuto si calcola dalle regole
   const scope = useMemo(
-    () => (collection ? { recipeIds: collection.recipeIds, placeIds: collection.placeIds } : null),
-    [collection],
+    () => (collection ? resolveCollection(collection, recipes.data ?? [], places.data ?? []) : null),
+    [collection, recipes.data, places.data],
   );
+  const countFor = (c: Collection) => {
+    const r = resolveCollection(c, recipes.data ?? [], places.data ?? []);
+    return r.recipeIds.length + r.placeIds.length;
+  };
 
   const visibleRecipes = useMemo(
     () => filterRecipes(recipes.data ?? [], { query, tags, collection: scope }),
@@ -104,6 +113,7 @@ export default function LibraryScreen() {
         {tab !== 'links' ? (
           <CollectionsRow
             collections={collections.data ?? []}
+            countFor={countFor}
             selected={collectionId}
             onSelect={(id) => {
               setCollectionId(id);
@@ -122,6 +132,12 @@ export default function LibraryScreen() {
           </Pressable>
         ) : null}
 
+        {tab === 'recipes' ? (
+          <ChipRow>
+            <Chip label={t('library.pantryButton')} onPress={() => router.push('/pantry')} />
+            <Chip label={t('library.diceButton')} onPress={() => setDiceOpen(true)} />
+          </ChipRow>
+        ) : null}
         {tab === 'recipes' && tagOptions.length ? (
           <ChipRow>
             {tagOptions.map(({ value, count: n }) => (
@@ -146,6 +162,13 @@ export default function LibraryScreen() {
           </>
         ) : null}
 
+        {query.trim().length >= 2 && tab !== 'links' ? (
+          <Button
+            label={t('library.askAi', { q: query.trim().slice(0, 40) })}
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/ask', params: { q: query.trim() } })}
+          />
+        ) : null}
         {filtersActive ? (
           <View style={styles.resultsRow}>
             <AppText variant="caption" tone="secondary">
@@ -274,6 +297,7 @@ export default function LibraryScreen() {
         </View>
       )}
       {content}
+      {diceOpen ? <DiceModal recipes={visibleRecipes} onClose={() => setDiceOpen(false)} /> : null}
     </Screen>
   );
 }
@@ -289,10 +313,12 @@ function ChipRow({ children }: { children: ReactNode }) {
 /** "Tutto", le collezioni e "+ Nuova collezione". */
 function CollectionsRow({
   collections,
+  countFor,
   selected,
   onSelect,
 }: {
   collections: Collection[];
+  countFor: (c: Collection) => number;
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
@@ -303,12 +329,13 @@ function CollectionsRow({
       {collections.map((c) => (
         <Chip
           key={c.id}
-          label={`${c.emoji ?? '📁'} ${c.name} · ${c.recipeIds.length + c.placeIds.length}`}
+          label={`${c.emoji ?? '📁'} ${c.name}${c.rules ? ` ${t('library.auto')}` : ''} · ${countFor(c)}`}
           selected={selected === c.id}
           onPress={() => onSelect(selected === c.id ? null : c.id)}
         />
       ))}
       <Chip label={t('library.newCollection')} onPress={() => router.push({ pathname: '/collection/[id]', params: { id: 'new' } })} />
+      {collections.length > 1 ? <Chip label={t('library.reorder')} onPress={() => router.push('/collections')} /> : null}
     </ChipRow>
   );
 }
