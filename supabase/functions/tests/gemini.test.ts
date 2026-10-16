@@ -2,7 +2,7 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 
 import type { ExtractionInput } from '../_shared/extraction.ts';
-import { createGeminiExtractor, DEFAULT_MODEL } from '../_shared/gemini.ts';
+import { createGeminiDoseEstimator, createGeminiExtractor, DEFAULT_MODEL } from '../_shared/gemini.ts';
 
 const input: ExtractionInput = {
   url: 'https://www.tiktok.com/@chef/video/1',
@@ -167,4 +167,24 @@ Deno.test('errore momentaneo 503 → il secondo tentativo va a buon fine', async
   const outcome = await createGeminiExtractor('k', { fetch: flaky })(input);
   assertEquals(outcome.ok, true);
   assertEquals(calls, 2);
+});
+
+Deno.test('stima dosi: risposta valida', async () => {
+  const a = api(reply(JSON.stringify({ servings: 2, ingredients: [{ index: 1, quantity: 2, unit: null }] })));
+  const outcome = await createGeminiDoseEstimator('k', { fetch: a.fetch })({
+    title: 'Frittata',
+    servings: null,
+    ingredients: [{ quantity: 4, unit: null, name: 'uova', note: null, estimated: false }, {
+      quantity: null,
+      unit: null,
+      name: 'zucchine',
+      note: null,
+      estimated: false,
+    }],
+    steps: [],
+  });
+  assertEquals(outcome.ok, true);
+  if (outcome.ok) assertEquals(outcome.estimate.ingredients[0].quantity, 2);
+  const contents = a.requests[0].body.contents as { parts: { text: string }[] }[];
+  assertEquals(contents[0].parts[0].text.includes('1. zucchine — DOSE MANCANTE'), true);
 });

@@ -68,3 +68,14 @@ Deno.test({ name: 'testo con istruzioni "malevole" non cambia il compito', ignor
   );
   assertEquals(r.kind, 'unknown');
 });
+
+Deno.test({ name: 'caption senza dosi → dosi e porzioni stimate', ignore: !extract }, async () => {
+  const r = await run(
+    'Pasta con zucchine e menta, il mio piatto estivo preferito! Ingredienti: pasta corta, zucchine, aglio, menta fresca, ' +
+      'parmigiano, olio, sale. Rosola le zucchine con aglio e olio, scola la pasta e manteca con parmigiano e menta.',
+  );
+  assertEquals(r.kind, 'recipe');
+  assert(r.recipe!.servings !== null, 'porzioni stimate');
+  const pasta = r.recipe!.ingredients.find((i) => i.name.includes('pasta'));
+  assert(pasta && pasta.quantity !== null && pasta.estimated, `dose della pasta stimata: ${JSON.stringify(pasta)}`);
+});

@@ -127,5 +127,14 @@ const after3 = (await as(A, `select title, servings, (select count(*)::int from 
 ok(after3.title === 'Pasta al limone (mia versione)' && after3.servings === 3 && after3.ni === 3 && after3.ns === 1 && after3.lu === null, 'update_recipe salva le correzioni (campi vuoti → null)');
 await fails(() => as(B, `select public.update_recipe('${r3}', '${edited}'::jsonb)`), 'Bruno NON può modificare la ricetta di Anna');
 
+// --- dosi stimate ---
+const src4 = (await as(A, `insert into public.sources (url) values ('https://example.com/r4') returning id`)).rows[0].id;
+const estimatedResult = JSON.stringify({ kind: 'recipe', recipe: { title: 'Frittata', servings: 2, servings_estimated: true, tags: [],
+  ingredients: [{ quantity: 4, unit: null, name: 'uova', aisle: 'latticini', estimated: true }, { quantity: null, unit: null, name: 'sale', note: 'q.b.', aisle: 'dispensa' }],
+  steps: [{ text: 'Sbatti le uova', timer_seconds: null }] } }).replace(/'/g, "''");
+const r4 = (await as(A, `select public.save_extraction('${src4}', '${estimatedResult}'::jsonb, 'done', '{}'::jsonb) as r`)).rows[0].r.recipe_id;
+const est = (await as(A, `select r.servings_estimated, array_agg(i.estimated order by i.position) e from public.recipes r join public.recipe_ingredients i on i.recipe_id = r.id where r.id = '${r4}' group by r.servings_estimated`)).rows[0];
+ok(est.servings_estimated === true && est.e.join() === 'true,false', 'dosi e porzioni stimate salvate (q.b. non stimato)');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

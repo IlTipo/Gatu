@@ -104,12 +104,13 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 
 1. **Libreria → Aggiungi** → incolla il link di una ricetta da un sito (es. GialloZafferano): la ricetta si apre **subito**, letta dalla scheda del sito, senza AI.
 2. Ora un video-ricetta (TikTok/YouTube) → **Salva**. Dopo 10–30 secondi si apre la **ricetta**: porzioni, tempi, etichette, ingredienti e passaggi (con il timer dove la ricetta indica un tempo).
-3. Tocca **Modifica**: correggi il titolo, le porzioni, aggiungi o togli ingredienti e passaggi, scegli le etichette → **Salva**.
-4. Prova un post che elenca **più locali** (es. "i 5 posti dove mangiare a Napoli"): Morso li estrae tutti, ognuno con città, cucina e piatti consigliati; dove riesce verifica l'indirizzo.
-5. Tocca un locale → **Apri in Google Maps**; **Modifica** per correggere nome, indirizzo, prezzo o piatti.
-6. Prova un post **Instagram**: se la caption non è leggibile, Morso te lo dice. Copiala dall'app di Instagram, incollala nel riquadro e premi **Analizza con l'AI**.
-7. Prova un link che non c'entra col cibo: Morso risponde "Non ho trovato ricette o locali".
-8. I link salvati nella Fase 1 hanno il pulsante **Analizza con l'AI**.
+3. **Dosi e persone**: se il post non indica le dosi, l'AI le stima (le vedi con **~**). Sulle ricette già salvate c'è il pulsante **Stima le dosi mancanti**. Scegli **da 1 a 6 persone** e le dosi si ricalcolano.
+4. Tocca **Modifica**: correggi il titolo, le porzioni, aggiungi o togli ingredienti e passaggi, scegli le etichette → **Salva**.
+5. Prova un post che elenca **più locali** (es. "i 5 posti dove mangiare a Napoli"): Morso li estrae tutti, ognuno con città, cucina e piatti consigliati; dove riesce verifica l'indirizzo.
+6. Tocca un locale → **Apri in Google Maps**; **Modifica** per correggere nome, indirizzo, prezzo o piatti.
+7. Prova un post **Instagram**: se la caption non è leggibile, Morso te lo dice. Copiala dall'app di Instagram, incollala nel riquadro e premi **Analizza con l'AI**.
+8. Prova un link che non c'entra col cibo: Morso risponde "Non ho trovato ricette o locali".
+9. I link salvati nella Fase 1 hanno il pulsante **Analizza con l'AI**.
 
 ### Accesso con Google (facoltativo)
 

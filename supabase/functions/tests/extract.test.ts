@@ -102,6 +102,7 @@ function deps(
     fetch: web.fetch,
     supabaseForRequest: () => client as never,
     extractor,
+    doseEstimator: null,
     geocoder,
     dailyLimit: 40,
     geocodeDelayMs: 0,
@@ -300,4 +301,132 @@ Deno.test('senza chiave AI la scheda ricetta funziona lo stesso (anche in ingles
   const body = await (await handleRequest(post({ url: page }), d)).json();
   assertEquals(body.analysis.status, 'needs_review'); // niente passaggi → da completare
   assertEquals(body.analysis.kind, 'recipe');
+});
+
+// ---------------------------------------------------------------- stima delle dosi
+
+function doseFake(recipe: Record<string, unknown> | null, quotaAllowed = true) {
+  const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER } }, error: null }) },
+    from: () => {
+      const q = {
+        select: () => q,
+        eq: () => q,
+        maybeSingle: () => Promise.resolve({ data: recipe, error: null }),
+      };
+      return q;
+    },
+    rpc: (name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: name === 'consume_extraction_quota' ? quotaAllowed : null, error: null });
+    },
+  };
+  return { client, rpcCalls };
+}
+
+const recipeRow = {
+  id: 'r1',
+  title: 'Frittata di zucchine',
+  description: null,
+  servings: null,
+  servings_estimated: false,
+  prep_minutes: 5,
+  cook_minutes: 10,
+  total_minutes: 15,
+  tags: ['secondo'],
+  recipe_ingredients: [
+    {
+      position: 1,
+      quantity: null,
+      unit: null,
+      name: 'zucchine',
+      note: null,
+      aisle: 'frutta_verdura',
+      estimated: false,
+    },
+    { position: 0, quantity: 4, unit: null, name: 'uova', note: null, aisle: 'latticini', estimated: false },
+    { position: 2, quantity: null, unit: null, name: 'sale', note: 'q.b.', aisle: 'dispensa', estimated: false },
+  ],
+  recipe_steps: [{ position: 0, text: 'Sbatti le uova.', timer_seconds: null }],
+};
+
+Deno.test('stima dosi: completa quelle mancanti e le salva come stimate', async () => {
+  const { client, rpcCalls } = doseFake(recipeRow);
+  const d = deps(client);
+  d.doseEstimator = (input) => {
+    // l'ordine segue la posizione: 0 = uova, 1 = zucchine
+    assertEquals(input.ingredients.map((i) => i.name), ['uova', 'zucchine', 'sale']);
+    return Promise.resolve({
+      ok: true,
+      estimate: { servings: 2, ingredients: [{ index: 1, quantity: 2, unit: null }] },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  };
+  const res = await (await handleRequest(post({ action: 'estimate_doses', recipeId: 'r1' }), d)).json();
+  assertEquals(res, { recipeId: 'r1', status: 'done', changed: 1, servings: 2 });
+  const saved = rpcCalls.find((c) => c.name === 'update_recipe')!.args.p_recipe as {
+    servings: number;
+    servings_estimated: boolean;
+    ingredients: Record<string, unknown>[];
+    steps: unknown[];
+  };
+  assertEquals(saved.servings, 2);
+  assertEquals(saved.servings_estimated, true);
+  assertEquals(saved.ingredients[1], {
+    quantity: 2,
+    unit: null,
+    name: 'zucchine',
+    note: null,
+    estimated: true,
+    aisle: 'frutta_verdura',
+  });
+  assertEquals(saved.ingredients[2].quantity, null); // sale resta q.b.
+  assertEquals(saved.steps.length, 1);
+});
+
+Deno.test('stima dosi: niente da fare se le dosi ci sono già', async () => {
+  const complete = {
+    ...recipeRow,
+    servings: 2,
+    recipe_ingredients: [{
+      position: 0,
+      quantity: 4,
+      unit: null,
+      name: 'uova',
+      note: null,
+      aisle: 'latticini',
+      estimated: false,
+    }],
+  };
+  const { client, rpcCalls } = doseFake(complete);
+  const res = await (await handleRequest(post({ action: 'estimate_doses', recipeId: 'r1' }), deps(client))).json();
+  assertEquals(res, { recipeId: 'r1', status: 'nothing_to_do' });
+  assertEquals(rpcCalls.length, 0);
+});
+
+Deno.test('stima dosi: senza AI o oltre il limite → messaggio, nessuna modifica', async () => {
+  const a = doseFake(recipeRow);
+  assertEquals(await (await handleRequest(post({ action: 'estimate_doses', recipeId: 'r1' }), deps(a.client))).json(), {
+    recipeId: 'r1',
+    status: 'skipped',
+    reason: 'not_configured',
+  });
+  const b = doseFake(recipeRow, false);
+  const d = deps(b.client);
+  d.doseEstimator = () => Promise.reject(new Error('non deve essere chiamato'));
+  assertEquals(
+    (await (await handleRequest(post({ action: 'estimate_doses', recipeId: 'r1' }), d)).json()).reason,
+    'quota_exceeded',
+  );
+});
+
+Deno.test('stima dosi: ricetta inesistente o richiesta sbagliata', async () => {
+  const { client } = doseFake(null);
+  assertEquals(
+    (await (await handleRequest(post({ action: 'estimate_doses', recipeId: 'x' }), deps(client))).json()).reason,
+    'not_found',
+  );
+  assertEquals((await handleRequest(post({ action: 'estimate_doses' }), deps(client))).status, 400);
 });

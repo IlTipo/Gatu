@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import { createGeminiExtractor } from '../_shared/gemini.ts';
+import { createGeminiDoseEstimator, createGeminiExtractor } from '../_shared/gemini.ts';
 import { createGeocoder } from '../_shared/geocode.ts';
 import { errorResponse } from '../_shared/http.ts';
 import { handleRequest } from './handler.ts';
@@ -13,6 +13,9 @@ const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
 const DAILY_LIMIT = Number(Deno.env.get('DAILY_EXTRACTION_LIMIT') ?? 40);
 
 const extractor = GEMINI_API_KEY ? createGeminiExtractor(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined }) : null;
+const doseEstimator = GEMINI_API_KEY
+  ? createGeminiDoseEstimator(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined })
+  : null;
 const geocoder = createGeocoder({ googleApiKey: GOOGLE_PLACES_API_KEY, fetch });
 
 Deno.serve(async (req) => {
@@ -20,6 +23,7 @@ Deno.serve(async (req) => {
     return await handleRequest(req, {
       fetch,
       extractor,
+      doseEstimator,
       geocoder,
       dailyLimit: DAILY_LIMIT,
       geocodeDelayMs: GOOGLE_PLACES_API_KEY ? 0 : 1100,

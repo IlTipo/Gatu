@@ -175,7 +175,25 @@
     "timerLabel": "Timer (min)",
     "addStep": "+ Passaggio",
     "titleRequired": "Il titolo è obbligatorio.",
-    "openSource": "Apri l'originale"
+    "openSource": "Apri l'originale",
+    "people": "Per quante persone",
+    "peopleCount_one": "{{count}} persona",
+    "peopleCount_other": "{{count}} persone",
+    "original": "originale",
+    "estimatedLegend": "~ = dose stimata dall'AI (non era scritta nella ricetta): controllala prima di cucinare.",
+    "servingsEstimated": "Le porzioni originali sono stimate.",
+    "noServings": "La ricetta non dice per quante persone è: stima le dosi per poterle ricalcolare.",
+    "estimateDoses": "Stima le dosi mancanti",
+    "estimating": "Sto stimando le dosi…",
+    "estimatedShort": "stimata",
+    "doseResult": {
+      "done_one": "Fatto: {{count}} dose stimata.",
+      "done_other": "Fatto: {{count}} dosi stimate.",
+      "nothing_to_do": "Tutte le dosi ci sono già.",
+      "not_configured": "Per stimare le dosi serve l'AI (chiave di Gemini, vedi README).",
+      "quota_exceeded": "Hai raggiunto il limite di analisi per oggi: riprova domani.",
+      "error": "Non sono riuscito a stimare le dosi. Riprova tra poco."
+    }
   },
   "place": {
     "verified": "Indirizzo verificato",

@@ -41,3 +41,24 @@ export function useUpdateRecipe(id: string) {
     },
   });
 }
+
+export type DoseResult =
+  | { recipeId: string; status: 'done'; changed: number; servings: number | null }
+  | { recipeId: string; status: 'nothing_to_do' }
+  | { recipeId: string; status: 'skipped'; reason: 'not_configured' | 'quota_exceeded' }
+  | { recipeId: string; status: 'error'; reason: string };
+
+/** Chiede al server di stimare (con l'AI) le dosi che mancano. */
+export function useEstimateDoses(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke<DoseResult>('extract', {
+        body: { action: 'estimate_doses', recipeId: id },
+      });
+      if (error || !data) throw new ApiError(error?.name === 'FunctionsFetchError' ? 'network' : 'internal_error');
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) }),
+  });
+}

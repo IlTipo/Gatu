@@ -8,6 +8,8 @@ export type Ingredient = {
   name: string;
   note: string | null;
   aisle: string;
+  /** true se la dose è stata stimata dall'AI (non era scritta nella ricetta). */
+  estimated: boolean;
 };
 
 export type Step = {
@@ -24,6 +26,7 @@ export type Recipe = {
   description: string | null;
   image_url: string | null;
   servings: number | null;
+  servings_estimated: boolean;
   prep_minutes: number | null;
   cook_minutes: number | null;
   total_minutes: number | null;
@@ -45,10 +48,18 @@ export type RecipeDraft = {
   title: string;
   description: string | null;
   servings: number | null;
+  servings_estimated: boolean;
   prep_minutes: number | null;
   cook_minutes: number | null;
   total_minutes: number | null;
   tags: string[];
-  ingredients: { quantity: number | null; unit: string | null; name: string; note: string | null; aisle: string }[];
+  ingredients: {
+    quantity: number | null;
+    unit: string | null;
+    name: string;
+    note: string | null;
+    aisle: string;
+    estimated: boolean;
+  }[];
   steps: { text: string; timer_seconds: number | null }[];
 };

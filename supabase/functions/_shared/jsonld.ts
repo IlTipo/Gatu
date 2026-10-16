@@ -146,7 +146,7 @@ export function parseIngredientLine(line: string): CleanIngredient | null {
   text = text.replace(/[\s,.;:]+$/, '').replace(/\s+/g, ' ').trim();
   if (!text) return null;
   const name = text.charAt(0).toLowerCase() + text.slice(1);
-  return { quantity, unit, name: name.slice(0, 120), note, aisle: guessAisle(name) };
+  return { quantity, unit, name: name.slice(0, 120), note, aisle: guessAisle(name), estimated: false };
 }
 
 // ------------------------------------------------------------------ passaggi e tempi
@@ -270,6 +270,7 @@ export function recipeFromJsonLd(data: Record<string, unknown>): CleanExtraction
       title,
       description: plain(data.description).slice(0, 500) || null,
       servings: firstNumber(data.recipeYield),
+      servings_estimated: false,
       prep_minutes: prep,
       cook_minutes: cook,
       total_minutes: total,

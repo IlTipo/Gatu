@@ -16,6 +16,7 @@ Deno.test('righe di ingredienti italiane', () => {
     name: 'spaghetti',
     note: null,
     aisle: 'dispensa',
+    estimated: false,
   });
   assertEquals(parseIngredientLine('200gr farina 00'), {
     quantity: 200,
@@ -23,6 +24,7 @@ Deno.test('righe di ingredienti italiane', () => {
     name: 'farina 00',
     note: null,
     aisle: 'dispensa',
+    estimated: false,
   });
   assertEquals(parseIngredientLine('2 uova'), {
     quantity: 2,
@@ -30,6 +32,7 @@ Deno.test('righe di ingredienti italiane', () => {
     name: 'uova',
     note: null,
     aisle: 'latticini',
+    estimated: false,
   });
   assertEquals(parseIngredientLine('1/2 cucchiaino di sale')?.quantity, 0.5);
   assertEquals(parseIngredientLine('1/2 cucchiaino di sale')?.unit, 'cucchiaino');
@@ -40,6 +43,7 @@ Deno.test('righe di ingredienti italiane', () => {
     name: 'sale',
     note: 'q.b.',
     aisle: 'dispensa',
+    estimated: false,
   });
   assertEquals(parseIngredientLine('un pizzico di pepe'), {
     quantity: 1,
@@ -47,6 +51,7 @@ Deno.test('righe di ingredienti italiane', () => {
     name: 'pepe',
     note: null,
     aisle: 'dispensa',
+    estimated: false,
   });
   assertEquals(parseIngredientLine("1 spicchio d'aglio")?.name, 'aglio');
   assertEquals(parseIngredientLine('150 g guanciale (o pancetta)')?.note, 'o pancetta');
@@ -62,6 +67,7 @@ Deno.test('righe americane → unità metriche', () => {
     name: 'milk',
     note: null,
     aisle: 'latticini',
+    estimated: false,
   });
   assertEquals(parseIngredientLine('8 oz cream cheese')?.quantity, 224);
   assertEquals(parseIngredientLine('2 tbsp olive oil')?.unit, 'cucchiaio');

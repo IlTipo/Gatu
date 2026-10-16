@@ -42,7 +42,16 @@ export default function EditRecipeScreen() {
 }
 
 // Nel modulo i numeri restano testo finché non si salva (così si può scrivere "0,5").
-type IngredientRow = { key: string; quantity: string; unit: string; name: string; note: string; aisle: string };
+type IngredientRow = {
+  key: string;
+  quantity: string;
+  unit: string;
+  name: string;
+  note: string;
+  aisle: string;
+  /** dose stimata dall'AI: torna "vera" appena la modifichi a mano */
+  estimated: boolean;
+};
 type StepRow = { key: string; text: string; timerMinutes: string };
 let nextKey = 0;
 const newKey = () => `row-${nextKey++}`;
@@ -65,6 +74,7 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
       name: i.name,
       note: i.note ?? '',
       aisle: i.aisle,
+      estimated: i.estimated,
     })),
   );
   const [steps, setSteps] = useState<StepRow[]>(
@@ -77,8 +87,13 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
   const [titleError, setTitleError] = useState<string | null>(null);
 
   const toggleTag = (tag: string) => setTags((cur) => (cur.includes(tag) ? cur.filter((x) => x !== tag) : [...cur, tag]));
+  // se cambi quantità o unità a mano, la dose non è più "stimata"
   const setIngredient = (key: string, patch: Partial<IngredientRow>) =>
-    setIngredients((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+    setIngredients((rows) =>
+      rows.map((r) =>
+        r.key === key ? { ...r, ...patch, estimated: 'quantity' in patch || 'unit' in patch ? false : r.estimated } : r
+      )
+    );
   const setStep = (key: string, patch: Partial<StepRow>) => setSteps((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   function save() {
@@ -97,6 +112,8 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
       title: title.trim(),
       description: description.trim() || null,
       servings: int(servings) || null,
+      // porzioni stimate solo se non le hai cambiate
+      servings_estimated: recipe.servings_estimated && int(servings) === recipe.servings,
       prep_minutes: prepMin,
       cook_minutes: cookMin,
       total_minutes: prepMin !== null || cookMin !== null ? (prepMin ?? 0) + (cookMin ?? 0) : null,
@@ -109,6 +126,7 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
           name: i.name.trim(),
           note: i.note.trim() || null,
           aisle: i.aisle,
+          estimated: i.estimated && parseNumber(i.quantity) !== null,
         })),
       steps: steps
         .filter((s) => s.text.trim())
@@ -151,7 +169,13 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
             <View key={i.key} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
               <View style={styles.row}>
                 <View style={styles.qty}>
-                  <TextField label={t('recipe.qty')} value={i.quantity} onChangeText={(v) => setIngredient(i.key, { quantity: v })} keyboardType="decimal-pad" />
+                  <TextField
+                    label={t('recipe.qty')}
+                    value={i.quantity}
+                    onChangeText={(v) => setIngredient(i.key, { quantity: v })}
+                    keyboardType="decimal-pad"
+                    hint={i.estimated ? `~ ${t('recipe.estimatedShort')}` : undefined}
+                  />
                 </View>
                 <View style={styles.qty}>
                   <TextField label={t('recipe.unit')} value={i.unit} onChangeText={(v) => setIngredient(i.key, { unit: v })} autoCapitalize="none" />
@@ -166,7 +190,7 @@ function RecipeForm({ recipe }: { recipe: RecipeWithDetails }) {
           <Button
             label={t('recipe.addIngredient')}
             variant="secondary"
-            onPress={() => setIngredients((rows) => [...rows, { key: newKey(), quantity: '', unit: '', name: '', note: '', aisle: 'altro' }])}
+            onPress={() => setIngredients((rows) => [...rows, { key: newKey(), quantity: '', unit: '', name: '', note: '', aisle: 'altro', estimated: false }])}
           />
         </Section>
 

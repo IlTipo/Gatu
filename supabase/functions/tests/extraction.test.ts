@@ -103,7 +103,14 @@ Deno.test('cleanExtraction: corregge valori strani invece di rompersi', () => {
   assertEquals(r.prep_minutes, null);
   assertEquals(r.tags, ['veloce']); // solo tag ammessi, senza doppioni
   assertEquals(r.ingredients.length, 2); // l'ingrediente senza nome è scartato
-  assertEquals(r.ingredients[0], { quantity: 0.333, unit: 'g', name: 'Farina 00', note: null, aisle: 'dispensa' });
+  assertEquals(r.ingredients[0], {
+    quantity: 0.333,
+    unit: 'g',
+    name: 'Farina 00',
+    note: null,
+    aisle: 'dispensa',
+    estimated: false,
+  });
   assertEquals(r.ingredients[1].quantity, null);
   assertEquals(r.ingredients[1].aisle, 'altro');
 });
@@ -172,4 +179,20 @@ Deno.test('cleanExtraction: niente di utile → unknown', () => {
 
 Deno.test('cleanExtraction: confidence bassa → da rivedere', () => {
   assertEquals(statusFor(cleanExtraction({ ...recipe(), confidence: 'LOW' })), 'needs_review');
+});
+
+Deno.test('cleanExtraction: dosi e porzioni stimate', () => {
+  const result = cleanExtraction(
+    recipe({
+      servings: 2,
+      servings_estimated: true,
+      ingredients: [
+        { quantity: 200, unit: 'g', name: 'pasta', note: null, aisle: 'dispensa', estimated: true },
+        { quantity: null, unit: null, name: 'sale', note: 'q.b.', aisle: 'dispensa', estimated: true }, // senza quantità non è "stimata"
+        { quantity: 1, unit: null, name: 'limone', note: null, aisle: 'frutta_verdura' }, // campo assente → false
+      ],
+    }),
+  );
+  assertEquals(result.recipe?.servings_estimated, true);
+  assertEquals(result.recipe?.ingredients.map((i) => i.estimated), [true, false, false]);
 });

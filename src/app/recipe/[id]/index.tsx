@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
@@ -9,16 +10,17 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
-import { ErrorState, LoadingState } from '@/components/StateViews';
-import { useRecipe } from '@/features/recipes/api';
-import { formatIngredient, formatMinutes } from '@/features/recipes/format';
+import { Notice } from '@/components/Notice';
+import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
+import { type DoseResult, useEstimateDoses, useRecipe } from '@/features/recipes/api';
+import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
+import type { RecipeWithDetails } from '@/features/recipes/types';
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { radius, spacing, useTheme } from '@/theme';
 
 export default function RecipeScreen() {
   const { t } = useTranslation();
-  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const recipe = useRecipe(id);
 
@@ -38,9 +40,44 @@ export default function RecipeScreen() {
     );
   }
 
-  const r = recipe.data;
+  return <RecipeDetails recipe={recipe.data} />;
+}
+
+const PEOPLE = [1, 2, 3, 4, 5, 6];
+
+function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const estimate = useEstimateDoses(r.id);
+  const [doseMessage, setDoseMessage] = useState<string | null>(null);
+  // persone scelte (di base quelle della ricetta)
+  const [people, setPeople] = useState<number | null>(r.servings);
+  const base = r.servings;
+  const factor = base && people ? people / base : 1;
+  const missing = hasMissingDoses(r.servings, r.recipe_ingredients);
+  const anyEstimated = r.recipe_ingredients.some((i) => i.estimated && i.quantity !== null);
+  const choices = base && !PEOPLE.includes(base) ? [...PEOPLE, base] : PEOPLE;
+
+  function runEstimate() {
+    setDoseMessage(null);
+    estimate.mutate(undefined, {
+      onSuccess: (res: DoseResult) => {
+        setDoseMessage(
+          res.status === 'done'
+            ? t('recipe.doseResult.done', { count: res.changed })
+            : res.status === 'nothing_to_do'
+            ? t('recipe.doseResult.nothing_to_do')
+            : res.status === 'skipped'
+            ? t(`recipe.doseResult.${res.reason}`)
+            : t('recipe.doseResult.error'),
+        );
+        if (res.status === 'done' && res.servings && !people) setPeople(res.servings);
+      },
+    });
+  }
+
   const facts = [
-    r.servings ? t('recipe.servings', { count: r.servings }) : null,
+    r.servings ? `${t('recipe.servings', { count: r.servings })}${r.servings_estimated ? ' (~)' : ''}` : null,
     r.prep_minutes ? `${t('recipe.prep')} ${formatMinutes(r.prep_minutes)}` : null,
     r.cook_minutes ? `${t('recipe.cook')} ${formatMinutes(r.cook_minutes)}` : null,
     r.total_minutes ? `${t('recipe.total')} ${formatMinutes(r.total_minutes)}` : null,
@@ -79,16 +116,56 @@ export default function RecipeScreen() {
         </View>
 
         <Section title={t('recipe.ingredients')}>
+          {base ? (
+            <View style={styles.people}>
+              <AppText variant="caption" tone="secondary">
+                {t('recipe.people')}
+              </AppText>
+              <View style={styles.chips}>
+                {choices.map((n) => (
+                  <Chip
+                    key={n}
+                    label={n === base ? `${n} · ${t('recipe.original')}` : String(n)}
+                    selected={people === n}
+                    onPress={() => setPeople(n)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {missing ? (
+            <Notice title={base ? t('recipe.estimateDoses') : t('recipe.noServings')}>
+              <Button
+                label={estimate.isPending ? t('recipe.estimating') : t('recipe.estimateDoses')}
+                variant="secondary"
+                onPress={runEstimate}
+                loading={estimate.isPending}
+              />
+            </Notice>
+          ) : null}
+          {doseMessage ? <AppText tone="secondary">{doseMessage}</AppText> : null}
+          <InlineError message={estimate.isError ? errorMessage(estimate.error, t) : null} />
+
           {r.recipe_ingredients.length ? (
             r.recipe_ingredients.map((i) => (
               <View key={i.id} style={styles.ingredient}>
-                <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-                <AppText style={styles.flex}>{formatIngredient(i)}</AppText>
+                <View style={[styles.dot, { backgroundColor: i.estimated ? colors.textSecondary : colors.primary }]} />
+                <AppText style={styles.flex}>
+                  {formatIngredient({ ...i, quantity: scaleQuantity(i.quantity, i.unit, factor) })}
+                </AppText>
               </View>
             ))
           ) : (
             <AppText tone="secondary">{t('recipe.noIngredients')}</AppText>
           )}
+          {anyEstimated || r.servings_estimated ? (
+            <AppText variant="caption" tone="secondary">
+              {[anyEstimated ? t('recipe.estimatedLegend') : null, r.servings_estimated ? t('recipe.servingsEstimated') : null]
+                .filter(Boolean)
+                .join(' ')}
+            </AppText>
+          ) : null}
         </Section>
 
         <Section title={t('recipe.steps')}>
@@ -124,6 +201,7 @@ const styles = StyleSheet.create({
   image: { width: '100%', aspectRatio: 4 / 3, maxHeight: 420, borderRadius: radius.lg, overflow: 'hidden' },
   titleBlock: { gap: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  people: { gap: spacing.sm },
   buttons: { gap: spacing.sm },
   ingredient: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },

@@ -59,6 +59,7 @@ const Ingredient = z.object({
   name: z.string().describe('Nome dell\'ingrediente in italiano, minuscolo, senza quantità (es. "farina 00").'),
   note: z.string().nullish().describe('Dettagli facoltativi (es. "a temperatura ambiente", "q.b.").'),
   aisle: z.string().default('altro').describe(`Reparto del supermercato, uno tra: ${AISLES.join(', ')}.`),
+  estimated: z.boolean().nullish().describe('true se la quantità NON era scritta nel testo ed è stata stimata.'),
 });
 
 const Step = z.object({
@@ -71,7 +72,8 @@ const Step = z.object({
 const Recipe = z.object({
   title: z.string().describe('Nome del piatto in italiano.'),
   description: z.string().nullish().describe('Una frase che descrive il piatto.'),
-  servings: z.number().nullish().describe('Numero di porzioni.'),
+  servings: z.number().nullish().describe('Numero di porzioni (stimato se non indicato).'),
+  servings_estimated: z.boolean().nullish().describe('true se le porzioni NON erano scritte nel testo.'),
   prep_minutes: z.number().nullish(),
   cook_minutes: z.number().nullish(),
   total_minutes: z.number().nullish(),
@@ -113,10 +115,11 @@ export const SYSTEM_PROMPT =
 Ricevi i dati pubblici di un link (titolo, caption o descrizione, autore, eventuale scheda ricetta strutturata) e a volte il testo che l'utente ha incollato. Devi capire se il contenuto è una RICETTA oppure uno o più LOCALI (ristoranti, trattorie, bar, pasticcerie, gelaterie...) e restituire i dati strutturati.
 
 Regole:
-- Usa solo informazioni presenti nel testo. Non inventare ingredienti, dosi, indirizzi o prezzi: se un dato manca, metti null (o lista vuota) e segnalalo in missing_info.
+- Usa solo informazioni presenti nel testo. Non inventare ingredienti, passaggi, indirizzi o prezzi: se un dato manca, metti null (o lista vuota) e segnalalo in missing_info.
+- DOSI: se il testo indica le quantità, riportale esattamente. Se mancano, STIMALE tu in modo realistico (come farebbe un cuoco esperto) e metti estimated = true su quegli ingredienti. Le porzioni: se non sono indicate, stimale dalle dosi (o usa 2 se non ci sono dosi) e metti servings_estimated = true. Lascia "q.b." (quantity null, note "q.b.", estimated false) solo per sale, pepe, spezie e olio per friggere o condire "a piacere".
 - Scrivi tutto in italiano. Traduci ricette in altre lingue; i nomi dei locali restano come sono.
 - Converti le unità americane in metriche (1 cup di farina ≈ 125 g, 1 cup di liquido ≈ 240 ml, 1 oz ≈ 28 g, 1 tbsp = 1 cucchiaio, 1 tsp = 1 cucchiaino, °F in °C).
-- Ingredienti: una riga per ingrediente, quantità numerica separata dal nome; "q.b." → quantity null e note "q.b.".
+- Ingredienti: una riga per ingrediente, quantità numerica separata dal nome.
 - Passaggi: brevi, numerabili, nell'ordine giusto. Se nel testo i passaggi non ci sono ma gli ingredienti sì, scrivi pochi passaggi solo se sono ovvi dal testo, altrimenti lascia la lista vuota e segnalalo.
 - Tag: scegli solo tra quelli ammessi e solo se evidenti ("veloce" = pronta in 30 minuti o meno).
 - Se il post cita più locali, elencali tutti, ognuno con la sua città se si capisce (anche dal contesto, es. "i migliori 5 posti a Bologna").
@@ -191,11 +194,14 @@ export type CleanIngredient = {
   name: string;
   note: string | null;
   aisle: Aisle;
+  /** true se la quantità è stata stimata dall'AI (non era scritta nel post). */
+  estimated: boolean;
 };
 export type CleanRecipe = {
   title: string;
   description: string | null;
   servings: number | null;
+  servings_estimated: boolean;
   prep_minutes: number | null;
   cook_minutes: number | null;
   total_minutes: number | null;
@@ -257,7 +263,11 @@ export function cleanExtraction(raw: RawExtraction): CleanExtraction {
         aisle: (AISLES as readonly string[]).includes(i.aisle.trim().toLowerCase())
           ? (i.aisle.trim().toLowerCase() as Aisle)
           : 'altro',
+        estimated: false,
+        rawEstimated: i.estimated === true,
       }))
+      // "stimata" ha senso solo se una quantità c'è
+      .map(({ rawEstimated, ...i }) => ({ ...i, estimated: rawEstimated && i.quantity !== null }))
       .filter((i) => i.name)
       .slice(0, 80);
     const steps = r.steps
@@ -277,6 +287,7 @@ export function cleanExtraction(raw: RawExtraction): CleanExtraction {
           title,
           description: text(r.description, 500),
           servings: intOrNull(r.servings, 1, 100),
+          servings_estimated: r.servings_estimated === true && intOrNull(r.servings, 1, 100) !== null,
           prep_minutes: prep,
           cook_minutes: cook,
           total_minutes: total,

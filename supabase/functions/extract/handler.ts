@@ -4,11 +4,13 @@
 // Richieste (POST):
 //   { url?: string, text?: string }      salva un nuovo link (il link può anche stare dentro "text") e lo analizza
 //   { sourceId: string, text?: string }  rianalizza un link già salvato (es. dopo aver incollato la caption)
-// Risposta: { source, duplicate, needsText, analysis }
+//   { action: 'estimate_doses', recipeId }  stima le dosi mancanti di una ricetta salvata
+// Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import type { Extractor } from '../_shared/ai.ts';
+import type { DoseEstimator, Extractor } from '../_shared/ai.ts';
+import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
   cleanExtraction,
@@ -34,6 +36,8 @@ export type Deps = {
   fetch: FetchLike;
   /** null se GEMINI_API_KEY non è configurata: si usano solo le schede ricetta dei siti. */
   extractor: Extractor | null;
+  /** Stima delle dosi mancanti (stessa chiave dell'AI). */
+  doseEstimator: DoseEstimator | null;
   geocoder: Geocoder;
   dailyLimit: number;
   /** Pausa tra una ricerca di indirizzo e l'altra (OpenStreetMap chiede max 1 al secondo). */
@@ -79,13 +83,19 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const user = userData?.user;
   if (userError || !user) return errorResponse('unauthorized', 401);
 
-  let body: { url?: unknown; text?: unknown; sourceId?: unknown };
+  let body: { url?: unknown; text?: unknown; sourceId?: unknown; action?: unknown; recipeId?: unknown };
   try {
     body = await req.json();
   } catch {
     return errorResponse('invalid_body', 400);
   }
   const text = typeof body.text === 'string' ? body.text.trim().slice(0, MAX_TEXT_LENGTH) : '';
+
+  // ---- Stima delle dosi mancanti di una ricetta salvata
+  if (body.action === 'estimate_doses') {
+    if (typeof body.recipeId !== 'string') return errorResponse('invalid_body', 400);
+    return json(await estimateDoses(body.recipeId, supabase, deps));
+  }
 
   // ---- Rianalisi di un link già salvato
   if (typeof body.sourceId === 'string') {
@@ -291,6 +301,94 @@ async function saveResult(
     placeIds: ids.place_ids ?? [],
     missingInfo: result.missingInfo,
   };
+}
+
+type RecipeRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  servings: number | null;
+  servings_estimated: boolean;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  total_minutes: number | null;
+  tags: string[];
+  recipe_ingredients: {
+    position: number;
+    quantity: number | null;
+    unit: string | null;
+    name: string;
+    note: string | null;
+    aisle: string;
+    estimated: boolean;
+  }[];
+  recipe_steps: { position: number; text: string; timer_seconds: number | null }[];
+};
+
+export type DoseResult =
+  | { recipeId: string; status: 'done'; changed: number; servings: number | null }
+  | { recipeId: string; status: 'nothing_to_do' }
+  | { recipeId: string; status: 'skipped'; reason: 'not_configured' | 'quota_exceeded' }
+  | { recipeId: string; status: 'error'; reason: string };
+
+/** Chiede all'AI le dosi che mancano e le salva, segnate come "stimate". */
+export async function estimateDoses(recipeId: string, supabase: SupabaseClient, deps: Deps): Promise<DoseResult> {
+  const { data, error } = await supabase
+    .from('recipes')
+    .select('*, recipe_ingredients(*), recipe_steps(*)')
+    .eq('id', recipeId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return { recipeId, status: 'error', reason: 'not_found' };
+  const recipe = data as RecipeRow;
+  const ingredients = [...recipe.recipe_ingredients].sort((a, b) => a.position - b.position);
+  const steps = [...recipe.recipe_steps].sort((a, b) => a.position - b.position);
+
+  const input: DoseInput = {
+    title: recipe.title,
+    servings: recipe.servings,
+    ingredients: ingredients.map((i) => ({
+      quantity: i.quantity === null ? null : Number(i.quantity),
+      unit: i.unit,
+      name: i.name,
+      note: i.note,
+      estimated: i.estimated,
+    })),
+    steps: steps.map((s) => s.text),
+  };
+  if (!needsDoseEstimate(input)) return { recipeId, status: 'nothing_to_do' };
+  if (!deps.doseEstimator) return { recipeId, status: 'skipped', reason: 'not_configured' };
+
+  const { data: allowed, error: quotaError } = await supabase.rpc('consume_extraction_quota', {
+    daily_limit: deps.dailyLimit,
+  });
+  if (quotaError) throw quotaError;
+  if (!allowed) return { recipeId, status: 'skipped', reason: 'quota_exceeded' };
+
+  const outcome = await deps.doseEstimator(input);
+  if (!outcome.ok) return { recipeId, status: 'error', reason: outcome.reason };
+
+  const merged = applyDoseEstimate(input, outcome.estimate);
+  const { error: saveError } = await supabase.rpc('update_recipe', {
+    p_recipe_id: recipeId,
+    p_recipe: {
+      title: recipe.title,
+      description: recipe.description,
+      servings: merged.servings,
+      servings_estimated: recipe.servings_estimated || merged.servingsEstimated,
+      prep_minutes: recipe.prep_minutes,
+      cook_minutes: recipe.cook_minutes,
+      total_minutes: recipe.total_minutes,
+      tags: recipe.tags,
+      ingredients: merged.ingredients.map((i, index) => ({ ...i, aisle: ingredients[index].aisle })),
+      steps: steps.map((s) => ({ text: s.text, timer_seconds: s.timer_seconds })),
+    },
+  });
+  if (saveError) {
+    console.error('update_recipe failed', saveError);
+    return { recipeId, status: 'error', reason: 'save_failed' };
+  }
+  return { recipeId, status: 'done', changed: merged.changed, servings: merged.servings };
 }
 
 async function setStatus(supabase: SupabaseClient, id: string, status: string, errorMessage: string | null) {
