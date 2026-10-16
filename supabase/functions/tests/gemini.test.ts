@@ -129,14 +129,42 @@ Deno.test("errori dell'API", async () => {
     },
   );
   assertEquals(await run(403, { status: 'PERMISSION_DENIED', message: 'denied' }), { ok: false, reason: 'auth' });
-  assertEquals(await run(503, { status: 'UNAVAILABLE', message: 'overloaded' }), { ok: false, reason: 'overloaded' });
+  assertEquals(await run(503, { status: 'UNAVAILABLE', message: 'overloaded' }), { ok: false, reason: 'overloaded' }); // anche dopo il secondo tentativo
   assertEquals(await run(400, { status: 'INVALID_ARGUMENT', message: 'bad schema' }), {
     ok: false,
     reason: 'api_error',
   });
 });
 
-Deno.test('rete assente → api_error (nessun crash)', async () => {
-  const failing = (() => Promise.reject(new TypeError('network'))) as typeof fetch;
+Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo', async () => {
+  let calls = 0;
+  const failing = (() => (calls++, Promise.reject(new TypeError('network')))) as typeof fetch;
   assertEquals(await createGeminiExtractor('k', { fetch: failing })(input), { ok: false, reason: 'api_error' });
+  assertEquals(calls, 2);
+});
+
+Deno.test('troppo lento → riprova una volta, poi "overloaded"', async () => {
+  let calls = 0;
+  const slow = ((_url: string, init?: RequestInit) =>
+    new Promise((_, reject) => {
+      calls++;
+      init?.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+    })) as unknown as typeof fetch;
+  assertEquals(await createGeminiExtractor('k', { fetch: slow, timeoutMs: 20 })(input), {
+    ok: false,
+    reason: 'overloaded',
+  });
+  assertEquals(calls, 2);
+});
+
+Deno.test('errore momentaneo 503 → il secondo tentativo va a buon fine', async () => {
+  let calls = 0;
+  const flaky = (() => {
+    calls++;
+    const body = calls === 1 ? { error: { status: 'UNAVAILABLE' } } : reply(JSON.stringify(extraction));
+    return Promise.resolve(new Response(JSON.stringify(body), { status: calls === 1 ? 503 : 200 }));
+  }) as typeof fetch;
+  const outcome = await createGeminiExtractor('k', { fetch: flaky })(input);
+  assertEquals(outcome.ok, true);
+  assertEquals(calls, 2);
 });

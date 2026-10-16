@@ -20,7 +20,9 @@ const input = (description: string): ExtractionInput => ({
 });
 
 async function run(description: string) {
+  const started = Date.now();
   const outcome = await extract!(input(description));
+  console.log(`  ${outcome.ok ? outcome.model : 'errore'} · ${((Date.now() - started) / 1000).toFixed(1)} s`);
   assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
   return cleanExtraction(outcome.extraction);
 }

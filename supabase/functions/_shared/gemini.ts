@@ -114,32 +114,52 @@ type GeminiResponse = {
 const BLOCKED = ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'];
 
 /** `fetchImpl` serve solo ai test, per simulare le risposte dell'API. */
-export function createGeminiExtractor(apiKey: string, opts: { model?: string; fetch?: typeof fetch } = {}): Extractor {
+export function createGeminiExtractor(
+  apiKey: string,
+  opts: { model?: string; fetch?: typeof fetch; timeoutMs?: number } = {},
+): Extractor {
   const model = opts.model || DEFAULT_MODEL;
   const doFetch = opts.fetch ?? fetch;
 
+  const body = (input: Parameters<Extractor>[0]) =>
+    JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: 'user', parts: [{ text: buildUserMessage(input) }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: GEMINI_RESPONSE_SCHEMA,
+        temperature: 0.2,
+        maxOutputTokens: 16384,
+      },
+    });
+
+  // Una richiesta con tempo massimo; il piano gratuito a volte è lento: in quel caso si riprova una volta.
+  const call = (input: Parameters<Extractor>[0]) =>
+    doFetch(`${API}/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 55_000),
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      body: body(input),
+    });
+
   return async (input) => {
-    let res: Response;
-    try {
-      res = await doFetch(`${API}/${encodeURIComponent(model)}:generateContent`, {
-        method: 'POST',
-        signal: AbortSignal.timeout(90_000),
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ role: 'user', parts: [{ text: buildUserMessage(input) }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: GEMINI_RESPONSE_SCHEMA,
-            temperature: 0.2,
-            maxOutputTokens: 16384,
-          },
-        }),
-      });
-    } catch (e) {
-      console.error('Gemini request failed', e);
-      return { ok: false, reason: 'api_error' };
+    let res: Response | null = null;
+    for (let attempt = 1; attempt <= 2 && !res; attempt++) {
+      try {
+        res = await call(input);
+        // sovraccarico momentaneo: un secondo tentativo spesso va
+        if (res.status >= 500 && attempt === 1) {
+          await res.body?.cancel();
+          res = null;
+        }
+      } catch (e) {
+        console.error(`Gemini request failed (tentativo ${attempt})`, e instanceof Error ? e.name : e);
+        if (attempt === 2) {
+          return { ok: false, reason: e instanceof Error && e.name === 'TimeoutError' ? 'overloaded' : 'api_error' };
+        }
+      }
     }
+    if (!res) return { ok: false, reason: 'overloaded' };
 
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as GeminiResponse;
