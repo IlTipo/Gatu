@@ -71,6 +71,8 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             ? t('recipe.doseResult.nothing_to_do')
             : res.status === 'skipped'
             ? t(`recipe.doseResult.${res.reason}`)
+            : res.reason === 'rate_limited'
+            ? t('recipe.aiRateLimited')
             : t('recipe.doseResult.error'),
         );
         if (res.status === 'done' && res.servings && !people) setPeople(res.servings);
@@ -226,7 +228,7 @@ function InsightsCard({ recipe: r }: { recipe: RecipeWithDetails }) {
     setMessage(null);
     compute.mutate(undefined, {
       onSuccess: (res: InsightsResult) =>
-        setMessage(res.status === 'done' ? null : res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : t('recipe.aiError')),
+        setMessage(res.status === 'done' ? null : res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError')),
     });
   }
 

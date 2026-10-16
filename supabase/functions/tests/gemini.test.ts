@@ -1,5 +1,5 @@
 // Test della chiamata a Gemini con risposte dell'API simulate (nessun costo, nessuna rete).
-import { assertEquals } from 'jsr:@std/assert@1';
+import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import type { ExtractionInput } from '../_shared/extraction.ts';
 import {
@@ -237,4 +237,50 @@ Deno.test('strumenti ricetta: valori e variante', async () => {
   assertEquals(v.ok && v.variant.title, 'Frittata vegana');
   const sent = (b.requests[0].body.contents as { parts: { text: string }[] }[])[0].parts[0].text;
   assertEquals(sent.startsWith('Versione richiesta: vegana'), true);
+});
+
+/** Risposte diverse per modello: { "gemini-flash-latest": [429, {...}], ... } */
+function perModel(responses: Record<string, [number, unknown]>) {
+  const urls: string[] = [];
+  const fetchImpl = ((url: string | URL | Request) => {
+    urls.push(String(url));
+    const model = decodeURIComponent(String(url).split('/models/')[1].split(':')[0]);
+    const [status, body] = responses[model] ?? [404, { error: { status: 'NOT_FOUND' } }];
+    return Promise.resolve(
+      new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }),
+    );
+  }) as typeof fetch;
+  return { fetch: fetchImpl, urls };
+}
+
+const quotaFinished = [429, { error: { status: 'RESOURCE_EXHAUSTED', message: 'quota' } }] as [number, unknown];
+
+Deno.test('quota del modello finita → passa da solo al modello "lite"', async () => {
+  const fake = perModel({
+    [DEFAULT_MODEL]: quotaFinished,
+    'gemini-flash-lite-latest': [200, reply(JSON.stringify(extraction))],
+  });
+  const res = await createGeminiExtractor('k', { fetch: fake.fetch })(input);
+  assertEquals(res.ok, true);
+  assertEquals(fake.urls.length, 2);
+  assert(fake.urls[1].includes('/gemini-flash-lite-latest:generateContent'));
+});
+
+Deno.test('quota finita ovunque (o modello di riserva assente) → rate_limited', async () => {
+  const both = perModel({ [DEFAULT_MODEL]: quotaFinished, 'gemini-flash-lite-latest': quotaFinished });
+  assertEquals(await createGeminiExtractor('k', { fetch: both.fetch })(input), { ok: false, reason: 'rate_limited' });
+  const missing = perModel({ [DEFAULT_MODEL]: quotaFinished });
+  assertEquals(await createGeminiExtractor('k', { fetch: missing.fetch })(input), {
+    ok: false,
+    reason: 'rate_limited',
+  });
+});
+
+Deno.test('altri errori non passano al modello di riserva', async () => {
+  const fake = perModel({ [DEFAULT_MODEL]: [403, { error: { status: 'PERMISSION_DENIED' } }] });
+  assertEquals(await createGeminiExtractor('k', { fetch: fake.fetch })(input), { ok: false, reason: 'auth' });
+  assertEquals(fake.urls.length, 1);
+  const none = perModel({ [DEFAULT_MODEL]: quotaFinished });
+  await createGeminiExtractor('k', { fetch: none.fetch, fallbackModels: [] })(input);
+  assertEquals(none.urls.length, 1);
 });

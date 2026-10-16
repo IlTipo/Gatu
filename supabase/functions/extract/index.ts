@@ -8,16 +8,18 @@ import { handleRequest } from './handler.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 const GEMINI_MODEL = Deno.env.get('GEMINI_MODEL'); // facoltativo: di base "gemini-flash-latest"
+// facoltativo: modelli di riserva quando finisce la quota gratuita (separati da virgola)
+const GEMINI_FALLBACK_MODELS = Deno.env.get('GEMINI_FALLBACK_MODELS')?.split(',').map((m) => m.trim()).filter(Boolean);
 const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY');
 // Massimo di analisi AI al giorno per utente (resta dentro i limiti del piano gratuito).
 const DAILY_LIMIT = Number(Deno.env.get('DAILY_EXTRACTION_LIMIT') ?? 40);
 
-const extractor = GEMINI_API_KEY ? createGeminiExtractor(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined }) : null;
+const extractor = GEMINI_API_KEY ? createGeminiExtractor(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined, fallbackModels: GEMINI_FALLBACK_MODELS }) : null;
 const doseEstimator = GEMINI_API_KEY
-  ? createGeminiDoseEstimator(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined })
+  ? createGeminiDoseEstimator(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined, fallbackModels: GEMINI_FALLBACK_MODELS })
   : null;
 const recipeTools = GEMINI_API_KEY
-  ? createGeminiRecipeTools(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined })
+  ? createGeminiRecipeTools(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined, fallbackModels: GEMINI_FALLBACK_MODELS })
   : null;
 const geocoder = createGeocoder({ googleApiKey: GOOGLE_PLACES_API_KEY, fetch });
 

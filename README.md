@@ -48,8 +48,10 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
    - **Secret**: la chiave → **Add secret**
 4. Rilancia **[Actions → Pubblica il sito → Run workflow](https://github.com/IlTipo/Gatu/actions/workflows/deploy-web.yml)**: la chiave viene passata alle funzioni di Supabase (non finisce mai nel sito).
 
-> **Da sapere sul piano gratuito**: ha un limite di richieste al minuto e al giorno (abbondante per uso personale; se lo superi Morso salva il link e ti chiede di riprovare più tardi), e Google può usare i testi inviati per migliorare i suoi modelli (inviamo solo i dati pubblici del post e l'eventuale testo che incolli).
-> Per sicurezza ogni utente può fare al massimo **40 analisi AI al giorno** (secret Supabase `DAILY_EXTRACTION_LIMIT`). Il modello usato è `gemini-flash-latest`; si può cambiare con il secret Supabase `GEMINI_MODEL`.
+> **Da sapere sul piano gratuito**: il limite giornaliero è **basso e vale per tutto il sito** (oggi per `gemini-flash-latest` sono circa 20 richieste al giorno; si azzera ogni notte). Quando finisce, Morso passa da solo al modello `gemini-flash-lite-latest`, che ha una quota separata; se finisce anche quella, i link restano salvati e il sito ti dice di riprovare domani. Puoi vedere quante richieste hai usato su [ai.dev/rate-limit](https://ai.dev/rate-limit). Le schede ricetta dei siti, la ricerca, i filtri, "Cosa cucino con ciò che ho" e il dado **non usano l'AI**.
+> Google può usare i testi inviati per migliorare i suoi modelli (inviamo solo i dati pubblici del post e l'eventuale testo che incolli).
+> Il test "Prova l'AI" in Actions consuma circa 10 richieste: si avvia solo a mano.
+> Per sicurezza ogni utente può fare al massimo **40 analisi AI al giorno** (secret Supabase `DAILY_EXTRACTION_LIMIT`). Il modello usato è `gemini-flash-latest`; si può cambiare con il secret Supabase `GEMINI_MODEL` (e i modelli di riserva con `GEMINI_FALLBACK_MODELS`, separati da virgola).
 > Facoltativo: con un secret `GOOGLE_PLACES_API_KEY` gli indirizzi dei locali vengono verificati con Google Places invece che con OpenStreetMap (gratis).
 
 ### 4. Aggiungilo alla schermata Home del telefono

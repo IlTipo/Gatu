@@ -48,7 +48,7 @@ export default function VariantScreen() {
       <Screen>
         <BackButton />
         <ErrorState
-          message={res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : t('recipe.aiError')}
+          message={res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError')}
           onRetry={res.status === 'error' ? () => variant.refetch() : undefined}
         />
       </Screen>

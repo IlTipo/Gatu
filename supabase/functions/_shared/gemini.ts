@@ -16,6 +16,11 @@ import {
 
 /** "gemini-flash-latest" punta sempre al modello Flash più recente (incluso nel piano gratuito). */
 export const DEFAULT_MODEL = 'gemini-flash-latest';
+/**
+ * Ogni modello ha la sua quota gratuita giornaliera (per Flash sono poche richieste al giorno).
+ * Quando finisce, si passa da solo al modello "lite", che ha una quota separata.
+ */
+export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest'];
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // Schema della risposta nel formato richiesto da Gemini (sottoinsieme di OpenAPI).
@@ -130,16 +135,17 @@ type GeminiResponse = {
 
 const BLOCKED = ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'];
 
-type GeminiOptions = { model?: string; fetch?: typeof fetch; timeoutMs?: number };
+type GeminiOptions = { model?: string; fallbackModels?: string[]; fetch?: typeof fetch; timeoutMs?: number };
 type JsonOutcome = { ok: true; json: unknown; model: string; usage: { input: number; output: number } } | Failure;
 
 /** Chiamata generica a Gemini che restituisce JSON secondo uno schema. */
 function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
-  const model = opts.model || DEFAULT_MODEL;
+  const primary = opts.model || DEFAULT_MODEL;
+  const models = [primary, ...(opts.fallbackModels ?? DEFAULT_FALLBACK_MODELS).filter((m) => m && m !== primary)];
   const doFetch = opts.fetch ?? fetch;
 
   // Una richiesta con tempo massimo; il piano gratuito a volte è lento: in quel caso si riprova una volta.
-  const call = (body: string) =>
+  const call = (model: string, body: string) =>
     doFetch(`${API}/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       signal: AbortSignal.timeout(opts.timeoutMs ?? 55_000),
@@ -147,30 +153,14 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
       body,
     });
 
-  return async (
-    system: string,
-    user: string,
-    schema: unknown,
-    images: { mimeType: string; data: string }[] = [],
-  ): Promise<JsonOutcome> => {
-    const body = JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{
-        role: 'user',
-        parts: [...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })), { text: user }],
-      }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        temperature: 0.2,
-        maxOutputTokens: 16384,
-      },
-    });
+  // quota finita (429) o modello non disponibile (404): si prova il modello successivo
+  type Attempt = JsonOutcome | { ok: false; reason: Failure['reason']; tryNext: true };
 
+  const generate = async (model: string, body: string): Promise<Attempt> => {
     let res: Response | null = null;
     for (let attempt = 1; attempt <= 2 && !res; attempt++) {
       try {
-        res = await call(body);
+        res = await call(model, body);
         // sovraccarico momentaneo: un secondo tentativo spesso va
         if (res.status >= 500 && attempt === 1) {
           await res.body?.cancel();
@@ -187,8 +177,9 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
 
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as GeminiResponse;
-      console.error('Gemini API error', res.status, errBody.error?.status, errBody.error?.message);
-      if (res.status === 429) return { ok: false, reason: 'rate_limited' };
+      console.error('Gemini API error', model, res.status, errBody.error?.status, errBody.error?.message);
+      if (res.status === 429) return { ok: false, reason: 'rate_limited', tryNext: true };
+      if (res.status === 404) return { ok: false, reason: 'api_error', tryNext: true };
       if (res.status === 401 || res.status === 403) return { ok: false, reason: 'auth' };
       if (res.status === 400 && /api key|API_KEY/i.test(`${errBody.error?.message} ${errBody.error?.status}`)) {
         return { ok: false, reason: 'auth' };
@@ -219,6 +210,37 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     } catch {
       return { ok: false, reason: 'invalid_output' };
     }
+  };
+
+  return async (
+    system: string,
+    user: string,
+    schema: unknown,
+    images: { mimeType: string; data: string }[] = [],
+  ): Promise<JsonOutcome> => {
+    const body = JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{
+        role: 'user',
+        parts: [...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })), { text: user }],
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        temperature: 0.2,
+        maxOutputTokens: 16384,
+      },
+    });
+
+    // stesso sforzo su ogni modello, nell'ordine, finché uno risponde
+    let reason: Failure['reason'] | null = null;
+    for (const model of models) {
+      const r = await generate(model, body);
+      if (r.ok || !('tryNext' in r)) return r.ok ? r : { ok: false, reason: r.reason };
+      // "quota finita" conta più di "modello di riserva non trovato"
+      if (reason !== 'rate_limited') reason = r.reason;
+    }
+    return { ok: false, reason: reason ?? 'api_error' };
   };
 }
 

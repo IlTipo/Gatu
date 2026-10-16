@@ -264,7 +264,8 @@
       "not_configured": "Serve l'AI (chiave di Gemini, vedi README).",
       "quota_exceeded": "Hai raggiunto il limite di analisi per oggi: riprova domani."
     },
-    "aiError": "Non ci sono riuscito. Riprova tra poco."
+    "aiError": "Non ci sono riuscito. Riprova tra poco.",
+    "aiRateLimited": "L'AI gratuita ha finito le richieste per oggi: riprova domani (le altre funzioni vanno lo stesso)."
   },
   "place": {
     "verified": "Indirizzo verificato",
