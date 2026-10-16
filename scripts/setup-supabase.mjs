@@ -24,7 +24,8 @@ if (!token) {
   console.error('Manca SUPABASE_ACCESS_TOKEN.');
   process.exit(1);
 }
-const siteUrl = process.env.SITE_URL?.replace(/\/*$/, '/');
+// il nome del sito va in minuscolo (iltipo.github.io), come lo scrive il browser
+const siteUrl = process.env.SITE_URL ? new URL(process.env.SITE_URL).href.replace(/\/*$/, '/') : undefined;
 const region = process.env.SUPABASE_REGION || 'eu-central-1';
 
 async function api(method, path, body) {
