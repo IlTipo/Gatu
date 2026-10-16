@@ -4,6 +4,7 @@ import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import { createGeminiRecipeTools } from '../_shared/gemini.ts';
 import { cleanInsights, cleanVariant, type RecipeForAi } from '../_shared/recipeTools.ts';
+import { throttled } from './throttle.ts';
 
 const apiKey = Deno.env.get('GEMINI_API_KEY');
 const tools = apiKey ? createGeminiRecipeTools(apiKey, { model: Deno.env.get('GEMINI_MODEL') }) : null;
@@ -27,7 +28,7 @@ const carbonara: RecipeForAi = {
 };
 
 Deno.test({ name: 'calorie, difficoltà e costo della carbonara', ignore: !tools }, async () => {
-  const outcome = await tools!.insights(carbonara);
+  const outcome = await throttled(() => tools!.insights(carbonara));
   assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
   const i = cleanInsights(outcome.insights);
   console.log(' ', JSON.stringify(i));
@@ -37,7 +38,7 @@ Deno.test({ name: 'calorie, difficoltà e costo della carbonara', ignore: !tools
 });
 
 Deno.test({ name: 'variante vegetariana della carbonara: niente guanciale', ignore: !tools }, async () => {
-  const outcome = await tools!.variant(carbonara, 'vegetariana');
+  const outcome = await throttled(() => tools!.variant(carbonara, 'vegetariana'));
   assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
   const v = cleanVariant(outcome.variant, 'vegetariana', carbonara);
   console.log(' ', v?.title, '·', v?.changes.join(' | '));

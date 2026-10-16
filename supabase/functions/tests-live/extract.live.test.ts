@@ -5,6 +5,7 @@ import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import { cleanExtraction, type ExtractionInput } from '../_shared/extraction.ts';
 import { createGeminiExtractor } from '../_shared/gemini.ts';
+import { throttled } from './throttle.ts';
 
 const apiKey = Deno.env.get('GEMINI_API_KEY');
 const extract = apiKey ? createGeminiExtractor(apiKey, { model: Deno.env.get('GEMINI_MODEL') }) : null;
@@ -21,7 +22,7 @@ const input = (description: string): ExtractionInput => ({
 
 async function run(description: string) {
   const started = Date.now();
-  const outcome = await extract!(input(description));
+  const outcome = await throttled(() => extract!(input(description)));
   console.log(`  ${outcome.ok ? outcome.model : 'errore'} · ${((Date.now() - started) / 1000).toFixed(1)} s`);
   assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
   return cleanExtraction(outcome.extraction);
