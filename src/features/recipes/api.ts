@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { ApiError } from '@/features/sources/api';
+import { ApiError, invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
-import type { RecipeDraft, RecipeWithDetails } from './types';
+import type { RecipeDraft, RecipeVariant, RecipeWithDetails, VariantKind } from './types';
 
 export const recipeKeys = {
   all: ['recipes'] as const,
@@ -52,13 +52,47 @@ export type DoseResult =
 export function useEstimateDoses(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke<DoseResult>('extract', {
-        body: { action: 'estimate_doses', recipeId: id },
-      });
-      if (error || !data) throw new ApiError(error?.name === 'FunctionsFetchError' ? 'network' : 'internal_error');
-      return data;
-    },
+    mutationFn: () => invokeExtract<DoseResult>({ action: 'estimate_doses', recipeId: id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) }),
+  });
+}
+
+type Skipped = { status: 'skipped'; reason: 'not_configured' | 'quota_exceeded' };
+type Failed = { status: 'error'; reason: string };
+
+export type InsightsResult = { status: 'done' } | Skipped | Failed;
+
+/** Calcola calorie e valori per porzione, difficoltà e costo (stime AI). */
+export function useRecipeInsights(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => invokeExtract<InsightsResult>({ action: 'recipe_insights', recipeId: id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) }),
+  });
+}
+
+export type VariantResult = { status: 'done'; variant: RecipeVariant } | Skipped | Failed;
+
+/** Variante proposta dall'AI: si chiede una volta sola e resta in memoria finché non la salvi. */
+export function useRecipeVariant(id: string, kind: VariantKind) {
+  return useQuery({
+    queryKey: ['recipe-variant', id, kind],
+    queryFn: () => invokeExtract<VariantResult>({ action: 'recipe_variant', recipeId: id, kind }),
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
+  });
+}
+
+/** Salva una ricetta nuova (es. la variante) e restituisce il suo id. */
+export function useCreateRecipe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (draft: Omit<RecipeDraft, 'servings_estimated'> & { image_url: string | null }) => {
+      const { data, error } = await supabase.rpc('create_recipe', { p_recipe: draft });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }),
   });
 }

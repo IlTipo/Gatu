@@ -20,18 +20,30 @@ export class ApiError extends Error {
   }
 }
 
-/** Chiama la funzione "extract": salva un link nuovo ({ url }) o rianalizza un link salvato ({ sourceId }). */
-async function callExtract(input: { url: string; text?: string } | { sourceId: string; text?: string }): Promise<SaveLinkResult> {
-  const { data, error } = await supabase.functions.invoke<SaveLinkResult>('extract', { body: input });
+/** Chiama la funzione del server "extract" e trasforma i suoi errori in ApiError con un codice. */
+export async function invokeExtract<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<T>('extract', { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
-      const body = await (error.context as Response).json().catch(() => null);
-      throw new ApiError(typeof body?.error === 'string' ? body.error : 'internal_error');
+      const res = await (error.context as Response).json().catch(() => null);
+      throw new ApiError(typeof res?.error === 'string' ? res.error : 'internal_error');
     }
     // FunctionsFetchError / FunctionsRelayError: rete assente o funzione non raggiungibile
     throw new ApiError(error.name === 'FunctionsFetchError' ? 'network' : 'function_unavailable');
   }
-  if (!data?.source) throw new ApiError('internal_error');
+  if (!data) throw new ApiError('internal_error');
+  return data;
+}
+
+type ExtractInput =
+  | { url: string; text?: string }
+  | { sourceId: string; text?: string }
+  | { imageBase64: string; mimeType: string; text?: string };
+
+/** Salva un link nuovo ({ url }), rianalizza un link salvato ({ sourceId }) o legge una foto ({ imageBase64 }). */
+async function callExtract(input: ExtractInput): Promise<SaveLinkResult> {
+  const data = await invokeExtract<SaveLinkResult>(input);
+  if (!data.source) throw new ApiError('internal_error');
   return data;
 }
 
@@ -55,6 +67,9 @@ export const useSaveLink = () => useExtractMutation<{ url: string; text?: string
 
 /** Rianalizza un link già salvato (eventualmente con il testo del post incollato a mano). */
 export const useReanalyze = () => useExtractMutation<{ sourceId: string; text?: string }>();
+
+/** Salva la foto di una ricetta (base64 JPEG/PNG/WebP) e la fa leggere all'AI. */
+export const useSavePhoto = () => useExtractMutation<{ imageBase64: string; mimeType: string; text?: string }>();
 
 /** Ricette e locali estratti da un link. */
 export function useSourceResults(sourceId: string) {

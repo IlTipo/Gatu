@@ -3,6 +3,7 @@
 // È gratis, istantaneo e preciso: l'AI serve solo per i post dei social.
 
 import { AISLES, type CleanExtraction, type CleanIngredient, RECIPE_TAGS } from './extraction.ts';
+import { type CleanInsights, within } from './insights.ts';
 
 type Aisle = (typeof AISLES)[number];
 
@@ -221,6 +222,29 @@ const TAG_WORDS: [(typeof RECIPE_TAGS)[number], RegExp][] = [
   ['friggitrice ad aria', /friggitrice ad aria|air fryer/i],
 ];
 
+// ------------------------------------------------------------------ valori nutrizionali
+
+/** "350 kcal" → 350 · "12,5 g" → 12.5 */
+function numberIn(value: unknown): number | null {
+  const m = String(value ?? '').replace(',', '.').match(/\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+
+/** schema.org/NutritionInformation (di solito per porzione) → valori di Morso; null se assenti. */
+export function insightsFromNutrition(nutrition: unknown): CleanInsights | null {
+  if (!nutrition || typeof nutrition !== 'object') return null;
+  const n = nutrition as Record<string, unknown>;
+  const result: CleanInsights = {
+    kcal_per_serving: within(numberIn(n.calories), 1, 5000),
+    protein_g: within(numberIn(n.proteinContent), 0, 500, 1),
+    carbs_g: within(numberIn(n.carbohydrateContent), 0, 1000, 1),
+    fat_g: within(numberIn(n.fatContent), 0, 500, 1),
+    difficulty: null,
+    cost_level: null,
+  };
+  return result.kcal_per_serving !== null ? result : null;
+}
+
 // ------------------------------------------------------------------ conversione
 
 /**
@@ -277,6 +301,7 @@ export function recipeFromJsonLd(data: Record<string, unknown>): CleanExtraction
       tags: [...tags],
       ingredients,
       steps,
+      insights: insightsFromNutrition(data.nutrition),
     },
     places: [],
   };

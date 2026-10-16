@@ -18,6 +18,7 @@ const CODE_TO_KEY = {
   function_unavailable: 'errors.functionUnavailable',
   not_found: 'errors.notFound',
   internal_error: 'common.genericError',
+  invalid_image: 'errors.invalidImage',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };
@@ -28,6 +29,7 @@ export function errorMessage(error: unknown, t: TFunction): string {
   if (typeof e.code === 'string' && e.code in CODE_TO_KEY) {
     return t(CODE_TO_KEY[e.code as keyof typeof CODE_TO_KEY]);
   }
+  if (e.name === 'LocationDeniedError') return t('errors.locationDenied');
   const message = typeof e.message === 'string' ? e.message : '';
   if (e.name === 'AuthRetryableFetchError' || /network request failed|failed to fetch/i.test(message)) {
     return t('common.networkError');

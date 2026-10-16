@@ -111,6 +111,11 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 7. Prova un post **Instagram**: se la caption non è leggibile, Morso te lo dice. Copiala dall'app di Instagram, incollala nel riquadro e premi **Analizza con l'AI**.
 8. Prova un link che non c'entra col cibo: Morso risponde "Non ho trovato ricette o locali".
 9. I link salvati nella Fase 1 hanno il pulsante **Analizza con l'AI**.
+10. **Calorie, difficoltà e costo**: apri una ricetta → riquadro **Per porzione** → **Calcola**. Vedi kcal, proteine, carboidrati, grassi, difficoltà e costo (€–€€€). Sono stime indicative.
+11. **Varianti**: in fondo alla ricetta scegli *Vegana*, *Senza glutine*, *Light*, *Più veloce*… L'AI ti mostra la nuova versione e cosa cambia; l'originale resta com'è. Se ti piace → **Salva come nuova ricetta**.
+12. **Foto di una ricetta**: **Aggiungi** → **📷 Carica la foto di una ricetta** (pagina di un libro, quaderno, screenshot). L'AI la legge e crea la ricetta.
+13. **Locali**: apri un locale → **Quanto dista da me?** (il browser chiede il permesso della posizione), **🤍 Voglio andarci** per la lista desideri, **Cerca telefono, sito e orari** se mancano.
+14. **Libreria → 📍 Cosa c'è vicino a me?**: i posti salvati entro 2/5/10/25 km, prima quelli "Voglio andarci".
 
 ### Accesso con Google (facoltativo)
 

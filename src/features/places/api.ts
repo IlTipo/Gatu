@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { ApiError } from '@/features/sources/api';
+import { ApiError, invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
 import type { Place, PlaceDraft } from './types';
@@ -35,6 +35,50 @@ export function useUpdatePlace(place: Place) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: placeKeys.all });
       queryClient.invalidateQueries({ queryKey: ['source-results'] });
+    },
+  });
+}
+
+/** "Voglio andarci": aggiunge o toglie il locale dalla lista desideri. */
+export function useSetWishlist(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (wishlist: boolean) => {
+      const { error } = await supabase.from('places').update({ wishlist }).eq('id', id);
+      if (error) throw error;
+      return wishlist;
+    },
+    onSuccess: (wishlist) => {
+      queryClient.setQueryData<Place>(placeKeys.detail(id), (old) => (old ? { ...old, wishlist } : old));
+      queryClient.invalidateQueries({ queryKey: placeKeys.all });
+    },
+  });
+}
+
+export type RefreshPlaceResult = { status: 'done' | 'not_found' } | { status: 'error'; reason: string };
+
+/** Cerca di nuovo indirizzo, posizione, telefono, sito e orari del locale. */
+export function useRefreshPlace(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => invokeExtract<RefreshPlaceResult>({ action: 'refresh_place', placeId: id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: placeKeys.detail(id) }),
+  });
+}
+
+/** Tutti i locali con una posizione (per "Vicino a me"). */
+export function usePlacesWithLocation() {
+  return useQuery({
+    queryKey: [...placeKeys.all, 'with-location'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .limit(1000);
+      if (error) throw error;
+      return data as Place[];
     },
   });
 }

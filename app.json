@@ -48,7 +48,20 @@
       ],
       "expo-localization",
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Morso usa la tua posizione solo per mostrarti quanto distano i locali che hai salvato."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Morso usa le foto che scegli tu per leggere le ricette.",
+          "cameraPermission": "Morso usa la fotocamera per fotografare le ricette."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

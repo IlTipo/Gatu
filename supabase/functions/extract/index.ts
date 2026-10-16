@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import { createGeminiDoseEstimator, createGeminiExtractor } from '../_shared/gemini.ts';
+import { createGeminiDoseEstimator, createGeminiExtractor, createGeminiRecipeTools } from '../_shared/gemini.ts';
 import { createGeocoder } from '../_shared/geocode.ts';
 import { errorResponse } from '../_shared/http.ts';
 import { handleRequest } from './handler.ts';
@@ -16,6 +16,9 @@ const extractor = GEMINI_API_KEY ? createGeminiExtractor(GEMINI_API_KEY, { model
 const doseEstimator = GEMINI_API_KEY
   ? createGeminiDoseEstimator(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined })
   : null;
+const recipeTools = GEMINI_API_KEY
+  ? createGeminiRecipeTools(GEMINI_API_KEY, { model: GEMINI_MODEL ?? undefined })
+  : null;
 const geocoder = createGeocoder({ googleApiKey: GOOGLE_PLACES_API_KEY, fetch });
 
 Deno.serve(async (req) => {
@@ -24,6 +27,7 @@ Deno.serve(async (req) => {
       fetch,
       extractor,
       doseEstimator,
+      recipeTools,
       geocoder,
       dailyLimit: DAILY_LIMIT,
       geocodeDelayMs: GOOGLE_PLACES_API_KEY ? 0 : 1100,

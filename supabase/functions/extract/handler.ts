@@ -4,12 +4,19 @@
 // Richieste (POST):
 //   { url?: string, text?: string }      salva un nuovo link (il link può anche stare dentro "text") e lo analizza
 //   { sourceId: string, text?: string }  rianalizza un link già salvato (es. dopo aver incollato la caption)
+//   { imageBase64, mimeType, text? }     salva la FOTO di una ricetta (libro, screenshot) e la fa leggere all'AI
 //   { action: 'estimate_doses', recipeId }  stima le dosi mancanti di una ricetta salvata
+//   { action: 'recipe_insights', recipeId }  calorie e valori per porzione, difficoltà, costo
+//   { action: 'recipe_variant', recipeId, kind }  variante vegana / senza glutine / light… (non salvata)
+//   { action: 'refresh_place', placeId }  aggiorna indirizzo, telefono, sito e orari di un locale
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
 
-import type { DoseEstimator, Extractor } from '../_shared/ai.ts';
+import type { DoseEstimator, Extractor, RecipeTools } from '../_shared/ai.ts';
+import { cleanInsights } from '../_shared/insights.ts';
+import { isVariantKind } from '../_shared/recipeTools.ts';
+import { recipeInsights, recipeVariant, refreshPlace } from './actions.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
@@ -38,6 +45,8 @@ export type Deps = {
   extractor: Extractor | null;
   /** Stima delle dosi mancanti (stessa chiave dell'AI). */
   doseEstimator: DoseEstimator | null;
+  /** Valori/difficoltà/costo e varianti (stessa chiave dell'AI). */
+  recipeTools: RecipeTools | null;
   geocoder: Geocoder;
   dailyLimit: number;
   /** Pausa tra una ricerca di indirizzo e l'altra (OpenStreetMap chiede max 1 al secondo). */
@@ -83,7 +92,17 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   const user = userData?.user;
   if (userError || !user) return errorResponse('unauthorized', 401);
 
-  let body: { url?: unknown; text?: unknown; sourceId?: unknown; action?: unknown; recipeId?: unknown };
+  let body: {
+    url?: unknown;
+    text?: unknown;
+    sourceId?: unknown;
+    action?: unknown;
+    recipeId?: unknown;
+    placeId?: unknown;
+    kind?: unknown;
+    imageBase64?: unknown;
+    mimeType?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -95,6 +114,26 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (body.action === 'estimate_doses') {
     if (typeof body.recipeId !== 'string') return errorResponse('invalid_body', 400);
     return json(await estimateDoses(body.recipeId, supabase, deps));
+  }
+
+  // ---- Altre azioni su ricette e locali già salvati
+  const ctx = { supabase, recipeTools: deps.recipeTools, geocoder: deps.geocoder, dailyLimit: deps.dailyLimit };
+  if (body.action === 'recipe_insights') {
+    if (typeof body.recipeId !== 'string') return errorResponse('invalid_body', 400);
+    return json(await recipeInsights(body.recipeId, ctx));
+  }
+  if (body.action === 'recipe_variant') {
+    if (typeof body.recipeId !== 'string' || !isVariantKind(body.kind)) return errorResponse('invalid_body', 400);
+    return json(await recipeVariant(body.recipeId, body.kind, ctx));
+  }
+  if (body.action === 'refresh_place') {
+    if (typeof body.placeId !== 'string') return errorResponse('invalid_body', 400);
+    return json(await refreshPlace(body.placeId, ctx));
+  }
+
+  // ---- Foto di una ricetta
+  if (typeof body.imageBase64 === 'string') {
+    return await savePhoto(body.imageBase64, body.mimeType, text, user.id, supabase, deps);
   }
 
   // ---- Rianalisi di un link già salvato
@@ -207,11 +246,26 @@ export async function analyze(
   recipeJsonLd: Record<string, unknown> | null,
   supabase: SupabaseClient,
   deps: Deps,
+  image: { mimeType: string; data: string } | null = null,
 ): Promise<Analysis> {
   if (recipeJsonLd) {
     const direct = recipeFromJsonLd(recipeJsonLd);
     // Le schede in altre lingue le facciamo tradurre all'AI, se c'è.
-    if (direct && (isItalian(recipeJsonLd, source.url) || !deps.extractor)) {
+    if (direct?.recipe && (isItalian(recipeJsonLd, source.url) || !deps.extractor)) {
+      // Difficoltà e costo (e le calorie, se il sito non le dà) li stima l'AI, se disponibile.
+      if (deps.recipeTools && !direct.recipe.insights?.difficulty) {
+        const { data: allowed } = await supabase.rpc('consume_extraction_quota', { daily_limit: deps.dailyLimit });
+        if (allowed) {
+          const outcome = await deps.recipeTools.insights(direct.recipe);
+          const ai = outcome.ok ? cleanInsights(outcome.insights) : null;
+          if (ai) {
+            const site = direct.recipe.insights;
+            direct.recipe.insights = site
+              ? { ...ai, ...site, difficulty: ai.difficulty, cost_level: ai.cost_level }
+              : ai;
+          }
+        }
+      }
       return await saveResult(source, direct, { model: 'schema.org', usage: null }, supabase, deps);
     }
   }
@@ -226,6 +280,7 @@ export async function analyze(
     author: source.author_name,
     sharedText: source.shared_text,
     recipeJsonLd,
+    image,
   };
   if (!hasEnoughText(input)) {
     await setStatus(supabase, source.id, 'needs_review', 'needs_text');
@@ -270,6 +325,9 @@ async function saveResult(
       longitude: geo?.longitude ?? null,
       google_place_id: geo?.googlePlaceId ?? null,
       price_level: place.price_level ?? geo?.priceLevel ?? null,
+      phone: geo?.phone ?? null,
+      website: geo?.website ?? null,
+      opening_hours: geo?.openingHours ?? null,
       verified: !!geo,
     });
   }
@@ -399,6 +457,55 @@ async function setStatus(supabase: SupabaseClient, id: string, status: string, e
 async function reload(supabase: SupabaseClient, id: string) {
   const { data } = await supabase.from('sources').select('*').eq('id', id).maybeSingle();
   return data;
+}
+
+const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
+
+/** Salva la foto di una ricetta nello storage, crea il "link" e la fa leggere all'AI. */
+async function savePhoto(
+  imageBase64: string,
+  mimeType: unknown,
+  text: string,
+  userId: string,
+  supabase: SupabaseClient,
+  deps: Deps,
+): Promise<Response> {
+  const type = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
+  const ext = IMAGE_TYPES[type];
+  if (!ext) return errorResponse('invalid_image', 400);
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(imageBase64.replace(/^data:[^,]+,/, '')), (c) => c.charCodeAt(0));
+  } catch {
+    return errorResponse('invalid_image', 400);
+  }
+  if (!bytes.byteLength || bytes.byteLength > MAX_PHOTO_BYTES) return errorResponse('invalid_image', 400);
+
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from('images').upload(path, bytes, { contentType: type });
+  if (uploadError) throw uploadError;
+  const publicUrl = supabase.storage.from('images').getPublicUrl(path).data.publicUrl;
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('sources')
+    .insert({
+      url: publicUrl,
+      platform: 'manual',
+      title: null,
+      thumbnail_url: publicUrl,
+      shared_text: text || null,
+      status: 'pending',
+    })
+    .select('*')
+    .single();
+  if (insertError) throw insertError;
+
+  const source = inserted as Source;
+  const analysis = await analyze(source, null, supabase, deps, {
+    mimeType: type,
+    data: imageBase64.replace(/^data:[^,]+,/, ''),
+  });
+  return json({ source: await reload(supabase, source.id), duplicate: false, needsText: false, analysis }, 201);
 }
 
 /**

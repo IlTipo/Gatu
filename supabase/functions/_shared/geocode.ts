@@ -12,7 +12,24 @@ export type GeoResult = {
   longitude: number;
   googlePlaceId: string | null;
   priceLevel: number | null;
+  phone: string | null;
+  website: string | null;
+  /** Orari: formato OpenStreetMap ("Mo-Sa 12:00-15:00") o righe di Google separate da "; ". */
+  openingHours: string | null;
   provider: 'google' | 'osm';
+};
+
+const clip = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+const safeWebsite = (v: unknown) => {
+  const url = clip(v, 300);
+  if (!url) return null;
+  const withScheme = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  try {
+    const u = new URL(withScheme);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch {
+    return null;
+  }
 };
 
 export type Geocoder = (
@@ -39,7 +56,7 @@ export function createGeocoder(opts: { googleApiKey?: string | null; fetch: Fetc
             'content-type': 'application/json',
             'x-goog-api-key': opts.googleApiKey,
             'x-goog-fieldmask':
-              'places.id,places.formattedAddress,places.location,places.priceLevel,places.addressComponents',
+              'places.id,places.formattedAddress,places.location,places.priceLevel,places.addressComponents,places.internationalPhoneNumber,places.websiteUri,places.regularOpeningHours.weekdayDescriptions',
           },
           body: JSON.stringify({ textQuery: text, languageCode: 'it', regionCode: 'IT', maxResultCount: 1 }),
         });
@@ -57,12 +74,15 @@ export function createGeocoder(opts: { googleApiKey?: string | null; fetch: Fetc
           longitude: place.location.longitude,
           googlePlaceId: place.id ?? null,
           priceLevel: GOOGLE_PRICE[place.priceLevel] ?? null,
+          phone: clip(place.internationalPhoneNumber, 40),
+          website: safeWebsite(place.websiteUri),
+          openingHours: clip((place.regularOpeningHours?.weekdayDescriptions ?? []).join('; '), 600),
           provider: 'google',
         };
       }
 
       const url =
-        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&accept-language=it&q=${
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&extratags=1&accept-language=it&q=${
           encodeURIComponent(text)
         }`;
       const res = await f(url, { signal: AbortSignal.timeout(8000), headers: { 'user-agent': USER_AGENT } });
@@ -79,6 +99,9 @@ export function createGeocoder(opts: { googleApiKey?: string | null; fetch: Fetc
         longitude: Number(hit.lon),
         googlePlaceId: null,
         priceLevel: null,
+        phone: clip(hit.extratags?.phone ?? hit.extratags?.['contact:phone'], 40),
+        website: safeWebsite(hit.extratags?.website ?? hit.extratags?.['contact:website']),
+        openingHours: clip(hit.extratags?.opening_hours, 600),
         provider: 'osm',
       };
     } catch {

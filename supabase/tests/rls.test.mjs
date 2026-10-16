@@ -136,5 +136,23 @@ const r4 = (await as(A, `select public.save_extraction('${src4}', '${estimatedRe
 const est = (await as(A, `select r.servings_estimated, array_agg(i.estimated order by i.position) e from public.recipes r join public.recipe_ingredients i on i.recipe_id = r.id where r.id = '${r4}' group by r.servings_estimated`)).rows[0];
 ok(est.servings_estimated === true && est.e.join() === 'true,false', 'dosi e porzioni stimate salvate (q.b. non stimato)');
 
+// --- dettagli in più: valori, varianti, info locali ---
+const src5 = (await as(A, `insert into public.sources (url, thumbnail_url) values ('https://example.com/r5', 'https://img/5.jpg') returning id`)).rows[0].id;
+const withInsights = JSON.stringify({ kind: 'recipe', recipe: { title: 'Lasagne', servings: 6, tags: [], ingredients: [{ quantity: 500, unit: 'g', name: 'sfoglia', aisle: 'latticini' }], steps: [{ text: 'Inforna' }],
+  insights: { kcal_per_serving: 620, protein_g: 31.5, carbs_g: 55, fat_g: 28, difficulty: 'media', cost_level: 2 } } }).replace(/'/g, "''");
+const r5 = (await as(A, `select public.save_extraction('${src5}', '${withInsights}'::jsonb, 'done', '{}'::jsonb) as r`)).rows[0].r.recipe_id;
+const ins = (await as(A, `select kcal_per_serving, protein_g::float p, difficulty, cost_level, insights_at is not null has_at from public.recipes where id = '${r5}'`)).rows[0];
+ok(ins.kcal_per_serving === 620 && ins.p === 31.5 && ins.difficulty === 'media' && ins.cost_level === 2 && ins.has_at, 'calorie, difficoltà e costo salvati');
+await fails(() => as(A, `update public.recipes set difficulty = 'impossibile' where id = '${r5}'`), 'difficoltà solo facile/media/difficile');
+const variant = JSON.stringify({ title: 'Lasagne (vegana)', servings: 6, tags: ['vegano'], ingredients: [{ quantity: 500, unit: 'g', name: 'sfoglia senza uova', aisle: 'dispensa' }], steps: [{ text: 'Inforna', timer_seconds: 2400 }] }).replace(/'/g, "''");
+const v1 = (await as(A, `select public.create_recipe('${variant}'::jsonb) as id`)).rows[0].id;
+const vrow = (await as(A, `select user_id, source_id, title, (select count(*)::int from public.recipe_steps where recipe_id = '${v1}') ns from public.recipes where id = '${v1}'`)).rows[0];
+ok(vrow.user_id === A && vrow.source_id === null && vrow.title === 'Lasagne (vegana)' && vrow.ns === 1, 'create_recipe crea la variante come ricetta nuova');
+ok((await as(B, `select * from public.recipes where id = '${v1}'`)).rows.length === 0, 'Bruno NON vede la variante di Anna');
+const placeInfo = JSON.stringify({ kind: 'places', places: [{ name: 'Da Gino', city: 'Genova', phone: '+39 010 123456', website: 'https://dagino.it', opening_hours: 'Mo-Sa 12:00-15:00' }] }).replace(/'/g, "''");
+await as(A, `select public.save_extraction('${src5}', '${placeInfo}'::jsonb, 'done', '{}'::jsonb)`);
+const pinfo = (await as(A, `select phone, website, opening_hours, wishlist from public.places where source_id = '${src5}'`)).rows[0];
+ok(pinfo.phone === '+39 010 123456' && pinfo.website === 'https://dagino.it' && pinfo.opening_hours === 'Mo-Sa 12:00-15:00' && pinfo.wishlist === false, 'telefono, sito e orari del locale salvati');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

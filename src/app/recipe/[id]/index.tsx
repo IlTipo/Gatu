@@ -2,19 +2,19 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { Notice } from '@/components/Notice';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
-import { Notice } from '@/components/Notice';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
-import { type DoseResult, useEstimateDoses, useRecipe } from '@/features/recipes/api';
+import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
-import type { RecipeWithDetails } from '@/features/recipes/types';
+import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { radius, spacing, useTheme } from '@/theme';
@@ -44,6 +44,7 @@ export default function RecipeScreen() {
 }
 
 const PEOPLE = [1, 2, 3, 4, 5, 6];
+const VARIANT_KINDS: VariantKind[] = ['vegana', 'vegetariana', 'senza_glutine', 'senza_lattosio', 'light', 'veloce'];
 
 function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
   const { t } = useTranslation();
@@ -114,6 +115,8 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             <Button label={t('recipe.openSource')} variant="ghost" onPress={() => openExternalUrl(r.sources!.url)} />
           ) : null}
         </View>
+
+        <InsightsCard recipe={r} />
 
         <Section title={t('recipe.ingredients')}>
           {base ? (
@@ -191,8 +194,94 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             <AppText tone="secondary">{t('recipe.noSteps')}</AppText>
           )}
         </Section>
+
+        <Section title={t('recipe.variants')}>
+          <AppText tone="secondary">{t('recipe.variantsHint')}</AppText>
+          <View style={styles.chips}>
+            {VARIANT_KINDS.map((kind) => (
+              <Chip
+                key={kind}
+                label={t(`recipe.variantKind.${kind}`)}
+                onPress={() => router.push({ pathname: '/recipe/[id]/variant', params: { id: r.id, kind } })}
+              />
+            ))}
+          </View>
+        </Section>
       </View>
     </Screen>
+  );
+}
+
+/** Calorie e valori per porzione, difficoltà e costo (stime). */
+function InsightsCard({ recipe: r }: { recipe: RecipeWithDetails }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const compute = useRecipeInsights(r.id);
+  const [message, setMessage] = useState<string | null>(null);
+  const hasInsights = r.kcal_per_serving !== null || r.difficulty !== null || r.cost_level !== null;
+
+  function run() {
+    setMessage(null);
+    compute.mutate(undefined, {
+      onSuccess: (res: InsightsResult) =>
+        setMessage(res.status === 'done' ? null : res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : t('recipe.aiError')),
+    });
+  }
+
+  const grams = (v: number | null) => (v === null ? '—' : `${Math.round(Number(v))} g`);
+  return (
+    <View style={[styles.insights, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.insightsHeader}>
+        <AppText variant="bodyStrong">{t('recipe.perServing')}</AppText>
+        {hasInsights ? (
+          <Pressable onPress={run} disabled={compute.isPending} accessibilityRole="button">
+            <AppText variant="caption" tone="primary">
+              {compute.isPending ? t('recipe.computingInsights') : t('recipe.recomputeInsights')}
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      {hasInsights ? (
+        <>
+          <View style={styles.stats}>
+            <Stat label="kcal" value={r.kcal_per_serving !== null ? String(r.kcal_per_serving) : '—'} big />
+            <Stat label={t('recipe.protein')} value={grams(r.protein_g)} />
+            <Stat label={t('recipe.carbs')} value={grams(r.carbs_g)} />
+            <Stat label={t('recipe.fat')} value={grams(r.fat_g)} />
+          </View>
+          <View style={styles.stats}>
+            <Stat label={t('recipe.difficulty')} value={r.difficulty ? t(`recipe.difficultyLevel.${r.difficulty}`) : '—'} />
+            <Stat label={t('recipe.cost')} value={r.cost_level ? '€'.repeat(r.cost_level) : '—'} />
+          </View>
+          <AppText variant="caption" tone="secondary">
+            {t('recipe.insightsNote')}
+          </AppText>
+        </>
+      ) : (
+        <>
+          <AppText tone="secondary">{t('recipe.insightsMissing')}</AppText>
+          <Button
+            label={compute.isPending ? t('recipe.computingInsights') : t('recipe.computeInsights')}
+            variant="secondary"
+            onPress={run}
+            loading={compute.isPending}
+          />
+        </>
+      )}
+      {message ? <AppText tone="secondary">{message}</AppText> : null}
+      <InlineError message={compute.isError ? errorMessage(compute.error, t) : null} />
+    </View>
+  );
+}
+
+function Stat({ label, value, big }: { label: string; value: string; big?: boolean }) {
+  return (
+    <View style={styles.stat}>
+      <AppText variant={big ? 'heading' : 'bodyStrong'}>{value}</AppText>
+      <AppText variant="caption" tone="secondary">
+        {label}
+      </AppText>
+    </View>
   );
 }
 
@@ -202,6 +291,10 @@ const styles = StyleSheet.create({
   titleBlock: { gap: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   people: { gap: spacing.sm },
+  insights: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
+  insightsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stats: { flexDirection: 'row', gap: spacing.sm },
+  stat: { flex: 1, minWidth: 0 },
   buttons: { gap: spacing.sm },
   ingredient: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },

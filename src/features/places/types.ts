@@ -18,6 +18,12 @@ export type Place = {
   rating: number | null;
   notes: string | null;
   created_at: string;
+  phone: string | null;
+  website: string | null;
+  /** formato OpenStreetMap ("Mo-Sa 12:00-15:00") o righe di Google separate da "; " */
+  opening_hours: string | null;
+  /** nella lista "Voglio andarci" */
+  wishlist: boolean;
 };
 
 export type PlaceDraft = Pick<Place, 'name' | 'city' | 'address' | 'cuisine' | 'price_level' | 'recommended_dishes'>;

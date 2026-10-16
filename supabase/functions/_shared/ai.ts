@@ -1,6 +1,8 @@
 // Tipi comuni per il servizio AI che estrae ricette e locali (oggi Gemini, in futuro intercambiabile).
 import type { DoseEstimate, DoseInput } from './doses.ts';
 import type { ExtractionInput, RawExtraction } from './extraction.ts';
+import type { RawInsights } from './insights.ts';
+import type { RawVariant, RecipeForAi, VariantKind } from './recipeTools.ts';
 
 export type ModelOutcome =
   | { ok: true; extraction: RawExtraction; model: string; usage: { input: number; output: number } }
@@ -18,3 +20,13 @@ export type DoseOutcome =
   | Failure;
 
 export type DoseEstimator = (input: DoseInput) => Promise<DoseOutcome>;
+
+type Usage = { model: string; usage: { input: number; output: number } };
+export type InsightsOutcome = ({ ok: true; insights: RawInsights } & Usage) | Failure;
+export type VariantOutcome = ({ ok: true; variant: RawVariant } & Usage) | Failure;
+
+/** Strumenti AI su una ricetta salvata: valori/difficoltà/costo e varianti. */
+export type RecipeTools = {
+  insights: (recipe: RecipeForAi) => Promise<InsightsOutcome>;
+  variant: (recipe: RecipeForAi, kind: VariantKind) => Promise<VariantOutcome>;
+};

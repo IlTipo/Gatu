@@ -9,10 +9,12 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
-import { useSaveLink } from '@/features/sources/api';
+import { useSaveLink, useSavePhoto } from '@/features/sources/api';
 import { findUrl, readSharedParams } from '@/features/sources/helpers';
+import type { SaveLinkResult } from '@/features/sources/types';
 import { analysisMessageKey, destinationAfterSave } from '@/features/sources/status';
 import { errorMessage } from '@/lib/errors';
+import { pickRecipePhoto } from '@/lib/photo';
 import { spacing } from '@/theme';
 
 export default function AddLinkScreen() {
@@ -24,6 +26,9 @@ export default function AddLinkScreen() {
   const [text, setText] = useState(shared.text);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const save = useSaveLink();
+  const photo = useSavePhoto();
+  const [photoError, setPhotoError] = useState<unknown>(null);
+  const busy = save.isPending || photo.isPending;
 
   async function paste() {
     setFieldError(null);
@@ -42,6 +47,33 @@ export default function AddLinkScreen() {
     }
   }
 
+  function goToResult(result: SaveLinkResult) {
+    const dest = destinationAfterSave(result.source.id, result.analysis);
+    const notice = analysisMessageKey(result.analysis);
+    router.replace({
+      pathname: dest.pathname,
+      params: {
+        id: dest.id,
+        ...(dest.pathname === '/source/[id]' && notice ? { notice } : {}),
+        ...(result.duplicate ? { duplicate: '1' } : {}),
+      },
+    });
+  }
+
+  async function uploadPhoto() {
+    setPhotoError(null);
+    try {
+      const picked = await pickRecipePhoto();
+      if (!picked) return;
+      photo.mutate(
+        { imageBase64: picked.base64, mimeType: picked.mimeType, text: text.trim() || undefined },
+        { onSuccess: goToResult },
+      );
+    } catch (e) {
+      setPhotoError(e);
+    }
+  }
+
   function submit() {
     const url = findUrl(link) ?? findUrl(text);
     if (!url) {
@@ -51,20 +83,7 @@ export default function AddLinkScreen() {
     setFieldError(null);
     save.mutate(
       { url, text: text.trim() || undefined },
-      {
-        onSuccess: (result) => {
-          const dest = destinationAfterSave(result.source.id, result.analysis);
-          const notice = analysisMessageKey(result.analysis);
-          router.replace({
-            pathname: dest.pathname,
-            params: {
-              id: dest.id,
-              ...(dest.pathname === '/source/[id]' && notice ? { notice } : {}),
-              ...(result.duplicate ? { duplicate: '1' } : {}),
-            },
-          });
-        },
-      },
+      { onSuccess: goToResult },
     );
   }
 
@@ -77,6 +96,25 @@ export default function AddLinkScreen() {
         </View>
 
         <InlineError message={save.isError ? errorMessage(save.error, t) : null} />
+
+        <View style={styles.photo}>
+          <Button
+            label={photo.isPending ? t('add.photoSaving') : t('add.photo')}
+            variant="secondary"
+            onPress={uploadPhoto}
+            loading={photo.isPending}
+            disabled={busy}
+          />
+          <AppText variant="caption" tone="secondary">
+            {t('add.photoHint')}
+          </AppText>
+          <InlineError
+            message={photo.isError ? errorMessage(photo.error, t) : photoError ? errorMessage(photoError, t) : null}
+          />
+        </View>
+        <AppText variant="caption" tone="secondary" style={styles.or}>
+          {t('add.orLink')}
+        </AppText>
 
         <View style={styles.linkRow}>
           <View style={styles.flex}>
@@ -99,7 +137,7 @@ export default function AddLinkScreen() {
             />
           </View>
           <View style={styles.pasteButton}>
-            <Button label={t('add.paste')} variant="secondary" onPress={paste} disabled={save.isPending} />
+            <Button label={t('add.paste')} variant="secondary" onPress={paste} disabled={busy} />
           </View>
         </View>
 
@@ -114,7 +152,7 @@ export default function AddLinkScreen() {
           textAlignVertical="top"
         />
 
-        <Button label={save.isPending ? t('add.saving') : t('add.save')} onPress={submit} loading={save.isPending} />
+        <Button label={save.isPending ? t('add.saving') : t('add.save')} onPress={submit} loading={save.isPending} disabled={busy} />
         <Button label={t('common.cancel')} variant="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/library'))} />
       </View>
     </Screen>
@@ -124,6 +162,8 @@ export default function AddLinkScreen() {
 const styles = StyleSheet.create({
   container: { gap: spacing.lg },
   header: { gap: spacing.xs },
+  photo: { gap: spacing.xs },
+  or: { textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.6 },
   linkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   flex: { flex: 1 },
   pasteButton: { marginTop: 22 },

@@ -94,6 +94,9 @@ function deps(
           longitude: 11.35,
           googlePlaceId: null,
           priceLevel: null,
+          phone: '+39 051 266894',
+          website: null,
+          openingHours: 'Tu-Su 12:30-15:00',
           provider: 'osm' as const,
         }
         : null,
@@ -103,6 +106,7 @@ function deps(
     supabaseForRequest: () => client as never,
     extractor,
     doseEstimator: null,
+    recipeTools: null,
     geocoder,
     dailyLimit: 40,
     geocodeDelayMs: 0,
@@ -159,6 +163,8 @@ Deno.test('post con più locali: verifica gli indirizzi', async () => {
   assertEquals(places[0].verified, true);
   assertEquals(places[0].latitude, 44.49);
   assertEquals(places[0].address, 'Via delle Belle Arti 17, Bologna');
+  assertEquals(places[0].phone, '+39 051 266894');
+  assertEquals(places[0].opening_hours, 'Tu-Su 12:30-15:00');
   assertEquals(places[1].verified, false); // non trovato: si salva comunque, da completare a mano
   assertEquals(places[1].latitude, null);
 });
@@ -429,4 +435,160 @@ Deno.test('stima dosi: ricetta inesistente o richiesta sbagliata', async () => {
     'not_found',
   );
   assertEquals((await handleRequest(post({ action: 'estimate_doses' }), deps(client))).status, 400);
+});
+
+// ---------------------------------------------------------------- foto, valori, varianti, locali
+
+const tools = (calls: string[]) => ({
+  insights: () => {
+    calls.push('insights');
+    return Promise.resolve({
+      ok: true as const,
+      insights: { kcal_per_serving: 610, protein_g: 25, carbs_g: 60, fat_g: 30, difficulty: 'media', cost_level: 2 },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
+  variant: (_r: unknown, kind: string) => {
+    calls.push(`variant:${kind}`);
+    return Promise.resolve({
+      ok: true as const,
+      variant: {
+        title: 'Frittata vegana',
+        changes: ['uova → farina di ceci'],
+        servings: 2,
+        prep_minutes: 5,
+        cook_minutes: 10,
+        ingredients: [{ quantity: 150, unit: 'g', name: 'farina di ceci', note: null, aisle: 'dispensa' }],
+        steps: [{ text: 'Mescola la farina con acqua.', timer_seconds: null }],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
+});
+
+Deno.test("foto di una ricetta: salvata nello storage e letta dall'AI", async () => {
+  const { client, rows, uploads } = fakeSupabase({ userId: USER });
+  const d = deps(client);
+  let seenImage: unknown = null;
+  d.extractor = (input) => {
+    seenImage = input.image;
+    return Promise.resolve({ ok: true, extraction: recipeExtraction, model: 'gemini', usage: { input: 1, output: 1 } });
+  };
+  const res = await handleRequest(
+    post({ imageBase64: btoa('immagine finta'), mimeType: 'image/jpeg', text: 'dal libro della nonna' }),
+    d,
+  );
+  assertEquals(res.status, 201);
+  const body = await res.json();
+  assertEquals(body.analysis.kind, 'recipe');
+  assertEquals(uploads.length, 1);
+  assertEquals(rows[0].platform, 'manual');
+  assertEquals(rows[0].shared_text, 'dal libro della nonna');
+  assertEquals((seenImage as { mimeType: string }).mimeType, 'image/jpeg');
+});
+
+Deno.test('foto: formato non valido → 400', async () => {
+  const { client } = fakeSupabase({ userId: USER });
+  const res = await handleRequest(post({ imageBase64: btoa('x'), mimeType: 'application/pdf' }), deps(client));
+  assertEquals((await res.json()).error, 'invalid_image');
+});
+
+Deno.test("sito con scheda ricetta: difficoltà e costo stimati dall'AI, calorie del sito", async () => {
+  const page = 'https://www.ricette.example.it/lasagne-forno';
+  const { client, rpcCalls } = fakeSupabase({ userId: USER });
+  const calls: string[] = [];
+  const d = deps(client);
+  d.recipeTools = tools(calls);
+  d.fetch = jsonLdPage(page, {
+    '@type': 'Recipe',
+    name: 'Lasagne',
+    recipeIngredient: ['500 g sfoglia'],
+    recipeInstructions: 'Inforna.',
+    nutrition: { calories: '540 kcal' },
+  });
+  await handleRequest(post({ url: page }), d);
+  assertEquals(calls, ['insights']);
+  const saved = rpcCalls.find((c) => c.name === 'save_extraction')!.args.p_result as {
+    recipe: { insights: Record<string, unknown> };
+  };
+  assertEquals(saved.recipe.insights.kcal_per_serving, 540); // quelle del sito vincono
+  assertEquals(saved.recipe.insights.difficulty, 'media');
+  assertEquals(saved.recipe.insights.cost_level, 2);
+});
+
+function actionFake(tables: Record<string, Record<string, unknown> | null>) {
+  const updates: { table: string; patch: Record<string, unknown> }[] = [];
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER } }, error: null }) },
+    from: (table: string) => {
+      let patch: Record<string, unknown> | null = null;
+      const q = {
+        select: () => q,
+        eq: () => q,
+        update: (p: Record<string, unknown>) => ((patch = p), q),
+        maybeSingle: () => Promise.resolve({ data: tables[table] ?? null, error: null }),
+        then: (resolve: (v: unknown) => void) => {
+          if (patch) updates.push({ table, patch });
+          resolve({ error: null });
+        },
+      };
+      return q;
+    },
+    rpc: () => Promise.resolve({ data: true, error: null }),
+  };
+  return { client, updates };
+}
+
+Deno.test('valori della ricetta: calcolati e salvati', async () => {
+  const { client, updates } = actionFake({ recipes: recipeRow });
+  const d = deps(client);
+  d.recipeTools = tools([]);
+  const res = await (await handleRequest(post({ action: 'recipe_insights', recipeId: 'r1' }), d)).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.insights.kcal_per_serving, 610);
+  assertEquals(updates[0].table, 'recipes');
+  assertEquals(updates[0].patch.difficulty, 'media');
+  assertEquals(typeof updates[0].patch.insights_at, 'string');
+});
+
+Deno.test('variante: proposta ma NON salvata', async () => {
+  const { client, updates } = actionFake({ recipes: recipeRow });
+  const calls: string[] = [];
+  const d = deps(client);
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(post({ action: 'recipe_variant', recipeId: 'r1', kind: 'vegana' }), d)).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.variant.title, 'Frittata vegana');
+  assertEquals(res.variant.kind, 'vegana');
+  assertEquals(calls, ['variant:vegana']);
+  assertEquals(updates.length, 0);
+  const bad = await handleRequest(post({ action: 'recipe_variant', recipeId: 'r1', kind: 'marziana' }), d);
+  assertEquals(bad.status, 400);
+});
+
+Deno.test('senza AI: valori e varianti non disponibili', async () => {
+  const { client } = actionFake({ recipes: recipeRow });
+  const res = await (await handleRequest(post({ action: 'recipe_insights', recipeId: 'r1' }), deps(client))).json();
+  assertEquals(res, { status: 'skipped', reason: 'not_configured' });
+});
+
+Deno.test('aggiorna locale: telefono, sito e orari', async () => {
+  const { client, updates } = actionFake({
+    places: {
+      id: 'p1',
+      name: 'Trattoria Anna Maria',
+      city: 'Bologna',
+      address: null,
+      phone: null,
+      website: null,
+      opening_hours: null,
+    },
+  });
+  const res = await (await handleRequest(post({ action: 'refresh_place', placeId: 'p1' }), deps(client))).json();
+  assertEquals(res, { status: 'done' });
+  assertEquals(updates[0].patch.phone, '+39 051 266894');
+  assertEquals(updates[0].patch.verified, true);
+  assertEquals(updates[0].patch.latitude, 44.49);
 });

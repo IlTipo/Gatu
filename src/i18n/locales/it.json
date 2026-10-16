@@ -87,7 +87,10 @@
     "invalidUrl": "Questo non sembra un link valido. Copia l'indirizzo completo (inizia con https://).",
     "unauthorized": "La sessione è scaduta: esci e accedi di nuovo.",
     "functionUnavailable": "Il servizio che legge i link non risponde. Se hai appena configurato Morso, controlla che la funzione \"extract\" sia stata pubblicata (vedi README).",
-    "notFound": "Non trovato: forse è stato eliminato."
+    "notFound": "Non trovato: forse è stato eliminato.",
+    "invalidImage": "Questa foto non va bene: usa una foto JPEG, PNG o WebP (massimo 6 MB).",
+    "locationDenied": "Per calcolare le distanze serve il permesso di usare la posizione (puoi darlo dalle impostazioni del browser).",
+    "locationUnavailable": "Non riesco a trovare la tua posizione in questo momento."
   },
   "add": {
     "title": "Aggiungi un link",
@@ -101,7 +104,11 @@
     "save": "Salva",
     "saving": "Sto leggendo il link e analizzandolo… (fino a 30 secondi)",
     "linkRequired": "Incolla un link per continuare.",
-    "duplicate": "Questo link era già nella tua libreria."
+    "duplicate": "Questo link era già nella tua libreria.",
+    "photo": "📷 Carica la foto di una ricetta",
+    "photoHint": "Una pagina di un libro, un quaderno o uno screenshot: l'AI la legge.",
+    "photoSaving": "Sto leggendo la foto…",
+    "orLink": "oppure incolla un link"
   },
   "source": {
     "title": "Link salvato",
@@ -193,7 +200,44 @@
       "not_configured": "Per stimare le dosi serve l'AI (chiave di Gemini, vedi README).",
       "quota_exceeded": "Hai raggiunto il limite di analisi per oggi: riprova domani.",
       "error": "Non sono riuscito a stimare le dosi. Riprova tra poco."
-    }
+    },
+    "perServing": "Per porzione",
+    "kcal": "{{value}} kcal",
+    "protein": "Proteine",
+    "carbs": "Carboidrati",
+    "fat": "Grassi",
+    "difficulty": "Difficoltà",
+    "cost": "Costo",
+    "difficultyLevel": {
+      "facile": "Facile",
+      "media": "Media",
+      "difficile": "Difficile"
+    },
+    "insightsNote": "Valori indicativi stimati dall'AI (o dal sito della ricetta).",
+    "insightsMissing": "Calorie, difficoltà e costo non ancora calcolati.",
+    "computeInsights": "Calcola calorie, difficoltà e costo",
+    "recomputeInsights": "Ricalcola",
+    "computingInsights": "Sto calcolando…",
+    "variants": "Varianti",
+    "variantsHint": "L'AI adatta la ricetta: l'originale non cambia.",
+    "variantKind": {
+      "vegana": "Vegana",
+      "vegetariana": "Vegetariana",
+      "senza_glutine": "Senza glutine",
+      "senza_lattosio": "Senza lattosio",
+      "light": "Light",
+      "veloce": "Più veloce"
+    },
+    "variantTitle": "Versione {{kind}}",
+    "variantLoading": "Sto preparando la versione {{kind}}…",
+    "variantChanges": "Cosa cambia",
+    "saveVariant": "Salva come nuova ricetta",
+    "variantSaved": "Salvata!",
+    "aiSkipped": {
+      "not_configured": "Serve l'AI (chiave di Gemini, vedi README).",
+      "quota_exceeded": "Hai raggiunto il limite di analisi per oggi: riprova domani."
+    },
+    "aiError": "Non ci sono riuscito. Riprova tra poco."
   },
   "place": {
     "verified": "Indirizzo verificato",
@@ -207,6 +251,29 @@
     "address": "Indirizzo",
     "price": "Fascia di prezzo",
     "dishesLabel": "Piatti consigliati (separati da virgola)",
-    "nameRequired": "Il nome è obbligatorio."
+    "nameRequired": "Il nome è obbligatorio.",
+    "wishlistAdd": "🤍 Voglio andarci",
+    "wishlistOn": "❤️ Nella lista \"Voglio andarci\"",
+    "distance": "A {{distance}} da te",
+    "showDistance": "Quanto dista da me?",
+    "phone": "Telefono",
+    "website": "Sito web",
+    "hours": "Orari",
+    "hoursNote": "Orari da OpenStreetMap: verifica prima di andare.",
+    "refresh": "Cerca telefono, sito e orari",
+    "refreshing": "Cerco…",
+    "refreshNotFound": "Non ho trovato altre informazioni su questo locale.",
+    "refreshDone": "Informazioni aggiornate."
+  },
+  "nearby": {
+    "title": "Vicino a me",
+    "button": "📍 Cosa c'è vicino a me?",
+    "finding": "Cerco la tua posizione…",
+    "radius": "Entro",
+    "wishlist": "❤️ Voglio andarci",
+    "others": "Altri posti salvati",
+    "empty": "Nessun posto salvato entro {{distance}}.",
+    "noPlaces": "Non hai ancora posti con un indirizzo verificato.",
+    "hint": "Il controllo lo fai tu: un sito non può avvisarti da solo quando passi vicino."
   }
 }

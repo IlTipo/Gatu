@@ -46,9 +46,12 @@ export default function LibraryScreen() {
         refreshing={sources.isRefetching}
         onRefresh={() => sources.refetch()}
         ListHeaderComponent={
-          <AppText variant="caption" tone="secondary" style={styles.sectionTitle}>
-            {t('library.recentTitle')}
-          </AppText>
+          <View style={styles.listHeader}>
+            <Button label={t('nearby.button')} variant="secondary" onPress={() => router.push('/nearby')} />
+            <AppText variant="caption" tone="secondary" style={styles.sectionTitle}>
+              {t('library.recentTitle')}
+            </AppText>
+          </View>
         }
         renderItem={({ item }) => (
           <View style={{ flex: 1 / columns }}>
@@ -78,5 +81,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   list: { gap: spacing.md, paddingBottom: spacing.xl },
   row: { gap: spacing.md },
+  listHeader: { gap: spacing.md },
   sectionTitle: { textTransform: 'uppercase', letterSpacing: 0.6 },
 });

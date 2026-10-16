@@ -35,6 +35,32 @@ export type Recipe = {
   rating: number | null;
   notes: string | null;
   created_at: string;
+  // stime indicative per porzione (AI o scheda del sito)
+  kcal_per_serving: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  difficulty: 'facile' | 'media' | 'difficile' | null;
+  cost_level: number | null;
+  insights_at: string | null;
+};
+
+export type VariantKind = 'vegana' | 'vegetariana' | 'senza_glutine' | 'senza_lattosio' | 'light' | 'veloce';
+
+/** Variante proposta dall'AI (non ancora salvata). */
+export type RecipeVariant = {
+  kind: VariantKind;
+  title: string;
+  changes: string[];
+  servings: number | null;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  total_minutes: number | null;
+  tags: string[];
+  image_url: string | null;
+  description: string | null;
+  ingredients: { quantity: number | null; unit: string | null; name: string; note: string | null; aisle: string; estimated: boolean }[];
+  steps: { text: string; timer_seconds: number | null }[];
 };
 
 export type RecipeWithDetails = Recipe & {

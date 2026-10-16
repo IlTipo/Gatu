@@ -2,7 +2,12 @@
 import { assertEquals } from 'jsr:@std/assert@1';
 
 import type { ExtractionInput } from '../_shared/extraction.ts';
-import { createGeminiDoseEstimator, createGeminiExtractor, DEFAULT_MODEL } from '../_shared/gemini.ts';
+import {
+  createGeminiDoseEstimator,
+  createGeminiExtractor,
+  createGeminiRecipeTools,
+  DEFAULT_MODEL,
+} from '../_shared/gemini.ts';
 
 const input: ExtractionInput = {
   url: 'https://www.tiktok.com/@chef/video/1',
@@ -187,4 +192,49 @@ Deno.test('stima dosi: risposta valida', async () => {
   if (outcome.ok) assertEquals(outcome.estimate.ingredients[0].quantity, 2);
   const contents = a.requests[0].body.contents as { parts: { text: string }[] }[];
   assertEquals(contents[0].parts[0].text.includes('1. zucchine — DOSE MANCANTE'), true);
+});
+
+Deno.test("foto: l'immagine viene inviata a Gemini insieme al testo", async () => {
+  const a = api(reply(JSON.stringify(extraction)));
+  await createGeminiExtractor('k', { fetch: a.fetch })({ ...input, image: { mimeType: 'image/jpeg', data: 'AAAA' } });
+  const parts = (a.requests[0].body.contents as { parts: Record<string, unknown>[] }[])[0].parts;
+  assertEquals(parts[0], { inlineData: { mimeType: 'image/jpeg', data: 'AAAA' } });
+  assertEquals(typeof parts[1].text, 'string');
+});
+
+Deno.test('strumenti ricetta: valori e variante', async () => {
+  const recipe = {
+    title: 'Frittata',
+    servings: 2,
+    ingredients: [{ quantity: 4, unit: null, name: 'uova', note: null }],
+    steps: [],
+  };
+  const a = api(
+    reply(
+      JSON.stringify({
+        kcal_per_serving: 300,
+        protein_g: 20,
+        carbs_g: 2,
+        fat_g: 22,
+        difficulty: 'facile',
+        cost_level: 1,
+      }),
+    ),
+  );
+  const ins = await createGeminiRecipeTools('k', { fetch: a.fetch }).insights(recipe);
+  assertEquals(ins.ok && ins.insights.kcal_per_serving, 300);
+  const b = api(
+    reply(
+      JSON.stringify({
+        title: 'Frittata vegana',
+        changes: ['uova → ceci'],
+        ingredients: [{ quantity: 150, unit: 'g', name: 'farina di ceci', note: null, aisle: 'dispensa' }],
+        steps: [],
+      }),
+    ),
+  );
+  const v = await createGeminiRecipeTools('k', { fetch: b.fetch }).variant(recipe, 'vegana');
+  assertEquals(v.ok && v.variant.title, 'Frittata vegana');
+  const sent = (b.requests[0].body.contents as { parts: { text: string }[] }[])[0].parts[0].text;
+  assertEquals(sent.startsWith('Versione richiesta: vegana'), true);
 });
