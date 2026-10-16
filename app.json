@@ -24,7 +24,13 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "lang": "it",
+      "name": "Morso",
+      "shortName": "Morso",
+      "description": "Salva ricette e ristoranti dai social e trasformali in pasti e uscite vere.",
+      "themeColor": "#E0592A",
+      "backgroundColor": "#FBF7F2"
     },
     "plugins": [
       "expo-router",

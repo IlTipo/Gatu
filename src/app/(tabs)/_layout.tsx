@@ -1,39 +1,48 @@
-import { NativeTabs } from 'expo-router/native-tabs';
+import { Tabs } from 'expo-router/js-tabs';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
+
+type IconName = ComponentProps<typeof Icon>['name'];
+
+function tabIcon(name: IconName) {
+  return function TabIcon({ color }: { color: ComponentProps<typeof Icon>['color'] }) {
+    return <Icon name={name} size={24} color={color} />;
+  };
+}
 
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
 
   return (
-    <NativeTabs
-      backgroundColor={colors.surface}
-      tintColor={colors.primary}
-      iconColor={{ default: colors.textSecondary, selected: colors.primary }}
-      indicatorColor={colors.surfaceMuted}
-      labelStyle={{ default: { color: colors.textSecondary }, selected: { color: colors.primary } }}>
-      <NativeTabs.Trigger name="library">
-        <NativeTabs.Trigger.Label>{t('tabs.library')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="book" md="menu_book" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="planner">
-        <NativeTabs.Trigger.Label>{t('tabs.planner')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="shopping">
-        <NativeTabs.Trigger.Label>{t('tabs.shopping')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="cart" md="shopping_cart" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="map">
-        <NativeTabs.Trigger.Label>{t('tabs.map')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="map" md="map" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>{t('tabs.profile')}</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="person.crop.circle" md="person" />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontWeight: '600' },
+      }}>
+      <Tabs.Screen
+        name="library"
+        options={{ title: t('tabs.library'), tabBarIcon: tabIcon({ ios: 'book', android: 'menu_book' }) }}
+      />
+      <Tabs.Screen
+        name="planner"
+        options={{ title: t('tabs.planner'), tabBarIcon: tabIcon({ ios: 'calendar', android: 'calendar_month' }) }}
+      />
+      <Tabs.Screen
+        name="shopping"
+        options={{ title: t('tabs.shopping'), tabBarIcon: tabIcon({ ios: 'cart', android: 'shopping_cart' }) }}
+      />
+      <Tabs.Screen name="map" options={{ title: t('tabs.map'), tabBarIcon: tabIcon({ ios: 'map', android: 'map' }) }} />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: t('tabs.profile'), tabBarIcon: tabIcon({ ios: 'person.crop.circle', android: 'person' }) }}
+      />
+    </Tabs>
   );
 }

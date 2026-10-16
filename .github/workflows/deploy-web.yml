@@ -1,0 +1,55 @@
+# Pubblica il sito di Morso su GitHub Pages a ogni push.
+# Il sito costruito viene salvato nel branch "gh-pages" (lo crea questo workflow).
+# Impostazioni da fare una volta sola: vedi README → "Mettere il sito online".
+name: Pubblica il sito
+
+on:
+  push:
+    branches: [main, claude/morso-food-app-3op2rx]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installa le dipendenze
+        run: npm ci
+
+      - name: Controlli (tipi, stile, test, sicurezza database)
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --ci
+          npm run test:db
+
+      - name: Costruisci il sito
+        env:
+          EXPO_BASE_URL: /${{ github.event.repository.name }}
+          # Chiavi PUBBLICHE di Supabase, impostate in Settings → Secrets and variables → Actions → Variables
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+        run: npm run build:web
+
+      - name: Pubblica nel branch gh-pages
+        working-directory: dist
+        run: |
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Sito pubblicato da ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages

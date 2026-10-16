@@ -1,4 +1,5 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -10,8 +11,17 @@ import { parseAuthCallback } from './callbackUrl';
 
 WebBrowser.maybeCompleteAuthSession();
 
-/** Indirizzo a cui Supabase rimanda dopo il login (in Expo Go è del tipo exp://…/--/auth/callback). */
-export const authRedirectUrl = Linking.createURL('auth/callback');
+/**
+ * Indirizzo a cui Supabase rimanda dopo il login o dopo il clic sull'email di conferma.
+ * Sul sito: https://<dominio>/<percorso>/auth/callback. In Expo Go: exp://…/--/auth/callback.
+ */
+export function getAuthRedirectUrl() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const baseUrl = (Constants.expoConfig?.experiments?.baseUrl ?? '').replace(/\/+$/, '');
+    return `${window.location.origin}${baseUrl}/auth/callback`;
+  }
+  return Linking.createURL('auth/callback');
+}
 
 export class AuthCancelledError extends Error {
   constructor() {
@@ -20,15 +30,24 @@ export class AuthCancelledError extends Error {
   }
 }
 
-/** Login con Google: apre la pagina di Google in un browser interno e poi torna nell'app. */
+/** Login con Google: apre la pagina di Google e poi torna su Morso. */
 export async function signInWithGoogle() {
+  const redirectTo = getAuthRedirectUrl();
+
+  // Sul sito la pagina passa a Google e poi torna su /auth/callback, che completa l'accesso.
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+    if (error) throw error;
+    return;
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: authRedirectUrl, skipBrowserRedirect: true },
+    options: { redirectTo, skipBrowserRedirect: true },
   });
   if (error) throw error;
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, authRedirectUrl);
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== 'success') throw new AuthCancelledError();
 
   const parsed = parseAuthCallback(result.url);

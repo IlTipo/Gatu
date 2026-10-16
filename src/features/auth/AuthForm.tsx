@@ -12,7 +12,7 @@ import { errorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import { spacing, useTheme } from '@/theme';
 
-import { AuthCancelledError, authRedirectUrl, isAppleSignInAvailable, signInWithApple, signInWithGoogle } from './oauth';
+import { AuthCancelledError, getAuthRedirectUrl, isAppleSignInAvailable, signInWithApple, signInWithGoogle } from './oauth';
 import { isValidEmail, isValidPassword } from './validation';
 
 type Mode = 'sign-in' | 'sign-up';
@@ -50,7 +50,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         const { data, error: e } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: authRedirectUrl },
+          options: { emailRedirectTo: getAuthRedirectUrl() },
         });
         if (e) throw e;
         // Se nel progetto è attiva la conferma email, la sessione arriva solo dopo il clic sul link.

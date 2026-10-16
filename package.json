@@ -45,15 +45,16 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "start:tunnel": "expo start --tunnel",
+    "start": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:db": "node supabase/tests/rls.test.mjs"
+    "test:db": "node supabase/tests/rls.test.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "start:phone": "expo start"
   },
   "private": true,
   "jest": {

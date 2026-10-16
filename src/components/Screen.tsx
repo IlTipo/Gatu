@@ -32,6 +32,7 @@ export function Screen({ children, scroll, edges = ['top', 'left', 'right'] }: P
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flex: 1, padding: spacing.lg },
-  scrollContent: { flexGrow: 1, padding: spacing.lg },
+  // Su schermi larghi (computer) il contenuto resta in una colonna centrata e leggibile.
+  content: { flex: 1, padding: spacing.lg, width: '100%', maxWidth: 720, alignSelf: 'center' },
+  scrollContent: { flexGrow: 1, padding: spacing.lg, width: '100%', maxWidth: 720, alignSelf: 'center' },
 });

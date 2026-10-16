@@ -1,6 +1,9 @@
 # Morso — Proposta tecnica
 
-> ✅ Approvata il 16/10/2026. Piccola differenza rispetto alla bozza: con Expo SDK 58 le schermate stanno in `src/app/` invece che in `app/`.
+> ✅ Approvata il 16/10/2026.
+>
+> 🔄 **Cambio di rotta (16/10/2026): Morso diventa un sito web** (installabile sulla schermata Home), pubblicato gratis su GitHub Pages. Il codice resta Expo/React Native, quindi in futuro si potrà ancora farne un'app da store. Le differenze rispetto al piano originale sono nella sezione "Versione sito" in fondo.
+> Piccola differenza rispetto alla bozza: con Expo SDK 58 le schermate stanno in `src/app/` invece che in `app/`.
 
 Questo documento contiene tre cose:
 
@@ -302,7 +305,24 @@ Nota: la "Condividi" è nel punto 1 della tua lista, ma tecnicamente **non funzi
 
 ---
 
-## 5. Cosa mi serve da te
+## 5. Versione sito: cosa cambia
+
+| Funzione | Prima (app) | Ora (sito) |
+|---|---|---|
+| Provarla | Expo Go + computer | Apri **https://iltipo.github.io/Gatu/** e "Aggiungi a schermata Home" |
+| Aggiornamenti | Rilanciare dal computer | Automatici: GitHub ricostruisce il sito a ogni modifica |
+| Salvare un link (Fase 1) | Incolla link | Uguale: incolla link + pulsante "Incolla dagli appunti" |
+| "Condividi → Morso" (Fase 9) | Share extension nativa | **Android**: il sito installato compare nel menu Condividi (Web Share Target). **iPhone**: non possibile per i siti; in alternativa un Comando rapido (app Comandi) "Salva in Morso" che apre il sito con il link |
+| Schermo acceso in cucina (Fase 4) | expo-keep-awake | Wake Lock del browser (Safari e Chrome recenti) |
+| Mappa (Fase 7) | react-native-maps | **Leaflet + OpenStreetMap** (gratis, nessuna chiave); "Apri in Google Maps" resta |
+| Login Apple | Pulsante nativo iPhone | Rimandato: anche sul web richiede l'account Apple Developer |
+| Login Google | Browser interno | Pagina Google classica, poi si torna su Morso |
+
+Restano identici: database, sicurezza, estrazione con Claude, libreria, planner, lista della spesa, voti e note.
+
+---
+
+## 6. Cosa mi serve da te (risposto)
 
 Rispondi con **"ok"** (o con le modifiche che vuoi) su:
 1. Schema del database
