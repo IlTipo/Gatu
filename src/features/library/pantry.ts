@@ -6,7 +6,7 @@ import { type LibraryRecipe, normalize } from './filter';
 const STAPLES = ['sale', 'pepe', 'olio', 'acqua', 'aceto'];
 
 // Nomi generici che coprono quelli specifici (se scrivi "pasta" valgono gli spaghetti).
-const FAMILIES: Record<string, string[]> = {
+export const FAMILIES: Record<string, string[]> = {
   pasta: ['spaghetti', 'penne', 'fusilli', 'rigatoni', 'linguine', 'tagliatelle', 'farfalle', 'orecchiette', 'paccheri', 'mezze maniche', 'bucatini', 'trofie', 'lasagne', 'gnocchi'],
   formaggio: ['parmigiano', 'grana', 'pecorino', 'mozzarella', 'scamorza', 'provola', 'gorgonzola', 'ricotta', 'stracchino', 'fontina', 'burrata', 'feta', 'emmental'],
   uova: ['tuorli', 'tuorlo', 'albumi', 'albume'],
@@ -15,7 +15,7 @@ const FAMILIES: Record<string, string[]> = {
 };
 
 /** "zucchine" → "zucchin": così zucchina/zucchine, uovo/uova coincidono. */
-function stem(word: string): string {
+export function stem(word: string): string {
   return word.length > 3 ? word.replace(/[aeiou]$/, '') : word;
 }
 

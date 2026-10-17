@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/Screen';
 import { EmptyState } from '@/components/StateViews';
+import { TimersPill } from '@/components/TimersPill';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { config } from '@/lib/env';
 import { queryClient } from '@/lib/queryClient';
@@ -59,31 +60,35 @@ function RootNavigator() {
 
   const signedIn = !!session;
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      {/* Le tab sono visibili solo a chi ha fatto l'accesso... */}
-      <Stack.Protected guard={signedIn}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="add" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="source/[id]" />
-        <Stack.Screen name="recipe/[id]/index" />
-        <Stack.Screen name="recipe/[id]/edit" />
-        <Stack.Screen name="recipe/[id]/variant" />
-        <Stack.Screen name="place/[id]/index" />
-        <Stack.Screen name="place/[id]/edit" />
-        <Stack.Screen name="nearby" />
-        <Stack.Screen name="collection/[id]" />
-        <Stack.Screen name="collect" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="collections" />
-        <Stack.Screen name="ask" />
-        <Stack.Screen name="pantry" />
-      </Stack.Protected>
-      {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
-      <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="(auth)" />
-      </Stack.Protected>
-      <Stack.Screen name="auth/callback" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        {/* Le tab sono visibili solo a chi ha fatto l'accesso... */}
+        <Stack.Protected guard={signedIn}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="source/[id]" />
+          <Stack.Screen name="recipe/[id]/index" />
+          <Stack.Screen name="recipe/[id]/edit" />
+          <Stack.Screen name="recipe/[id]/variant" />
+          <Stack.Screen name="recipe/[id]/cook" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="place/[id]/index" />
+          <Stack.Screen name="place/[id]/edit" />
+          <Stack.Screen name="nearby" />
+          <Stack.Screen name="collection/[id]" />
+          <Stack.Screen name="collect" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="collections" />
+          <Stack.Screen name="ask" />
+          <Stack.Screen name="pantry" />
+        </Stack.Protected>
+        {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Screen name="auth/callback" />
+      </Stack>
+      {signedIn ? <TimersPill /> : null}
+    </>
   );
 }
 

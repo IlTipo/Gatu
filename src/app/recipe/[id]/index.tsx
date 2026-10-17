@@ -110,6 +110,10 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
 
         <View style={styles.buttons}>
           <Button
+            label={t('recipe.startCooking')}
+            onPress={() => router.push({ pathname: '/recipe/[id]/cook', params: { id: r.id } })}
+          />
+          <Button
             label={t('common.edit')}
             variant="secondary"
             onPress={() => router.push({ pathname: '/recipe/[id]/edit', params: { id: r.id } })}

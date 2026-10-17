@@ -136,6 +136,16 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 10. **Collezioni automatiche**: in **+ Nuova collezione** scegli **⚡ Automatica** e le regole (es. *vegetariano* + *≤ 30 min*, oppure posti a *Milano* "Voglio andarci"). Vedi subito quanti elementi contiene; si aggiorna da sola quando salvi cose nuove.
 11. **↕ Riordina** (con almeno 2 collezioni): sposta le collezioni con le frecce.
 
+## Cosa provare nella Fase 4 — Modalità cucina
+
+1. Apri una ricetta → **👩‍🍳 Cucina**. Lo schermo resta acceso finché sei in questa schermata (se il browser lo permette).
+2. **Prima di iniziare**: scegli per quante persone (le dosi si ricalcolano ovunque) e spunta gli ingredienti che hai già pronto.
+3. **Inizia a cucinare →**: un passaggio alla volta, testo grande, e sotto **Ti serve** con le dosi usate in quel passaggio.
+4. **Timer**: dove la ricetta indica un tempo c'è **⏱ Avvia timer**. Puoi averne più insieme (pasta e sugo): li vedi sempre in alto con il conto alla rovescia, **+1 min** o **✕**. Alla fine suonano e vibrano; la prima volta il browser chiede il permesso per le **notifiche**, così ti avvisa anche se cambi app. Con il telefono bloccato l'avviso può arrivare in ritardo: meglio tenere Morso aperto.
+5. Se esci dalla modalità cucina i timer continuano: in basso compare **⏱ 1 timer · 9:59**; toccalo per tornare a cucinare (o per fermare quello che suona).
+6. **🎤 Comandi vocali** (in alto a destra; Chrome su Android, Safari, Edge): di' **«avanti»**, **«indietro»**, **«timer»** (avvia quello del passaggio) o **«stop»** (ferma quello che suona). L'audio lo elabora il browser; Morso riceve solo la parola riconosciuta e non la salva.
+7. Sul computer puoi usare le frecce **← →** della tastiera.
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

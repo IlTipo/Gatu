@@ -265,7 +265,8 @@
       "quota_exceeded": "Hai raggiunto il limite di analisi per oggi: riprova domani."
     },
     "aiError": "Non ci sono riuscito. Riprova tra poco.",
-    "aiRateLimited": "L'AI gratuita ha finito le richieste per oggi: riprova domani (le altre funzioni vanno lo stesso)."
+    "aiRateLimited": "L'AI gratuita ha finito le richieste per oggi: riprova domani (le altre funzioni vanno lo stesso).",
+    "startCooking": "👩‍🍳 Cucina"
   },
   "place": {
     "verified": "Indirizzo verificato",
@@ -378,5 +379,43 @@
     "close": "Chiudi",
     "none": "Nessuna ricetta con questi filtri.",
     "filtersNote": "Pescata tra le ricette che vedi (filtri e collezione compresi)."
+  },
+  "cook": {
+    "exit": "✕ Esci",
+    "exitConfirm": "Uscire dalla modalità cucina? I timer continuano.",
+    "prepTitle": "Prima di iniziare",
+    "people": "Per quante persone",
+    "checklist": "Prepara gli ingredienti",
+    "checklistHint": "Tocca quelli che hai già pronto sul piano di lavoro.",
+    "ready": "{{done}} di {{total}} pronti",
+    "noIngredients": "Nessun ingrediente in questa ricetta.",
+    "start": "Inizia a cucinare →",
+    "stepOf": "Passaggio {{n}} di {{total}}",
+    "stepIngredients": "Ti serve",
+    "startTimer": "⏱ Avvia timer {{time}}",
+    "timerRunning": "⏱ Timer avviato",
+    "prev": "← Indietro",
+    "next": "Avanti →",
+    "finish": "Fine 🎉",
+    "doneTitle": "Buon appetito! 🍽️",
+    "doneBody": "Hai finito tutti i passaggi.",
+    "backToRecipe": "Torna alla ricetta",
+    "backToSteps": "Rivedi i passaggi",
+    "noSteps": "Questa ricetta non ha passaggi: aggiungili da \"Modifica\".",
+    "timers": "Timer",
+    "timerDone": "Finito!",
+    "stop": "Stop",
+    "plusMinute": "+1 min",
+    "cancel": "Annulla timer",
+    "voiceOn": "🎤 Ascolto: di' «avanti», «indietro», «timer» o «stop»",
+    "voiceOff": "🎤 Comandi vocali",
+    "voiceStop": "Spegni il microfono",
+    "voiceDenied": "Il microfono non è permesso: abilitalo nelle impostazioni del browser.",
+    "voiceFailed": "Il riconoscimento vocale si è interrotto: tocca di nuovo 🎤.",
+    "heard": "Ho sentito: «{{text}}»",
+    "notifyHint": "Il timer suona e ti avvisa con una notifica anche se cambi app (se il browser lo permette). Con il telefono bloccato l'avviso può arrivare in ritardo.",
+    "timersPill_one": "⏱ {{count}} timer · {{time}}",
+    "timersPill_other": "⏱ {{count}} timer · {{time}}",
+    "ringingPill": "⏰ Timer finito! Tocca per fermarlo"
   }
 }
