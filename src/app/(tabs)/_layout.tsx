@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
@@ -16,6 +17,9 @@ function tabIcon(name: IconName) {
 export default function TabsLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // spazio per la barretta dell'iPhone (e un minimo anche dove non c'è), così le scritte non si tagliano
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, 8);
 
   return (
     <Tabs
@@ -23,8 +27,15 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarLabelStyle: { fontWeight: '600' },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          // icona (28) + scritta (18) + margini del pulsante (10) + respiro sopra e sotto
+          height: 68 + bottom,
+          paddingTop: 6,
+          paddingBottom: bottom,
+        },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 12, lineHeight: 16, marginTop: 2 },
       }}>
       <Tabs.Screen
         name="library"

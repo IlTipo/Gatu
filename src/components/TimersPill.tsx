@@ -16,6 +16,7 @@ import { AppText } from './AppText';
 export function TimersPill() {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  // sopra la barra delle schede (alta 68 + spazio in basso)
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const timers = useTimers();
@@ -33,7 +34,7 @@ export function TimersPill() {
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.pill,
-        { bottom: insets.bottom + 72, backgroundColor: ringing ? colors.danger : colors.text, opacity: pressed ? 0.85 : 1 },
+        { bottom: Math.max(insets.bottom, 8) + 76, backgroundColor: ringing ? colors.danger : colors.text, opacity: pressed ? 0.85 : 1 },
       ]}>
       <AppText variant="bodyStrong" style={{ color: ringing ? colors.onPrimary : colors.background }}>
         {ringing ? t('cook.ringingPill') : t('cook.timersPill', { count: timers.length, time: formatCountdown(next.endAt - now) })}
