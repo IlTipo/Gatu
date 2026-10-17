@@ -54,7 +54,7 @@ export function RecipeForm({ recipe }: { recipe?: RecipeWithDetails }) {
   const [prep, setPrep] = useState(recipe?.prep_minutes?.toString() ?? '');
   const [cook, setCook] = useState(recipe?.cook_minutes?.toString() ?? '');
   const [tags, setTags] = useState<string[]>(recipe?.tags ?? []);
-  const [imageUrl, setImageUrl] = useState<string | null>(recipe?.image_url ?? null);
+  const [imageUrl] = useState<string | null>(recipe?.image_url ?? null);
   const [photo, setPhoto] = useState<{ uri: string; base64: string } | null>(null);
   // le ricette nuove scritte da te sono visibili agli amici, se non scegli diversamente
   const [shared, setShared] = useState(recipe?.shared_with_friends ?? true);

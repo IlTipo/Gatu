@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Avatar } from '@/components/Avatar';
+import { AvatarCropper } from '@/components/AvatarCropper';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Collapsible } from '@/components/Collapsible';
@@ -18,6 +19,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useChangeAvatar, useFriends, useMyProfile, useSendFeedback, useUpdateMyProfile } from '@/features/social/api';
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
+import { pickRawPhoto, type RawPhoto } from '@/lib/photo';
 import { shareLink, siteUrl } from '@/lib/share';
 import { supabase } from '@/lib/supabase';
 import { CURRENT_VERSION, markNewsSeen, reloadApp, useNews, useUpdateState } from '@/lib/updates';
@@ -162,6 +164,18 @@ function ProfileHeader() {
   const me = useMyProfile();
   const update = useUpdateMyProfile();
   const avatar = useChangeAvatar();
+  // foto scelta, da sistemare nel cerchio prima di salvarla
+  const [picked, setPicked] = useState<RawPhoto | null>(null);
+  const [pickError, setPickError] = useState<unknown>(null);
+  const choosePhoto = async () => {
+    setPickError(null);
+    try {
+      const photo = await pickRawPhoto();
+      if (photo) setPicked(photo);
+    } catch (e) {
+      setPickError(e);
+    }
+  };
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
 
@@ -176,7 +190,7 @@ function ProfileHeader() {
   return (
     <View style={[styles.card, styles.header, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Pressable
-        onPress={() => avatar.mutate(me.data?.avatar_url ?? null)}
+        onPress={choosePhoto}
         disabled={avatar.isPending}
         accessibilityRole="button"
         accessibilityLabel={t('profile.changePhoto')}
@@ -208,9 +222,19 @@ function ProfileHeader() {
           </AppText>
         </Pressable>
       )}
+      {picked ? (
+        <AvatarCropper
+          photo={picked}
+          busy={avatar.isPending}
+          onCancel={() => setPicked(null)}
+          onConfirm={(rect) =>
+            avatar.mutate({ photo: picked, rect, previousUrl: me.data?.avatar_url ?? null }, { onSuccess: () => setPicked(null) })
+          }
+        />
+      ) : null}
       <InlineError
         message={
-          avatar.isError ? errorMessage(avatar.error, t) : update.isError ? errorMessage(update.error, t) : me.isError ? errorMessage(me.error, t) : null
+          pickError ? errorMessage(pickError, t) : avatar.isError ? errorMessage(avatar.error, t) : update.isError ? errorMessage(update.error, t) : me.isError ? errorMessage(me.error, t) : null
         }
       />
     </View>

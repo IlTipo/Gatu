@@ -811,5 +811,12 @@
     "news": "✨ Novità di Morso {{version}}",
     "updateNow": "Aggiorna ora",
     "gotIt": "Ok, ho capito"
+  },
+  "crop": {
+    "title": "Sistema la foto",
+    "hint": "Trascina per spostarla, usa due dita o − + per ingrandirla.",
+    "zoomIn": "Ingrandisci",
+    "zoomOut": "Rimpicciolisci",
+    "use": "Usa questa foto"
   }
 }

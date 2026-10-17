@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { recipeKeys } from '@/features/recipes/api';
 import { invokeExtract } from '@/features/sources/api';
-import { pickRecipePhoto } from '@/lib/photo';
+import { cropSquare, type RawPhoto } from '@/lib/photo';
 import { supabase } from '@/lib/supabase';
 import { uploadPhoto } from '@/lib/upload';
 
@@ -104,17 +104,16 @@ export function useUpdateMyProfile() {
   });
 }
 
-/** Sceglie una foto, la rimpicciolisce (512 px) e la mette come foto profilo. false se annullato. */
+/** Mette come foto profilo il ritaglio (già quadrato, 512 px) e cancella quella vecchia. */
 export function useChangeAvatar() {
   const update = useUpdateMyProfile();
   const { session } = useAuth();
   return useMutation({
-    mutationFn: async (previousUrl: string | null) => {
+    mutationFn: async ({ photo, rect, previousUrl }: { photo: RawPhoto; rect: { originX: number; originY: number; side: number }; previousUrl: string | null }) => {
       const uid = session?.user.id;
       if (!uid) throw new Error('not signed in');
-      const photo = await pickRecipePhoto(512);
-      if (!photo) return false;
-      const url = await uploadPhoto(photo.base64, 'avatar');
+      const cropped = await cropSquare(photo, rect, 512);
+      const url = await uploadPhoto(cropped.base64, 'avatar');
       await update.mutateAsync({ avatar_url: url });
       // la foto vecchia non serve più
       const old = previousUrl?.split('/object/public/images/')[1];
@@ -122,7 +121,6 @@ export function useChangeAvatar() {
         () => {},
         () => {},
       );
-      return true;
     },
   });
 }
