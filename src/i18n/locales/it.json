@@ -375,7 +375,14 @@
     "others": "Altri posti salvati",
     "empty": "Nessun posto salvato entro {{distance}}.",
     "noPlaces": "Non hai ancora posti con un indirizzo verificato.",
-    "hint": "Il controllo lo fai tu: un sito non può avvisarti da solo quando passi vicino."
+    "hint": "Il controllo lo fai tu: un sito non può avvisarti da solo quando passi vicino.",
+    "noPlacesBody": "Qui compaiono i ristoranti che hai salvato e che hanno una posizione sulla mappa. Salva un locale (da TikTok, Instagram, Google Maps…) oppure, qui sotto, fai trovare la posizione a quelli che hai già.",
+    "missingTitle_one": "📍 {{count}} posto senza posizione",
+    "missingTitle_other": "📍 {{count}} posti senza posizione",
+    "missingHint": "Questi non compaiono tra i vicini perché non so dove sono. Tocca \"Trova\": cerco l'indirizzo in automatico. Se non lo trovo, apri il posto → Modifica e scrivi via e città, poi riprova.",
+    "noAddress": "Indirizzo mancante",
+    "find": "📍 Trova",
+    "notFound": "Non l'ho trovato: aggiungi via e città con Modifica e riprova."
   },
   "collections": {
     "newTitle": "Nuova collezione",

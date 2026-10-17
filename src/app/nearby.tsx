@@ -9,8 +9,8 @@ import { BackButton } from '@/components/BackButton';
 import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
-import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
-import { usePlacesWithLocation } from '@/features/places/api';
+import { EmptyState, ErrorState, InlineError, LoadingState } from '@/components/StateViews';
+import { usePlacesWithLocation, usePlacesWithoutLocation, useRefreshPlace } from '@/features/places/api';
 import { distanceMeters, formatDistance, priceLabel } from '@/features/places/format';
 import type { Place } from '@/features/places/types';
 import { errorMessage } from '@/lib/errors';
@@ -25,6 +25,7 @@ type Nearby = Place & { meters: number };
 export default function NearbyScreen() {
   const { t } = useTranslation();
   const places = usePlacesWithLocation();
+  const missing = usePlacesWithoutLocation();
   // la posizione si chiede aprendo la schermata e vale per un minuto
   const location = useQuery({ queryKey: ['my-location'], queryFn: getCurrentCoords, retry: false, staleTime: 60_000 });
   const coords: Coords | undefined = location.data;
@@ -38,7 +39,7 @@ export default function NearbyScreen() {
   } else if (!coords || places.isPending) {
     content = <LoadingState message={t('nearby.finding')} />;
   } else if (places.data.length === 0) {
-    content = <EmptyState title={t('nearby.noPlaces')} />;
+    content = <EmptyState title={t('nearby.noPlaces')} body={t('nearby.noPlacesBody')} />;
   } else {
     const within = places.data
       .map((p): Nearby => ({ ...p, meters: distanceMeters(coords, { latitude: p.latitude!, longitude: p.longitude! }) }))
@@ -87,6 +88,14 @@ export default function NearbyScreen() {
         <BackButton />
         <AppText variant="title">{t('nearby.title')}</AppText>
         {content}
+        {missing.data?.length ? (
+          <Section title={t('nearby.missingTitle', { count: missing.data.length })}>
+            <AppText tone="secondary">{t('nearby.missingHint')}</AppText>
+            {missing.data.map((p) => (
+              <MissingRow key={p.id} place={p} />
+            ))}
+          </Section>
+        ) : null}
       </View>
     </Screen>
   );
@@ -119,6 +128,39 @@ function PlaceRow({ place: p }: { place: Nearby }) {
   );
 }
 
+/** Un locale senza posizione: si apre, oppure si prova a trovarlo sulla mappa. */
+function MissingRow({ place: p }: { place: Place }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const refresh = useRefreshPlace(p.id);
+  const [notFound, setNotFound] = useState(false);
+  const where = [p.address, p.city].filter(Boolean).join(', ');
+  const find = () =>
+    refresh.mutate(undefined, {
+      onSuccess: (res) => setNotFound(res.status !== 'done'),
+    });
+  return (
+    <View style={[styles.row, styles.missing, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Pressable
+        style={styles.flex}
+        accessibilityRole="button"
+        onPress={() => router.push({ pathname: '/place/[id]', params: { id: p.id } })}>
+        <AppText variant="bodyStrong">{p.name}</AppText>
+        <AppText variant="caption" tone="secondary" numberOfLines={1}>
+          {where || t('nearby.noAddress')}
+        </AppText>
+        {notFound ? (
+          <AppText variant="caption" tone="danger">
+            {t('nearby.notFound')}
+          </AppText>
+        ) : null}
+        <InlineError message={refresh.isError ? errorMessage(refresh.error, t) : null} />
+      </Pressable>
+      <Chip label={refresh.isPending ? t('place.refreshing') : t('nearby.find')} onPress={refresh.isPending ? undefined : find} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { gap: spacing.lg, paddingBottom: spacing.xl },
   content: { gap: spacing.lg },
@@ -133,4 +175,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   flex: { flex: 1, gap: spacing.xs },
+  missing: { alignItems: 'flex-start' },
 });

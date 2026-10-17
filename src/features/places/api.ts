@@ -62,7 +62,25 @@ export function useRefreshPlace(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => invokeExtract<RefreshPlaceResult>({ action: 'refresh_place', placeId: id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: placeKeys.detail(id) }),
+    // anche le liste (Vicino a me, mappa): il locale può aver appena trovato la sua posizione
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: placeKeys.all }),
+  });
+}
+
+/** I locali salvati che non hanno ancora una posizione sulla mappa. */
+export function usePlacesWithoutLocation() {
+  return useQuery({
+    queryKey: [...placeKeys.all, 'without-location'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('places')
+        .select('*')
+        .or('latitude.is.null,longitude.is.null')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return data as Place[];
+    },
   });
 }
 

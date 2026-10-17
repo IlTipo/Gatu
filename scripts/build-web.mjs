@@ -6,7 +6,7 @@
 //   CUSTOM_DOMAIN  facoltativo, es. morso.app: scrive il file CNAME per GitHub Pages
 //   HOSTING        "cloudflare" per Cloudflare Pages (senza 404.html: lì ogni pagina apre l'app da sola)
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const out = 'dist';
@@ -24,6 +24,19 @@ execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out]
 const indexPath = join(out, 'index.html');
 const html = readFileSync(indexPath, 'utf8').replaceAll('%BASE_URL%', baseUrl);
 writeFileSync(indexPath, html);
+
+// 1b. Cloudflare Pages non pubblica le cartelle "node_modules", dove Expo mette i font delle icone:
+//     senza questo passo le icone sparirebbero. Le spostiamo in assets/vendor e aggiorniamo i percorsi.
+const vendorFrom = join(out, 'assets', 'node_modules');
+if (existsSync(vendorFrom)) {
+  renameSync(vendorFrom, join(out, 'assets', 'vendor'));
+  for (const file of readdirSync(out, { recursive: true, withFileTypes: true })) {
+    if (!file.isFile() || !/\.(js|html|css|json)$/.test(file.name)) continue;
+    const path = join(file.parentPath, file.name);
+    const text = readFileSync(path, 'utf8');
+    if (text.includes('assets/node_modules/')) writeFileSync(path, text.replaceAll('assets/node_modules/', 'assets/vendor/'));
+  }
+}
 
 // 2. GitHub Pages non conosce le pagine dell'app (/planner, /recipe/123…):
 //    con 404.html uguale a index.html, ogni indirizzo apre comunque l'app.
