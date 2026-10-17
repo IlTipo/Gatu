@@ -6,6 +6,8 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { Chip } from '@/components/Chip';
+import { Collapsible } from '@/components/Collapsible';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { EmptyState, ErrorState, InlineError, LoadingState } from '@/components/StateViews';
@@ -23,15 +25,16 @@ import {
   useDeleteItem,
   useGenerateList,
   useShoppingList,
+  useMoveToAisle,
   useToggleItem,
 } from '@/features/shopping/api';
+import { AISLE_EMOJI, AISLES, aisleRank, moveAisleInOrder, setAisleOrder, useAislePrefs } from '@/features/shopping/aisles';
 import { displayAmount, listAsText } from '@/features/shopping/build';
 import { errorMessage } from '@/lib/errors';
 import { radius, spacing, useTheme } from '@/theme';
 
-// ordine dei reparti come in un supermercato
-const AISLE_ORDER = ['frutta_verdura', 'panetteria', 'carne_pesce', 'latticini', 'dispensa', 'surgelati', 'bevande', 'altro'];
 const aisleLabel = (aisle: string) => AISLE_LABELS[aisle] ?? AISLE_LABELS.altro;
+const aisleTitle = (aisle: string) => `${AISLE_EMOJI[aisle] ?? AISLE_EMOJI.altro} ${aisleLabel(aisle)}`;
 const formatItem = (i: Pick<ShoppingItem, 'name' | 'quantity' | 'unit'>) =>
   formatIngredient({ ...displayAmount(i.quantity, i.unit), name: i.name, note: null });
 
@@ -48,17 +51,18 @@ export default function ShoppingScreen() {
   const clearChecked = useClearChecked(monday);
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  // l'ordine dei reparti del tuo supermercato
+  const { order: aisleOrder } = useAislePrefs();
 
   const titles = useMemo(() => new Map((recipes.data ?? []).map((r) => [r.id, r.title])), [recipes.data]);
   const items = useMemo(() => list.data ?? [], [list.data]);
   const groups = useMemo(() => {
     const map = new Map<string, ShoppingItem[]>();
     for (const i of items) map.set(i.aisle, [...(map.get(i.aisle) ?? []), i]);
-    const order = (a: string) => (AISLE_ORDER.includes(a) ? AISLE_ORDER.indexOf(a) : AISLE_ORDER.length);
     return [...map.entries()]
-      .sort(([a], [b]) => order(a) - order(b))
+      .sort(([a], [b]) => aisleRank(a, aisleOrder) - aisleRank(b, aisleOrder))
       .map(([aisle, list]) => [aisle, [...list].sort((x, y) => Number(x.checked) - Number(y.checked))] as const);
-  }, [items]);
+  }, [items, aisleOrder]);
 
   const done = items.filter((i) => i.checked).length;
   const meals = plan.data?.length ?? 0;
@@ -78,7 +82,12 @@ export default function ShoppingScreen() {
     addItems.mutate({ names, position: items.length + 1000 }, { onSuccess: () => setDraft('') });
   };
   const share = async () => {
-    const text = listAsText(t('shopping.shareTitle', { week: weekLabel(monday) }), items, aisleLabel, formatItem);
+    const text = listAsText(
+      t('shopping.shareTitle', { week: weekLabel(monday) }),
+      [...items].sort((a, b) => aisleRank(a.aisle, aisleOrder) - aisleRank(b.aisle, aisleOrder)),
+      aisleTitle,
+      formatItem,
+    );
     try {
       if (Platform.OS === 'web' && typeof navigator !== 'undefined' && 'share' in navigator) {
         await navigator.share({ text });
@@ -131,7 +140,7 @@ export default function ShoppingScreen() {
             {groups.map(([aisle, list]) => (
               <View key={aisle} style={styles.group}>
                 <AppText variant="caption" tone="secondary" style={styles.aisle}>
-                  {aisleLabel(aisle)}
+                  {aisleTitle(aisle)}
                 </AppText>
                 {list.map((item) => (
                   <ItemRow key={item.id} item={item} monday={monday} titles={titles} />
@@ -140,6 +149,8 @@ export default function ShoppingScreen() {
             ))}
           </>
         )}
+
+        {items.length ? <AisleOrderCard /> : null}
 
         <View style={styles.addRow}>
           <View style={styles.flex}>
@@ -239,6 +250,8 @@ function ItemRow({ item, monday, titles }: { item: ShoppingItem; monday: string;
   const { colors } = useTheme();
   const toggle = useToggleItem(monday);
   const remove = useDeleteItem(monday);
+  const move = useMoveToAisle(monday);
+  const [picking, setPicking] = useState(false);
   const recipeNames = item.recipe_ids
     .map((id) => titles.get(id))
     .filter(Boolean)
@@ -277,6 +290,13 @@ function ItemRow({ item, monday, titles }: { item: ShoppingItem; monday: string;
           ) : null}
         </View>
       </Pressable>
+      <Pressable
+        onPress={() => setPicking((v) => !v)}
+        accessibilityRole="button"
+        accessibilityLabel={t('shopping.changeAisle')}
+        hitSlop={8}>
+        <AppText variant="bodyStrong">{AISLE_EMOJI[item.aisle] ?? AISLE_EMOJI.altro}</AppText>
+      </Pressable>
       {item.is_manual ? (
         <Pressable onPress={() => remove.mutate(item.id)} accessibilityRole="button" accessibilityLabel={t('shopping.remove')} hitSlop={8}>
           <AppText variant="bodyStrong" tone="secondary">
@@ -284,7 +304,44 @@ function ItemRow({ item, monday, titles }: { item: ShoppingItem; monday: string;
           </AppText>
         </Pressable>
       ) : null}
+      {picking ? (
+        <View style={styles.picker}>
+          <AppText variant="caption" tone="secondary">
+            {t('shopping.moveTo')}
+          </AppText>
+          <View style={styles.chips}>
+            {AISLES.map((a) => (
+              <Chip
+                key={a}
+                label={aisleTitle(a)}
+                selected={item.aisle === a}
+                onPress={() => {
+                  setPicking(false);
+                  if (a !== item.aisle) move.mutate({ id: item.id, name: item.name, aisle: a });
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+/** "Ordine dei reparti": come li trovi nel tuo supermercato (frecce su e giù). */
+function AisleOrderCard() {
+  const { t } = useTranslation();
+  const { order } = useAislePrefs();
+  return (
+    <Collapsible title={t('shopping.aisleOrderTitle')} summary={t('shopping.aisleOrderSummary')}>
+      {order.map((aisle, index) => (
+        <View key={aisle} style={styles.orderRow}>
+          <AppText style={styles.flex}>{aisleTitle(aisle)}</AppText>
+          <Chip label="↑" onPress={index > 0 ? () => setAisleOrder(moveAisleInOrder(order, aisle, -1)) : undefined} />
+          <Chip label="↓" onPress={index < order.length - 1 ? () => setAisleOrder(moveAisleInOrder(order, aisle, 1)) : undefined} />
+        </View>
+      ))}
+    </Collapsible>
   );
 }
 
@@ -299,8 +356,12 @@ const styles = StyleSheet.create({
   barFill: { height: 6 },
   group: { gap: spacing.sm },
   aisle: { textTransform: 'uppercase', letterSpacing: 0.6 },
+  picker: { width: '100%', gap: spacing.xs, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  orderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   item: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: spacing.sm,
     paddingRight: spacing.md,

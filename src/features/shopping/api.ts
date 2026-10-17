@@ -5,6 +5,7 @@ import { usePortionPrefs } from '@/features/portions/api';
 import { personalize } from '@/features/portions/logic';
 import { supabase } from '@/lib/supabase';
 
+import { aisleFor, rememberAisle } from './aisles';
 import { buildShoppingList, guessAisle, ingredientKey, type PlannedMeal, type PlannedRecipe } from './build';
 
 export type ShoppingItem = {
@@ -85,7 +86,8 @@ export function useGenerateList(monday: string) {
         name: l.name,
         quantity: l.quantity,
         unit: l.unit,
-        aisle: l.aisle,
+        // il reparto che hai scelto tu per questo ingrediente, se c'è
+        aisle: aisleFor(l.name, l.aisle),
         recipe_ids: l.recipe_ids,
         checked: checked.has(lineKey(l.name, l.unit)),
       }));
@@ -127,7 +129,7 @@ export function useAddManualItems(monday: string) {
       const rows = names.map((name, i) => ({
         week_start: monday,
         name: name.slice(0, 200),
-        aisle: guessAisle(name),
+        aisle: aisleFor(name, guessAisle(name)),
         is_manual: true,
         position: Math.min(32000, position + i),
       }));
@@ -158,5 +160,28 @@ export function useClearChecked(monday: string) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.week(monday) }),
+  });
+}
+
+/** Sposta una voce in un altro reparto e se lo ricorda per le prossime liste. */
+export function useMoveToAisle(monday: string) {
+  const queryClient = useQueryClient();
+  const key = shoppingKeys.week(monday);
+  return useMutation({
+    mutationFn: async ({ id, aisle }: { id: string; name: string; aisle: string }) => {
+      const { error } = await supabase.from('shopping_items').update({ aisle }).eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async ({ id, name, aisle }) => {
+      rememberAisle(name, aisle);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ShoppingItem[]>(key);
+      queryClient.setQueryData<ShoppingItem[]>(key, (old) => old?.map((i) => (i.id === id ? { ...i, aisle } : i)));
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 }

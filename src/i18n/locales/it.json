@@ -156,7 +156,11 @@
     "fromRecipes": "per {{list}}",
     "manual": "aggiunto da te",
     "remove": "Togli",
-    "allDone": "Hai preso tutto! 🎉"
+    "allDone": "Hai preso tutto! 🎉",
+    "changeAisle": "Cambia reparto",
+    "moveTo": "Sposta in (lo ricordo per le prossime liste):",
+    "aisleOrderTitle": "↕ Ordine dei reparti",
+    "aisleOrderSummary": "Mettili come nel tuo supermercato"
   },
   "map": {
     "title": "Mappa",
