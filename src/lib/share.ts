@@ -16,16 +16,19 @@ export function siteUrl(): string {
  */
 export async function shareLink(data: { title: string; text: string; url: string }): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+  // messaggio e link in un unico testo ("Entra e scopri Morso! https://…"): così ogni app
+  // (WhatsApp, Messaggi, Instagram…) mostra entrambi, una volta sola
+  const message = `${data.text} ${data.url}`;
   if (nav?.share) {
     try {
-      await nav.share(data);
+      await nav.share({ title: data.title, text: message });
       return 'shared';
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return 'cancelled';
     }
   }
   try {
-    await nav?.clipboard?.writeText(`${data.text} ${data.url}`);
+    await nav?.clipboard?.writeText(message);
     return nav?.clipboard ? 'copied' : 'failed';
   } catch {
     return 'failed';
