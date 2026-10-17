@@ -34,6 +34,7 @@ export type Recipe = {
   status: ItemStatus;
   rating: number | null;
   notes: string | null;
+  last_cooked_at: string | null;
   created_at: string;
   // stime indicative per porzione (AI o scheda del sito)
   kcal_per_serving: number | null;

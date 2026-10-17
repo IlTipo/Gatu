@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { LibraryPlace } from '@/features/library/filter';
 import { priceLabel } from '@/features/places/format';
+import { starsText } from '@/features/ratings/format';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
@@ -40,6 +41,11 @@ export function PlaceCard({ place: p, onPress }: { place: LibraryPlace; onPress:
         {p.city ? (
           <AppText variant="caption" tone="secondary" numberOfLines={1}>
             📍 {p.city}
+          </AppText>
+        ) : null}
+        {p.rating || p.status === 'tried' ? (
+          <AppText variant="caption" style={{ color: '#D99A00' }} numberOfLines={1}>
+            {p.rating ? starsText(p.rating) : '✓'}
           </AppText>
         ) : null}
         {details ? (

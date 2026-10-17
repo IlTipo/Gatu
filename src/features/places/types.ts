@@ -17,6 +17,7 @@ export type Place = {
   status: ItemStatus;
   rating: number | null;
   notes: string | null;
+  visited_at: string | null;
   created_at: string;
   phone: string | null;
   website: string | null;

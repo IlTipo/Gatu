@@ -1,6 +1,8 @@
 // Ricerca e filtri della Libreria: tutto sul telefono, senza chiamate al server
 // (una libreria personale ha al massimo qualche centinaio di elementi).
 
+import type { ItemStatus } from '@/features/recipes/types';
+
 /** "Crème Brûlée " → "creme brulee" */
 export function normalize(text: string): string {
   return text
@@ -29,6 +31,8 @@ export type LibraryRecipe = {
   tags: string[];
   kcal_per_serving: number | null;
   difficulty: string | null;
+  status: ItemStatus;
+  rating: number | null;
   created_at: string;
   recipe_ingredients: { name: string }[];
 };
@@ -44,14 +48,22 @@ export type LibraryPlace = {
   image_url: string | null;
   wishlist: boolean;
   verified: boolean;
+  status: ItemStatus;
+  rating: number | null;
   created_at: string;
 };
 
 /** Gli id dentro una collezione (null = nessuna collezione scelta). */
 export type CollectionScope = { recipeIds: string[]; placeIds: string[] } | null;
 
-export type RecipeFilters = { query: string; tags: string[]; collection: CollectionScope };
-export type PlaceFilters = { query: string; wishlistOnly: boolean; city: string | null; collection: CollectionScope };
+/** "Da provare", "Provate" o voto minimo (facoltativi). */
+export type MetaFilters = { status?: ItemStatus | null; minRating?: number | null };
+export type RecipeFilters = { query: string; tags: string[]; collection: CollectionScope } & MetaFilters;
+export type PlaceFilters = { query: string; wishlistOnly: boolean; city: string | null; collection: CollectionScope } & MetaFilters;
+
+function matchesMeta(item: { status: ItemStatus; rating: number | null }, f: MetaFilters): boolean {
+  return (!f.status || item.status === f.status) && (!f.minRating || (item.rating ?? 0) >= f.minRating);
+}
 
 /** Ricette che corrispondono a ricerca (titolo, descrizione, etichette, ingredienti), etichette scelte (tutte) e collezione. */
 export function filterRecipes<T extends LibraryRecipe>(recipes: T[], f: RecipeFilters): T[] {
@@ -59,6 +71,7 @@ export function filterRecipes<T extends LibraryRecipe>(recipes: T[], f: RecipeFi
   return recipes.filter(
     (r) =>
       (!inCollection || inCollection.has(r.id)) &&
+      matchesMeta(r, f) &&
       f.tags.every((tag) => r.tags.includes(tag)) &&
       matchesQuery([r.title, r.description, ...r.tags, ...r.recipe_ingredients.map((i) => i.name)], f.query),
   );
@@ -71,6 +84,7 @@ export function filterPlaces<T extends LibraryPlace>(places: T[], f: PlaceFilter
   return places.filter(
     (p) =>
       (!inCollection || inCollection.has(p.id)) &&
+      matchesMeta(p, f) &&
       (!f.wishlistOnly || p.wishlist) &&
       (!city || normalize(p.city ?? '') === city) &&
       matchesQuery([p.name, p.city, p.address, p.cuisine, ...p.recommended_dishes], f.query),

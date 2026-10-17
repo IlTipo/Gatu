@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { CollectionButton } from '@/components/CollectionButton';
 import { Notice } from '@/components/Notice';
+import { RatingCard } from '@/components/RatingCard';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
@@ -207,6 +208,15 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             <AppText tone="secondary">{t('recipe.noSteps')}</AppText>
           )}
         </Section>
+
+        <RatingCard
+          kind="recipe"
+          id={r.id}
+          status={r.status}
+          rating={r.rating}
+          notes={r.notes}
+          doneAt={r.last_cooked_at}
+        />
 
         <Section title={t('recipe.variants')}>
           <AppText tone="secondary">{t('recipe.variantsHint')}</AppText>

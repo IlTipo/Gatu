@@ -171,6 +171,13 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 4. Tocca un segnaposto → nome, cucina, prezzo, città → **Apri** per la pagina del posto.
 5. Sotto la mappa vedi quanti posti non hanno ancora un indirizzo verificato (dalla pagina del posto, **Cerca telefono, sito e orari** prova a trovarlo).
 
+## Cosa provare nella Fase 8 — Voti e note
+
+1. In fondo a una ricetta o a un posto c'è **Il tuo giudizio**: **Da provare / ✓ Provata** (per i posti: **✓ Ci sono stato**), le **stelle** (tocca di nuovo la stessa stella per togliere il voto) e **Le tue note** → **Salva le note**.
+2. **👩‍🍳 L'ho cucinata oggi** / **🍽️ Ci sono stato oggi**: segna la data ("Cucinata l'ultima volta oggi / ieri / 3 giorni fa…").
+3. Finendo la **modalità cucina** (**Fine 🎉**) la ricetta diventa "provata" con la data di oggi, e puoi darle subito un voto.
+4. In **Libreria** le card mostrano le stelle; i filtri **Da provare**, **✓ Provate** e **⭐ 4+** trovano subito cosa rifare o cosa non hai ancora provato.
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

@@ -87,7 +87,11 @@
     "pantryButton": "🧊 Cosa cucino con ciò che ho",
     "diceButton": "🎲 Che cucino stasera?",
     "reorder": "↕ Riordina",
-    "auto": "⚡"
+    "auto": "⚡",
+    "toTryFilter": "Da provare",
+    "triedFilter": "✓ Provate",
+    "visitedFilter": "✓ Ci sono stato",
+    "topRated": "⭐ 4+"
   },
   "planner": {
     "title": "Planner",
@@ -482,5 +486,25 @@
     "timersPill_one": "⏱ {{count}} timer · {{time}}",
     "timersPill_other": "⏱ {{count}} timer · {{time}}",
     "ringingPill": "⏰ Timer finito! Tocca per fermarlo"
+  },
+  "rating": {
+    "title": "Il tuo giudizio",
+    "toTry": "Da provare",
+    "triedRecipe": "✓ Provata",
+    "triedPlace": "✓ Ci sono stato",
+    "star_one": "{{count}} stella",
+    "star_other": "{{count}} stelle",
+    "clearStars": "Togli il voto",
+    "cookedToday": "👩‍🍳 L'ho cucinata oggi",
+    "visitedToday": "🍽️ Ci sono stato oggi",
+    "cookedWhen": "Cucinata l'ultima volta {{when}}",
+    "visitedWhen": "Ci sei stato l'ultima volta {{when}}",
+    "notes": "Le tue note",
+    "notesPlaceholderRecipe": "Es. meno sale, raddoppiare il sugo, piace ai bambini…",
+    "notesPlaceholderPlace": "Es. prenotare, chiedere il tavolo fuori, provare il dolce…",
+    "saveNotes": "Salva le note",
+    "saved": "Salvato ✓",
+    "quickTitle": "Com'è venuta?",
+    "quickBody": "Un voto veloce: lo ritrovi nella ricetta e nella Libreria."
   }
 }

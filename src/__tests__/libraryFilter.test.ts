@@ -19,6 +19,8 @@ const recipe = (over: Partial<LibraryRecipe>): LibraryRecipe => ({
   tags: [],
   kcal_per_serving: null,
   difficulty: null,
+  status: 'to_try',
+  rating: null,
   created_at: '2026-10-01T00:00:00Z',
   recipe_ingredients: [],
   ...over,
@@ -35,6 +37,8 @@ const place = (over: Partial<LibraryPlace>): LibraryPlace => ({
   image_url: null,
   wishlist: false,
   verified: false,
+  status: 'to_try',
+  rating: null,
   created_at: '2026-10-01T00:00:00Z',
   ...over,
 });
@@ -118,5 +122,23 @@ describe('conteggi per i filtri', () => {
       { value: 'Milano', count: 2 },
       { value: 'Napoli', count: 1 },
     ]);
+  });
+});
+
+describe('provate e voti', () => {
+  const list = [
+    recipe({ id: 'a', status: 'tried', rating: 5 }),
+    recipe({ id: 'b', status: 'tried', rating: 3 }),
+    recipe({ id: 'c' }),
+  ];
+  const none = { query: '', tags: [], collection: null };
+  it('filtra per stato e voto minimo', () => {
+    expect(filterRecipes(list, { ...none, status: 'to_try' }).map((r) => r.id)).toEqual(['c']);
+    expect(filterRecipes(list, { ...none, status: 'tried' }).map((r) => r.id)).toEqual(['a', 'b']);
+    expect(filterRecipes(list, { ...none, minRating: 4 }).map((r) => r.id)).toEqual(['a']);
+  });
+  it('vale anche per i posti', () => {
+    const ps = [place({ id: 'x', status: 'tried', rating: 4 }), place({ id: 'y' })];
+    expect(filterPlaces(ps, { query: '', wishlistOnly: false, city: null, collection: null, minRating: 4 }).map((p) => p.id)).toEqual(['x']);
   });
 });

@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { LibraryRecipe } from '@/features/library/filter';
+import { starsText } from '@/features/ratings/format';
 import { formatMinutes } from '@/features/recipes/format';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -38,6 +39,11 @@ export function RecipeCard({ recipe: r, onPress }: { recipe: LibraryRecipe; onPr
         {facts.length ? (
           <AppText variant="caption" tone="secondary" numberOfLines={1}>
             {facts.join(' · ')}
+          </AppText>
+        ) : null}
+        {r.rating || r.status === 'tried' ? (
+          <AppText variant="caption" style={{ color: '#D99A00' }} numberOfLines={1}>
+            {r.rating ? starsText(r.rating) : '✓'}
           </AppText>
         ) : null}
         {r.tags.length ? (

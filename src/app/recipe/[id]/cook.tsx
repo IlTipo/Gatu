@@ -7,12 +7,14 @@ import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { Stars } from '@/components/RatingCard';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingState } from '@/components/StateViews';
 import { TimersBar } from '@/components/TimersBar';
 import { ingredientsForStep, timerLabel, type VoiceCommand } from '@/features/cooking/logic';
 import { startTimer, stopRinging, useTimers } from '@/features/cooking/timers';
 import { useVoiceCommands, voiceSupported } from '@/features/cooking/voice';
+import { useUpdateMeta } from '@/features/ratings/api';
 import { useRecipe } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, scaleQuantity } from '@/features/recipes/format';
 import type { Ingredient, RecipeWithDetails } from '@/features/recipes/types';
@@ -58,6 +60,9 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [voiceOn, setVoiceOn] = useState(false);
   const timers = useTimers();
+  const meta = useUpdateMeta('recipe', r.id);
+  const saveMeta = meta.mutate; // funzione stabile: non fa ricreare i comandi a ogni rendering
+  const [rated, setRated] = useState<number | null>(r.rating);
 
   const base = r.servings;
   const factor = base && people ? people / base : 1;
@@ -78,9 +83,13 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
     if (phase === 'prep') setPhase(steps.length ? 'steps' : 'done');
     else if (phase === 'steps') {
       if (index < steps.length - 1) setIndex(index + 1);
-      else setPhase('done');
+      else {
+        setPhase('done');
+        // arrivati in fondo: la ricetta è stata cucinata
+        saveMeta({ status: 'tried', done_at: new Date().toISOString() });
+      }
     }
-  }, [phase, index, steps.length]);
+  }, [phase, index, steps.length, saveMeta]);
   const prev = useCallback(() => {
     if (phase === 'done') setPhase(steps.length ? 'steps' : 'prep');
     else if (phase === 'steps') {
@@ -233,6 +242,21 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
       <View style={[styles.section, styles.center]}>
         <AppText variant="title">{t('cook.doneTitle')}</AppText>
         <AppText tone="secondary">{steps.length ? t('cook.doneBody') : t('cook.noSteps')}</AppText>
+        {steps.length ? (
+          <View style={[styles.need, { backgroundColor: colors.surfaceMuted }]}>
+            <AppText variant="heading">{t('rating.quickTitle')}</AppText>
+            <Stars
+              value={rated}
+              onChange={(value) => {
+                setRated(value);
+                saveMeta({ rating: value, status: 'tried', done_at: new Date().toISOString() });
+              }}
+            />
+            <AppText variant="caption" tone="secondary">
+              {t('rating.quickBody')}
+            </AppText>
+          </View>
+        ) : null}
         <Button label={t('cook.backToRecipe')} onPress={exit} />
       </View>
     );

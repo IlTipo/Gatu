@@ -200,5 +200,14 @@ ok((await as(B, `select * from public.shopping_items`)).rows.length === 0, 'Brun
 await fails(() => as(A, `select public.replace_shopping_list('2026-10-26', '{"a":1}'::jsonb)`), 'la lista deve essere un elenco');
 await fails(() => as(A, `select public.replace_shopping_list('2026-10-27', '[]'::jsonb)`).then(() => as(A, `select public.replace_shopping_list('2026-10-27', '[{"name":"x"}]'::jsonb)`)), 'la settimana deve iniziare di lunedì');
 
+// --- Fase 8: voti e note ---
+const recN = (await as(A, `insert into public.recipes (title) values ('Tiramisù') returning id`)).rows[0].id;
+await as(A, `update public.recipes set status = 'tried', rating = 5, notes = 'perfetto con poco zucchero', last_cooked_at = now() where id = '${recN}'`);
+const rn = (await as(A, `select status, rating, notes from public.recipes where id = '${recN}'`)).rows[0];
+ok(rn.status === 'tried' && rn.rating === 5 && rn.notes === 'perfetto con poco zucchero', 'voto, stato e note salvati');
+await fails(() => as(A, `update public.recipes set rating = 0 where id = '${recN}'`), 'voto minimo 1');
+await fails(() => as(A, `update public.recipes set notes = repeat('a', 5001) where id = '${recN}'`), 'note troppo lunghe rifiutate');
+ok(((await as(B, `update public.recipes set rating = 1 where id = '${recN}'`)).affectedRows ?? 0) === 0, 'Bruno NON può votare la ricetta di Anna');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

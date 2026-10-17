@@ -9,6 +9,7 @@ import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { CollectionButton } from '@/components/CollectionButton';
+import { RatingCard } from '@/components/RatingCard';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
@@ -184,6 +185,8 @@ function PlaceDetails({ place: p }: { place: Place }) {
             </View>
           </Section>
         ) : null}
+
+        <RatingCard kind="place" id={p.id} status={p.status} rating={p.rating} notes={p.notes} doneAt={p.visited_at} />
 
         {missingInfo ? (
           <View style={styles.buttons}>

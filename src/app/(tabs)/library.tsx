@@ -17,6 +17,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/StateViews';
 import { useCollections } from '@/features/collections/api';
 import { resolveCollection } from '@/features/collections/helpers';
 import type { Collection } from '@/features/collections/types';
+import type { ItemStatus } from '@/features/recipes/types';
 import { useLibraryPlaces, useLibraryRecipes } from '@/features/library/api';
 import { cityCounts, filterPlaces, filterRecipes, matchesQuery, tagCounts } from '@/features/library/filter';
 import { useSources } from '@/features/sources/api';
@@ -41,6 +42,8 @@ export default function LibraryScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [city, setCity] = useState<string | null>(null);
   const [wishlistOnly, setWishlistOnly] = useState(false);
+  const [status, setStatus] = useState<ItemStatus | null>(null);
+  const [minRating, setMinRating] = useState<number | null>(null);
   const [collectionId, setCollectionId] = useState<string | null>(null);
 
   const [diceOpen, setDiceOpen] = useState(false);
@@ -57,12 +60,12 @@ export default function LibraryScreen() {
   };
 
   const visibleRecipes = useMemo(
-    () => filterRecipes(recipes.data ?? [], { query, tags, collection: scope }),
-    [recipes.data, query, tags, scope],
+    () => filterRecipes(recipes.data ?? [], { query, tags, collection: scope, status, minRating }),
+    [recipes.data, query, tags, scope, status, minRating],
   );
   const visiblePlaces = useMemo(
-    () => filterPlaces(places.data ?? [], { query, wishlistOnly, city, collection: scope }),
-    [places.data, query, wishlistOnly, city, scope],
+    () => filterPlaces(places.data ?? [], { query, wishlistOnly, city, collection: scope, status, minRating }),
+    [places.data, query, wishlistOnly, city, scope, status, minRating],
   );
   const visibleSources = useMemo(
     () => (sources.data ?? []).filter((s) => matchesQuery([s.title, s.author_name, s.url, s.description], query)),
@@ -80,12 +83,14 @@ export default function LibraryScreen() {
   );
 
   const goToAdd = () => router.push('/add');
-  const filtersActive = !!query.trim() || tags.length > 0 || !!city || wishlistOnly;
+  const filtersActive = !!query.trim() || tags.length > 0 || !!city || wishlistOnly || !!status || !!minRating;
   function clearFilters() {
     setQuery('');
     setTags([]);
     setCity(null);
     setWishlistOnly(false);
+    setStatus(null);
+    setMinRating(null);
   }
   const toggleTag = (tag: string) => setTags((old) => (old.includes(tag) ? old.filter((x) => x !== tag) : [...old, tag]));
 
@@ -162,6 +167,21 @@ export default function LibraryScreen() {
           </>
         ) : null}
 
+        {tab !== 'links' ? (
+          <ChipRow>
+            <Chip
+              label={t('library.toTryFilter')}
+              selected={status === 'to_try'}
+              onPress={() => setStatus((s) => (s === 'to_try' ? null : 'to_try'))}
+            />
+            <Chip
+              label={tab === 'recipes' ? t('library.triedFilter') : t('library.visitedFilter')}
+              selected={status === 'tried'}
+              onPress={() => setStatus((s) => (s === 'tried' ? null : 'tried'))}
+            />
+            <Chip label={t('library.topRated')} selected={minRating === 4} onPress={() => setMinRating((m) => (m ? null : 4))} />
+          </ChipRow>
+        ) : null}
         {query.trim().length >= 2 && tab !== 'links' ? (
           <Button
             label={t('library.askAi', { q: query.trim().slice(0, 40) })}
