@@ -7,7 +7,8 @@
 //  4. scrive URL e chiave pubblica per la costruzione del sito (in GITHUB_OUTPUT)
 //
 // Serve: SUPABASE_ACCESS_TOKEN (Supabase → Account → Access Tokens).
-// Facoltativi: SUPABASE_PROJECT_REF, SITE_URL (es. https://iltipo.github.io/Gatu/), SUPABASE_REGION.
+// Facoltativi: SUPABASE_PROJECT_REF, SITE_URL (es. https://iltipo.github.io/Gatu/), SUPABASE_REGION,
+// GOOGLE_OAUTH_CLIENT_ID + GOOGLE_OAUTH_CLIENT_SECRET (attivano "Accedi con Google").
 
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
@@ -27,6 +28,8 @@ if (!token) {
 // il nome del sito va in minuscolo (iltipo.github.io), come lo scrive il browser
 const siteUrl = process.env.SITE_URL ? new URL(process.env.SITE_URL).href.replace(/\/*$/, '/') : undefined;
 const region = process.env.SUPABASE_REGION || 'eu-central-1';
+const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+const googleSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
 
 async function api(method, path, body) {
   const res = await fetch(`${API}${path}`, {
@@ -134,14 +137,27 @@ async function configureAuth(ref) {
   );
   allowed.add(`${siteUrl}**`);
   allowed.add('http://localhost:8081/**'); // sviluppo in locale
+  // "Accedi con Google": solo se ci sono entrambe le chiavi di Google (i secret non finiscono nel sito)
+  const google =
+    googleClientId && googleSecret
+      ? { external_google_enabled: true, external_google_client_id: googleClientId, external_google_secret: googleSecret }
+      : {};
   await api('PATCH', `/projects/${ref}/config/auth`, {
     site_url: siteUrl,
     uri_allow_list: [...allowed].join(','),
     // Niente email di conferma: ci si registra e si entra subito
     // (l'email gratuita di Supabase ha limiti molto bassi).
     mailer_autoconfirm: true,
+    ...google,
   });
   console.log(`✔ Accesso configurato per ${siteUrl}`);
+  if (googleClientId && googleSecret) {
+    console.log('✔ Accesso con Google attivo');
+  } else if (googleClientId || googleSecret) {
+    console.log('⚠ Per Google servono entrambi i secret GOOGLE_OAUTH_CLIENT_ID e GOOGLE_OAUTH_CLIENT_SECRET.');
+  } else {
+    console.log(`ℹ Accesso con Google spento. Per attivarlo vedi il README; indirizzo di ritorno: https://${ref}.supabase.co/auth/v1/callback`);
+  }
 }
 
 // ---------------------------------------------------------------- 4. chiavi pubbliche

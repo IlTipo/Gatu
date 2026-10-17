@@ -180,9 +180,19 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 
 ### Accesso con Google (facoltativo)
 
-1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.
-2. **Authorized redirect URIs**: `https://<il-tuo-progetto>.supabase.co/auth/v1/callback`
-3. Copia **Client ID** e **Client secret** in Supabase → **Authentication → Sign In / Providers → Google** e attivalo.
+Finché non lo attivi, il pulsante "Continua con Google" **non compare** (si entra con email e password). Per attivarlo servono due chiavi di Google, gratis:
+
+1. Vai su **[console.cloud.google.com/auth/clients](https://console.cloud.google.com/auth/clients)** con il tuo account Google (se chiede di creare un progetto, crealo con un nome qualsiasi, es. "Morso").
+2. Se chiede di configurare la **schermata di consenso** ("Branding" / "OAuth consent screen"): nome app **Morso**, la tua email come contatto, pubblico **Esterno** → salva.
+3. **Create client** (Crea client) → tipo **Web application**.
+4. In **Authorized redirect URIs** aggiungi esattamente: `https://ttwjohlyioluvcqywadi.supabase.co/auth/v1/callback`
+5. Premi **Create**: copia **Client ID** e **Client secret** (non incollarli in chat).
+6. Su GitHub → **[Settings → Secrets and variables → Actions](https://github.com/IlTipo/Gatu/settings/secrets/actions)** crea due secret:
+   - `GOOGLE_OAUTH_CLIENT_ID` = il Client ID
+   - `GOOGLE_OAUTH_CLIENT_SECRET` = il Client secret
+7. Rilancia **[Actions → Pubblica il sito → Run workflow](https://github.com/IlTipo/Gatu/actions/workflows/deploy-web.yml)**: Morso attiva Google su Supabase da solo e il pulsante ricompare.
+
+> Finché l'app su Google è "in test", possono entrare solo gli account che aggiungi in **Audience → Test users**; con **Publish app** può entrare chiunque abbia un account Google.
 
 ---
 

@@ -8,11 +8,19 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { EmptyState, InlineError } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
+import { config } from '@/lib/env';
 import { errorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import { spacing, useTheme } from '@/theme';
 
-import { AuthCancelledError, getAuthRedirectUrl, isAppleSignInAvailable, signInWithApple, signInWithGoogle } from './oauth';
+import {
+  AuthCancelledError,
+  enabledProviders,
+  getAuthRedirectUrl,
+  isAppleSignInAvailable,
+  signInWithApple,
+  signInWithGoogle,
+} from './oauth';
 import { isValidEmail, isValidPassword } from './validation';
 
 type Mode = 'sign-in' | 'sign-up';
@@ -28,9 +36,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState<Busy>(null);
   const [checkEmail, setCheckEmail] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
+  // Google si mostra solo se è attivo su Supabase (altrimenti porterebbe a una pagina di errore)
+  const [googleAvailable, setGoogleAvailable] = useState(false);
 
   useEffect(() => {
     isAppleSignInAvailable().then(setAppleAvailable);
+    if (config) enabledProviders(config.supabaseUrl, config.supabaseKey).then((p) => setGoogleAvailable(p.google));
   }, []);
 
   async function submitEmail() {
@@ -132,32 +143,38 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
         </View>
 
-        <View style={styles.divider}>
-          <View style={[styles.line, { backgroundColor: colors.border }]} />
-          <AppText variant="caption" tone="secondary">
-            {t('common.or')}
-          </AppText>
-          <View style={[styles.line, { backgroundColor: colors.border }]} />
-        </View>
+        {googleAvailable || appleAvailable ? (
+          <>
+            <View style={styles.divider}>
+              <View style={[styles.line, { backgroundColor: colors.border }]} />
+              <AppText variant="caption" tone="secondary">
+                {t('common.or')}
+              </AppText>
+              <View style={[styles.line, { backgroundColor: colors.border }]} />
+            </View>
 
-        <View style={styles.form}>
-          <Button
-            label={t('auth.continueWithGoogle')}
-            variant="secondary"
-            onPress={() => social('google')}
-            loading={busy === 'google'}
-            disabled={!!busy}
-          />
-          {appleAvailable ? (
-            <Button
-              label={t('auth.continueWithApple')}
-              variant="secondary"
-              onPress={() => social('apple')}
-              loading={busy === 'apple'}
-              disabled={!!busy}
-            />
-          ) : null}
-        </View>
+            <View style={styles.form}>
+              {googleAvailable ? (
+                <Button
+                  label={t('auth.continueWithGoogle')}
+                  variant="secondary"
+                  onPress={() => social('google')}
+                  loading={busy === 'google'}
+                  disabled={!!busy}
+                />
+              ) : null}
+              {appleAvailable ? (
+                <Button
+                  label={t('auth.continueWithApple')}
+                  variant="secondary"
+                  onPress={() => social('apple')}
+                  loading={busy === 'apple'}
+                  disabled={!!busy}
+                />
+              ) : null}
+            </View>
+          </>
+        ) : null}
 
         <Link href={mode === 'sign-in' ? '/sign-up' : '/sign-in'} replace style={styles.switch}>
           <AppText tone="primary" variant="bodyStrong">

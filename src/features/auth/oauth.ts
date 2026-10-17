@@ -100,3 +100,22 @@ export async function signInWithApple() {
     await supabase.auth.updateUser({ data: { full_name: fullName } });
   }
 }
+
+/**
+ * Chiede a Supabase quali accessi "social" sono attivi (pagina pubblica /auth/v1/settings).
+ * Se non risponde, si mostra comunque il pulsante: meglio un errore chiaro che un pulsante sparito per sbaglio.
+ */
+export async function enabledProviders(
+  supabaseUrl: string,
+  apiKey: string,
+  doFetch: typeof fetch = fetch,
+): Promise<{ google: boolean }> {
+  try {
+    const res = await doFetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: apiKey } });
+    if (!res.ok) return { google: true };
+    const data = (await res.json()) as { external?: Record<string, boolean> };
+    return { google: data.external?.google === true };
+  } catch {
+    return { google: true };
+  }
+}
