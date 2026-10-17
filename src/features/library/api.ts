@@ -15,7 +15,7 @@ export function useLibraryRecipes() {
       const { data, error } = await supabase
         .from('recipes')
         .select(
-          'id, title, description, image_url, total_minutes, tags, kcal_per_serving, difficulty, created_at, recipe_ingredients(name)',
+          'id, title, description, image_url, total_minutes, servings, tags, kcal_per_serving, difficulty, created_at, recipe_ingredients(name)',
         )
         .order('created_at', { ascending: false })
         .limit(1000);

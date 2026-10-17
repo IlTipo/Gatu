@@ -80,6 +80,7 @@ function RootNavigator() {
           <Stack.Screen name="collections" />
           <Stack.Screen name="ask" />
           <Stack.Screen name="pantry" />
+          <Stack.Screen name="plan/add" options={{ presentation: 'modal' }} />
         </Stack.Protected>
         {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
         <Stack.Protected guard={!signedIn}>

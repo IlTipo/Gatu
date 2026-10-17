@@ -25,6 +25,7 @@ export type LibraryRecipe = {
   description: string | null;
   image_url: string | null;
   total_minutes: number | null;
+  servings: number | null;
   tags: string[];
   kcal_per_serving: number | null;
   difficulty: string | null;

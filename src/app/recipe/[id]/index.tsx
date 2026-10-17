@@ -118,6 +118,11 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             variant="secondary"
             onPress={() => router.push({ pathname: '/recipe/[id]/edit', params: { id: r.id } })}
           />
+          <Button
+            label={t('planner.addToPlanner')}
+            variant="secondary"
+            onPress={() => router.push({ pathname: '/plan/add', params: { recipeId: r.id } })}
+          />
           <CollectionButton target={{ recipeId: r.id }} />
           {r.sources?.url ? (
             <Button label={t('recipe.openSource')} variant="ghost" onPress={() => openExternalUrl(r.sources!.url)} />

@@ -173,5 +173,18 @@ const order = (await as(A, `select id, position from public.collections where id
 ok(order.find((r) => r.id === a2).position === 0 && order.find((r) => r.id === a1).position === 1, 'riordino delle collezioni');
 ok((await as(B, `select position from public.collections where id = '${b1}'`)).rows[0].position === 0, 'il riordino di Anna NON tocca le collezioni di Bruno');
 
+// --- Fase 5: planner ---
+const recA = (await as(A, `insert into public.recipes (title, servings) values ('Risotto', 2) returning id`)).rows[0].id;
+const recB2 = (await as(B, `insert into public.recipes (title) values ('Pizza di Bruno') returning id`)).rows[0].id;
+const meal = (await as(A, `insert into public.meal_plan_entries (date, slot, recipe_id, servings) values ('2026-10-19', 'dinner', '${recA}', 4) returning id`)).rows[0].id;
+ok((await as(B, `select * from public.meal_plan_entries`)).rows.length === 0, 'Bruno NON vede il planner di Anna');
+ok(((await as(B, `update public.meal_plan_entries set servings = 9 where id = '${meal}'`)).affectedRows ?? 0) === 0, 'Bruno NON può modificare i pasti di Anna');
+await fails(() => as(A, `update public.meal_plan_entries set recipe_id = '${recB2}' where id = '${meal}'`), 'Anna NON può collegare un suo pasto alla ricetta di Bruno');
+await fails(() => as(A, `insert into public.meal_plan_entries (date, slot, recipe_id) values ('2026-10-20', 'colazione', '${recA}')`), 'solo pranzo o cena');
+await as(A, `update public.meal_plan_entries set date = '2026-10-21', slot = 'lunch' where id = '${meal}'`);
+ok((await as(A, `select slot from public.meal_plan_entries where id = '${meal}'`)).rows[0].slot === 'lunch', 'spostare un pasto');
+await as(A, `delete from public.recipes where id = '${recA}'`);
+ok((await as(A, `select * from public.meal_plan_entries where id = '${meal}'`)).rows.length === 0, 'cancellando la ricetta spariscono i suoi pasti');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

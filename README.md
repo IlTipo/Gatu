@@ -146,6 +146,14 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 6. **🎤 Comandi vocali** (in alto a destra; Chrome su Android, Safari, Edge): di' **«avanti»**, **«indietro»**, **«timer»** (avvia quello del passaggio) o **«stop»** (ferma quello che suona). L'audio lo elabora il browser; Morso riceve solo la parola riconosciuta e non la salva.
 7. Sul computer puoi usare le frecce **← →** della tastiera.
 
+## Cosa provare nella Fase 5 — Planner settimanale
+
+1. Apri la scheda **Planner**: la settimana da lunedì a domenica, con **Pranzo** e **Cena**; si apre su oggi. Con **‹ ›** cambi settimana.
+2. Tocca **+ Aggiungi** sotto un pasto → cerca una ricetta e toccala (oppure **🎲 A caso**).
+3. Da una ricetta: **📅 Aggiungi al planner** → scegli per quante persone e poi il giorno e il pasto.
+4. Su ogni pasto: **− / +** per le persone, **Sposta** per cambiarlo di giorno, **✕** per toglierlo. Tocca il nome per aprire la ricetta.
+5. **Copia la settimana precedente** per ripetere i pasti della settimana prima; **Svuota la settimana** per ricominciare (le ricette restano nella Libreria).
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

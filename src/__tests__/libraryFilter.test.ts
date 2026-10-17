@@ -15,6 +15,7 @@ const recipe = (over: Partial<LibraryRecipe>): LibraryRecipe => ({
   description: null,
   image_url: null,
   total_minutes: null,
+  servings: null,
   tags: [],
   kcal_per_serving: null,
   difficulty: null,
