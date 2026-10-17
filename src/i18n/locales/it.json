@@ -768,5 +768,13 @@
   },
   "offline": {
     "banner": "📴 Offline: vedi le cose già aperte"
+  },
+  "reminder": {
+    "lunch": "⏰ Oggi a pranzo",
+    "dinner": "⏰ Stasera a cena",
+    "freezer": "Tira fuori dal freezer: {{list}}",
+    "fridge": "Dal frigo: {{list}}",
+    "cook": "👩‍🍳 Inizia a cucinare",
+    "hide": "Nascondi il promemoria"
   }
 }

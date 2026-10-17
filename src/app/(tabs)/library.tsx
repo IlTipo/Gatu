@@ -9,6 +9,7 @@ import { Chip } from '@/components/Chip';
 import { DiceModal } from '@/components/DiceModal';
 import { Icon } from '@/components/Icon';
 import { FadeIn } from '@/components/Motion';
+import { TodayReminder } from '@/components/TodayReminder';
 import { PlaceCard } from '@/components/PlaceCard';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Screen } from '@/components/Screen';
@@ -277,6 +278,7 @@ export default function LibraryScreen() {
           icon={<Icon name={{ ios: 'plus', android: 'add' }} size={20} color={colors.onPrimary} />}
         />
       </View>
+      <TodayReminder />
       {libraryEmpty ? null : (
         <View style={styles.controls}>
           <SearchBar
