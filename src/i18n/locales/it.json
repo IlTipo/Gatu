@@ -400,7 +400,27 @@
     "missingHint": "Questi non compaiono tra i vicini perché non so dove sono. Tocca \"Trova\": cerco l'indirizzo in automatico. Se non lo trovo, apri il posto → Modifica e scrivi via e città, poi riprova.",
     "noAddress": "Indirizzo mancante",
     "find": "📍 Trova",
-    "notFound": "Non l'ho trovato: aggiungi via e città con Modifica e riprova."
+    "notFound": "Non l'ho trovato: aggiungi via e città con Modifica e riprova.",
+    "discoverTitle": "🔎 Scopri in zona",
+    "discoverHint": "Anche i locali che non hai ancora salvato: ristoranti, pizzerie, bar e gelaterie qui intorno.",
+    "discover": "Cerca locali entro {{distance}}",
+    "discoverAgain": "Cerca di nuovo",
+    "discoverEmpty": "Non ho trovato locali qui intorno: prova un raggio più grande.",
+    "discoverBusy": "OpenStreetMap è molto occupato in questo momento: riprova tra un minuto.",
+    "discoverFailed": "Non riesco a cercare i locali adesso. Riprova più tardi.",
+    "osmCredit": "Dati © OpenStreetMap (contributori). Orari e indirizzi possono non essere aggiornati.",
+    "save": "❤️ Salva",
+    "saved": "Salvato",
+    "openMap": "🗺️ Mappa",
+    "kinds": {
+      "all": "Tutti",
+      "restaurant": "Ristorante",
+      "pizza": "Pizzeria",
+      "cafe": "Bar e caffè",
+      "bar": "Pub e cocktail",
+      "fast_food": "Veloce",
+      "ice_cream": "Gelateria"
+    }
   },
   "collections": {
     "newTitle": "Nuova collezione",

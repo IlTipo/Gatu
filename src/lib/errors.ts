@@ -24,6 +24,8 @@ const CODE_TO_KEY = {
   ai_not_configured: 'recipe.aiSkipped.not_configured',
   no_kcal: 'diary.noKcal',
   feedback_limit: 'feedback.limit',
+  discover_busy: 'nearby.discoverBusy',
+  discover_failed: 'nearby.discoverFailed',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };

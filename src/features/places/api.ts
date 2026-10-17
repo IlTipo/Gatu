@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
+import { buildOverpassQuery, type Coords, type DiscoveredPlace, OVERPASS_URL, parseOverpass } from './discover';
 import type { Place, PlaceDraft } from './types';
 
 export const placeKeys = {
@@ -98,5 +99,51 @@ export function usePlacesWithLocation() {
       if (error) throw error;
       return data as Place[];
     },
+  });
+}
+
+/** "Scopri in zona": locali vicini da OpenStreetMap (si cerca solo quando lo chiedi). */
+export function useDiscoverPlaces() {
+  return useMutation({
+    mutationFn: async ({ coords, radiusKm }: { coords: Coords; radiusKm: number }) => {
+      const res = await fetch(OVERPASS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(buildOverpassQuery(coords, radiusKm * 1000))}`,
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (res.status === 429 || res.status === 504) throw new ApiError('discover_busy');
+      if (!res.ok) throw new ApiError('discover_failed');
+      return parseOverpass(await res.json(), coords);
+    },
+  });
+}
+
+/** Salva un locale trovato in zona tra i tuoi posti (già con posizione), in "Voglio andarci". */
+export function useSaveDiscovered() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: DiscoveredPlace) => {
+      const { data, error } = await supabase
+        .from('places')
+        .insert({
+          name: p.name,
+          address: p.address,
+          city: p.city,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          verified: true,
+          cuisine: p.cuisine,
+          website: p.website,
+          phone: p.phone,
+          opening_hours: p.opening_hours,
+          wishlist: true,
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: placeKeys.all }),
   });
 }

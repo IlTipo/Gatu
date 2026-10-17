@@ -6,14 +6,18 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
+import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { FadeIn } from '@/components/Motion';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { EmptyState, ErrorState, InlineError, LoadingState } from '@/components/StateViews';
-import { usePlacesWithLocation, usePlacesWithoutLocation, useRefreshPlace } from '@/features/places/api';
+import { useDiscoverPlaces, usePlacesWithLocation, usePlacesWithoutLocation, useRefreshPlace, useSaveDiscovered } from '@/features/places/api';
+import { type DiscoveredPlace, type DiscoverKind, isAlreadySaved } from '@/features/places/discover';
 import { distanceMeters, formatDistance, priceLabel } from '@/features/places/format';
 import type { Place } from '@/features/places/types';
 import { errorMessage } from '@/lib/errors';
+import { openExternalUrl } from '@/lib/openUrl';
 import { type Coords, getCurrentCoords } from '@/lib/location';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -88,6 +92,7 @@ export default function NearbyScreen() {
         <BackButton />
         <AppText variant="title">{t('nearby.title')}</AppText>
         {content}
+        {coords ? <Discover coords={coords} radiusKm={radiusKm} saved={[...(places.data ?? []), ...(missing.data ?? [])]} /> : null}
         {missing.data?.length ? (
           <Section title={t('nearby.missingTitle', { count: missing.data.length })}>
             <AppText tone="secondary">{t('nearby.missingHint')}</AppText>
@@ -125,6 +130,104 @@ function PlaceRow({ place: p }: { place: Nearby }) {
         {formatDistance(p.meters)}
       </AppText>
     </Pressable>
+  );
+}
+
+const KIND_EMOJI: Record<DiscoverKind, string> = {
+  restaurant: '🍽️',
+  pizza: '🍕',
+  cafe: '☕',
+  bar: '🍸',
+  fast_food: '🍔',
+  ice_cream: '🍦',
+};
+const KINDS: (DiscoverKind | 'all')[] = ['all', 'restaurant', 'pizza', 'cafe', 'bar', 'fast_food', 'ice_cream'];
+
+/** "Scopri in zona": anche i locali che non hai salvato, da OpenStreetMap. */
+function Discover({ coords, radiusKm, saved }: { coords: Coords; radiusKm: number; saved: Place[] }) {
+  const { t } = useTranslation();
+  const discover = useDiscoverPlaces();
+  const [kind, setKind] = useState<DiscoverKind | 'all'>('all');
+  const [searchedKm, setSearchedKm] = useState<number | null>(null);
+  const search = () => {
+    setSearchedKm(radiusKm);
+    discover.mutate({ coords, radiusKm: Math.min(radiusKm, 5) });
+  };
+  const found = discover.data ?? [];
+  const shown = found.filter((p) => kind === 'all' || p.kind === kind);
+  const kindsPresent = KINDS.filter((k) => k === 'all' || found.some((p) => p.kind === k));
+
+  return (
+    <Section title={t('nearby.discoverTitle')}>
+      <AppText tone="secondary">{t('nearby.discoverHint')}</AppText>
+      <Button
+        label={discover.data && searchedKm === radiusKm ? t('nearby.discoverAgain') : t('nearby.discover', { distance: `${Math.min(radiusKm, 5)} km` })}
+        variant="secondary"
+        onPress={search}
+        loading={discover.isPending}
+      />
+      <InlineError message={discover.isError ? errorMessage(discover.error, t) : null} />
+      {discover.data ? (
+        found.length ? (
+          <>
+            <View style={styles.chips}>
+              {kindsPresent.map((k) => (
+                <Chip
+                  key={k}
+                  label={k === 'all' ? t('nearby.kinds.all') : `${KIND_EMOJI[k]} ${t(`nearby.kinds.${k}`)}`}
+                  selected={kind === k}
+                  onPress={() => setKind(k)}
+                />
+              ))}
+            </View>
+            {shown.map((p, i) => (
+              <FadeIn key={p.osmId} index={i}>
+                <DiscoveredRow place={p} saved={isAlreadySaved(p, saved)} />
+              </FadeIn>
+            ))}
+          </>
+        ) : (
+          <AppText tone="secondary">{t('nearby.discoverEmpty')}</AppText>
+        )
+      ) : null}
+      <AppText variant="caption" tone="secondary">
+        {t('nearby.osmCredit')}
+      </AppText>
+    </Section>
+  );
+}
+
+function DiscoveredRow({ place: p, saved }: { place: DiscoveredPlace; saved: boolean }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const save = useSaveDiscovered();
+  const isSaved = saved || save.isSuccess;
+  const cuisine = p.kind === 'pizza' && p.cuisine === 'pizza' ? null : p.cuisine;
+  const details = [`${KIND_EMOJI[p.kind]} ${t(`nearby.kinds.${p.kind}`)}`, cuisine, p.address].filter(Boolean).join(' · ');
+  return (
+    <View style={[styles.row, styles.missing, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.flex}>
+        <AppText variant="bodyStrong">{p.name}</AppText>
+        <AppText variant="caption" tone="secondary" numberOfLines={2}>
+          {details}
+        </AppText>
+        <View style={styles.chips}>
+          <Chip
+            label={isSaved ? `✓ ${t('nearby.saved')}` : save.isPending ? t('place.refreshing') : t('nearby.save')}
+            selected={isSaved}
+            onPress={isSaved || save.isPending ? undefined : () => save.mutate(p)}
+          />
+          <Chip
+            label={t('nearby.openMap')}
+            onPress={() => openExternalUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.name} ${p.latitude},${p.longitude}`)}`)}
+          />
+        </View>
+        <InlineError message={save.isError ? errorMessage(save.error, t) : null} />
+      </View>
+      <AppText variant="bodyStrong" tone="primary">
+        {formatDistance(p.meters)}
+      </AppText>
+    </View>
   );
 }
 
