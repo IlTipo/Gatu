@@ -1,4 +1,5 @@
 import '@/i18n';
+import '@/features/install/device'; // cattura subito l'invito "Installa" di Chrome
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';

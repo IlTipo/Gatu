@@ -552,5 +552,26 @@
     "nothingMissing": "✅ Hai tutto (più sale, olio e pepe)",
     "fromLibrary": "Dalle tue ricette",
     "noLibraryMatch": "Nessuna delle tue ricette usa questi ingredienti: prova a crearne una nuova qui sopra."
+  },
+  "install": {
+    "title": "Aggiungimi alla schermata Home e rendimi app!",
+    "subtitle": "Così Morso si apre con un tocco, a schermo intero, come un'app vera. Ci vogliono 10 secondi.",
+    "installNow": "Installa Morso",
+    "yourPhone": "il tuo telefono",
+    "ios": {
+      "title": "iPhone / iPad",
+      "step1": "Apri questa pagina con Safari.",
+      "step2": "Tocca il tasto Condividi (il quadrato con la freccia in su) nella barra in basso.",
+      "step3": "Scorri e tocca \"Aggiungi alla schermata Home\" (se non lo vedi, cercalo sotto \"Altro\").",
+      "step4": "Tocca \"Aggiungi\" in alto a destra, poi apri Morso dall'icona."
+    },
+    "android": {
+      "title": "Android",
+      "step1": "Apri questa pagina con Chrome.",
+      "step2": "Tocca il menu ⋮ in alto a destra.",
+      "step3": "Tocca \"Installa app\" (o \"Aggiungi a schermata Home\"), conferma e apri Morso dall'icona."
+    },
+    "dontShowAgain": "Non mostrare più",
+    "continue": "Continua sul sito"
   }
 }
