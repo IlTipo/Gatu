@@ -186,5 +186,19 @@ ok((await as(A, `select slot from public.meal_plan_entries where id = '${meal}'`
 await as(A, `delete from public.recipes where id = '${recA}'`);
 ok((await as(A, `select * from public.meal_plan_entries where id = '${meal}'`)).rows.length === 0, 'cancellando la ricetta spariscono i suoi pasti');
 
+// --- Fase 6: lista della spesa ---
+await as(A, `insert into public.shopping_items (week_start, name, is_manual) values ('2026-10-26', 'detersivo', true)`);
+const list1 = JSON.stringify([{ name: 'spaghetti', quantity: 320, unit: 'g', aisle: 'dispensa', checked: true, recipe_ids: [] }, { name: 'sale', quantity: null, unit: null, aisle: 'dispensa' }]);
+await as(A, `select public.replace_shopping_list('2026-10-26', '${list1}'::jsonb)`);
+const list2 = JSON.stringify([{ name: 'spaghetti', quantity: 480, unit: 'g', aisle: 'dispensa', checked: true }]);
+await as(A, `select public.replace_shopping_list('2026-10-26', '${list2}'::jsonb)`);
+const shop = (await as(A, `select name, quantity::float q, checked, is_manual from public.shopping_items where week_start = '2026-10-26' order by is_manual, name`)).rows;
+ok(shop.length === 2 && shop[0].name === 'spaghetti' && shop[0].q === 480 && shop[0].checked && shop[1].name === 'detersivo' && shop[1].is_manual, 'lista rigenerata: voci automatiche sostituite, quelle a mano restano');
+await as(B, `select public.replace_shopping_list('2026-10-26', '[]'::jsonb)`);
+ok((await as(A, `select count(*)::int n from public.shopping_items where week_start = '2026-10-26'`)).rows[0].n === 2, 'la lista di Bruno NON tocca quella di Anna');
+ok((await as(B, `select * from public.shopping_items`)).rows.length === 0, 'Bruno NON vede la spesa di Anna');
+await fails(() => as(A, `select public.replace_shopping_list('2026-10-26', '{"a":1}'::jsonb)`), 'la lista deve essere un elenco');
+await fails(() => as(A, `select public.replace_shopping_list('2026-10-27', '[]'::jsonb)`).then(() => as(A, `select public.replace_shopping_list('2026-10-27', '[{"name":"x"}]'::jsonb)`)), 'la settimana deve iniziare di lunedì');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

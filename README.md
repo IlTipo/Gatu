@@ -154,6 +154,15 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 4. Su ogni pasto: **− / +** per le persone, **Sposta** per cambiarlo di giorno, **✕** per toglierlo. Tocca il nome per aprire la ricetta.
 5. **Copia la settimana precedente** per ripetere i pasti della settimana prima; **Svuota la settimana** per ricominciare (le ricette restano nella Libreria).
 
+## Cosa provare nella Fase 6 — Lista della spesa
+
+1. Metti qualche ricetta nel **Planner** di questa settimana.
+2. Apri **Spesa** → **🛒 Crea la lista dal planner**: gli ingredienti di tutte le ricette, con le dosi per le persone di ogni pasto, **sommati** (200 g + 0,3 kg di farina = 500 g; "uovo" e "uova" diventano una voce sola) e divisi per **reparto**. Sotto ogni voce vedi per quale ricetta serve.
+3. Al supermercato tocca una voce per **spuntarla** (finisce in fondo); in alto vedi quanti ne hai presi. Le spunte restano anche chiudendo il sito.
+4. **Aggiungi altro**: scrivi "latte, pane e detersivo" → tre voci, già nel reparto giusto (la ✕ le toglie).
+5. Hai cambiato il planner? **🔄 Aggiorna dal planner**: le dosi si ricalcolano, le spunte e le cose aggiunte a mano restano.
+6. **📋 Copia la lista** (sul telefono si apre la condivisione: WhatsApp, Note…) e **Togli i già presi** a fine spesa.
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.

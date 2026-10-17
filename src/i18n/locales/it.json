@@ -131,7 +131,27 @@
   "shopping": {
     "title": "Spesa",
     "emptyTitle": "Lista vuota",
-    "emptyBody": "La lista della spesa si creerà da sola a partire dal planner."
+    "emptyBody": "Metti qualche ricetta nel Planner di questa settimana e crea la lista: le dosi si sommano da sole.",
+    "generate": "🛒 Crea la lista dal planner",
+    "regenerate": "🔄 Aggiorna dal planner",
+    "regenerateHint": "Hai cambiato il planner? Aggiorna: le spunte e le cose aggiunte a mano restano.",
+    "noMeals": "Nessun pasto nel planner di questa settimana.",
+    "openPlanner": "Apri il planner",
+    "generated_one": "Lista pronta: {{count}} voce.",
+    "generated_other": "Lista pronta: {{count}} voci.",
+    "progress": "{{done}} di {{total}} presi",
+    "addLabel": "Aggiungi altro",
+    "addPlaceholder": "Es. latte, pane e detersivo",
+    "add": "Aggiungi",
+    "clearChecked": "Togli i già presi",
+    "share": "📋 Copia la lista",
+    "shareTitle": "Lista della spesa · {{week}}",
+    "copied": "Lista copiata: incollala dove vuoi.",
+    "shareFailed": "Non sono riuscito a copiare la lista.",
+    "fromRecipes": "per {{list}}",
+    "manual": "aggiunto da te",
+    "remove": "Togli",
+    "allDone": "Hai preso tutto! 🎉"
   },
   "map": {
     "title": "Mappa",
