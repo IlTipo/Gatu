@@ -21,9 +21,10 @@ import { mealTimeFor } from '@/features/diary/logic';
 import { toISODate } from '@/features/planner/dates';
 import { usePortionPrefs } from '@/features/portions/api';
 import { type Nutrition, personalRecipe } from '@/features/portions/logic';
-import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights, useSetShared } from '@/features/recipes/api';
+import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useDeleteRecipe, useRecipeInsights, useSetShared } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
 import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
+import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { radius, spacing, useTheme } from '@/theme';
@@ -261,8 +262,32 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             ))}
           </View>
         </Section>
+
+        <DeleteRecipe recipe={r} />
       </View>
     </Screen>
+  );
+}
+
+/** 🗑️ Elimina la ricetta (con conferma): poi si torna alla Libreria. */
+function DeleteRecipe({ recipe: r }: { recipe: RecipeWithDetails }) {
+  const { t } = useTranslation();
+  const remove = useDeleteRecipe(r.id);
+  const ask = async () => {
+    const message = r.shared_with_friends ? t('recipe.deleteConfirmShared', { title: r.title }) : t('recipe.deleteConfirm', { title: r.title });
+    if (await confirm(message, { ok: t('common.delete'), cancel: t('common.cancel') })) {
+      remove.mutate(r.image_url, { onSuccess: () => router.replace('/library') });
+    }
+  };
+  return (
+    <View style={styles.delete}>
+      <Pressable onPress={ask} disabled={remove.isPending} accessibilityRole="button" hitSlop={8}>
+        <AppText variant="bodyStrong" tone="danger">
+          {remove.isPending ? t('recipe.deleting') : t('recipe.delete')}
+        </AppText>
+      </Pressable>
+      <InlineError message={remove.isError ? errorMessage(remove.error, t) : null} />
+    </View>
   );
 }
 
@@ -363,6 +388,7 @@ function Stat({ label, value, big }: { label: string; value: string; big?: boole
 }
 
 const styles = StyleSheet.create({
+  delete: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
   container: { gap: spacing.lg, paddingBottom: spacing.xl },
   image: { width: '100%', aspectRatio: 4 / 3, maxHeight: 420, borderRadius: radius.lg, overflow: 'hidden' },
   titleBlock: { gap: spacing.sm },

@@ -378,7 +378,11 @@
     "saveNew": "Salva la ricetta",
     "homemade": "✍️ Ricetta tua",
     "sharedBadge": "👥 Condivisa",
-    "notShared": "🔒 Solo tu"
+    "notShared": "🔒 Solo tu",
+    "delete": "🗑️ Elimina ricetta",
+    "deleting": "Elimino…",
+    "deleteConfirm": "Eliminare \"{{title}}\"? Sparisce anche dal planner e dalle collezioni. Non si può annullare.",
+    "deleteConfirmShared": "Eliminare \"{{title}}\"? Sparisce anche dal planner, dalle collezioni e dal tuo profilo (con mi piace e commenti). Non si può annullare."
   },
   "place": {
     "verified": "Indirizzo verificato",

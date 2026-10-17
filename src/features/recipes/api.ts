@@ -133,3 +133,27 @@ export function useSetShared(id: string) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }),
   });
 }
+
+/**
+ * Elimina una ricetta per sempre: con lei spariscono ingredienti, passaggi, i suoi pasti nel planner,
+ * mi piace e commenti. La foto caricata da te (nella tua cartella) viene cancellata.
+ */
+export function useDeleteRecipe(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (imageUrl: string | null) => {
+      const { error } = await supabase.from('recipes').delete().eq('id', id);
+      if (error) throw error;
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user.id;
+      const path = imageUrl?.split('/object/public/images/')[1];
+      if (uid && path?.startsWith(`${uid}/`)) await supabase.storage.from('images').remove([path]).then(() => {}, () => {});
+    },
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: recipeKeys.detail(id) });
+      for (const key of [recipeKeys.all, ['meal-plan'], ['shopping'], ['collections'], ['person'], ['cook-log']]) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
+    },
+  });
+}
