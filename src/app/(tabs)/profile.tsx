@@ -72,6 +72,21 @@ export default function ProfileScreen() {
           </AppText>
         </PressableScale>
 
+        <PressableScale
+          onPress={() => router.push('/stats')}
+          accessibilityRole="button"
+          style={[styles.row, styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.flex}>
+            <AppText variant="bodyStrong">{t('stats.entry')}</AppText>
+            <AppText variant="caption" tone="secondary">
+              {t('stats.entryHint')}
+            </AppText>
+          </View>
+          <AppText variant="heading" tone="secondary">
+            ›
+          </AppText>
+        </PressableScale>
+
         <Button label={t('profile.shareApp')} variant="secondary" onPress={shareApp} />
         {shareMessage ? <AppText tone="secondary">{shareMessage}</AppText> : null}
 

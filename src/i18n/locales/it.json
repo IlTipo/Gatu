@@ -732,5 +732,34 @@
       "self": "Questo è il tuo codice 😄",
       "limit": "Troppe richieste in attesa: aspetta che qualcuno risponda."
     }
+  },
+  "stats": {
+    "title": "📊 Le tue statistiche",
+    "entry": "📊 Le tue statistiche",
+    "entryHint": "Quanto cucini, cosa ti piace, calorie della settimana",
+    "cookedMonth": "cucinate questo mese",
+    "moreThanLast_one": "{{count}} in più del mese scorso",
+    "moreThanLast_other": "{{count}} in più del mese scorso",
+    "lessThanLast_one": "{{count}} in meno del mese scorso",
+    "lessThanLast_other": "{{count}} in meno del mese scorso",
+    "streak": "giorni di fila ai fornelli",
+    "recipes": "ricette salvate",
+    "tried_one": "{{count}} provata",
+    "tried_other": "{{count}} provate",
+    "places": "posti salvati",
+    "visited_one": "{{count}} visitato",
+    "visited_other": "{{count}} visitati",
+    "favorite": "❤️ La tua ricetta del cuore",
+    "times_one": "cucinata {{count}} volta",
+    "times_other": "cucinata {{count}} volte",
+    "tagsTitle": "🍳 Cosa cucini di più",
+    "noTags": "Ancora pochi dati: cucina qualche ricetta (pulsante Cucina) e torna qui.",
+    "kcalTitle": "🔥 Calorie degli ultimi 7 giorni",
+    "kcalAverage": "Media {{kcal}} kcal nei giorni segnati",
+    "kcalGoal": "obiettivo {{goal}} kcal (linea tratteggiata)",
+    "kcalNone": "Niente nel diario questa settimana (Planner → 🔥 Calorie).",
+    "todayShort": "Oggi",
+    "averageRating": "⭐ Voto medio che dai: {{rating}}",
+    "historyNote": "Lo storico delle ricette cucinate parte da oggi: più usi Morso, più le statistiche diventano precise."
   }
 }

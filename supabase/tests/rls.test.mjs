@@ -307,5 +307,19 @@ ok((await as(C, `select * from public.recipes where id = '${recF}'`)).rows.lengt
 await as(B, `select public.remove_friend('${reqB.id}')`);
 await fails(() => as(B, `select public.friend_feed('${A}', '2026-10-20')`), 'dopo aver tolto l\'amicizia non si vede più niente');
 
+// --- Statistiche: storico delle ricette cucinate ---
+const recS = (await as(A, `insert into public.recipes (title) values ('Pesto') returning id`)).rows[0].id;
+await as(A, `update public.recipes set last_cooked_at = now() - interval '3 days' where id = '${recS}'`);
+await as(A, `update public.recipes set last_cooked_at = now() - interval '3 days' + interval '10 minutes' where id = '${recS}'`);
+await as(A, `update public.recipes set last_cooked_at = now() where id = '${recS}'`);
+await as(A, `update public.recipes set last_cooked_at = null where id = '${recS}'`);
+ok((await as(A, `select count(*)::int n from public.cook_log where recipe_id = '${recS}'`)).rows[0].n === 2, 'ogni volta che cucini resta nello storico (niente doppioni nella stessa ora)');
+ok((await as(B, `select * from public.cook_log`)).rows.length === 0, 'Bruno NON vede lo storico di Anna');
+await fails(() => as(A, `insert into public.cook_log (user_id, recipe_id) values ('${A}', '${recS}')`), 'lo storico non si scrive a mano');
+await as(A, `update public.recipes set last_cooked_at = now() + interval '5 hours' where id = '${recS}'`);
+ok((await as(A, `select count(*)::int n from public.cook_log where recipe_id = '${recS}' and cooked_at > now() + interval '1 minute'`)).rows[0].n === 0, 'nessuna data futura nello storico');
+await as(A, `delete from public.recipes where id = '${recS}'`);
+ok((await as(A, `select count(*)::int n from public.cook_log where recipe_id = '${recS}'`)).rows[0].n === 0, 'cancellando la ricetta si cancella il suo storico');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);
