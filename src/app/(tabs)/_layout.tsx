@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
@@ -13,14 +14,28 @@ import { useTheme } from '@/theme';
 type IconName = ComponentProps<typeof Icon>['name'];
 
 function tabIcon(name: IconName) {
-  return function TabIcon({ color }: { color: ComponentProps<typeof Icon>['color'] }) {
-    return <Icon name={name} size={24} color={color} />;
+  return function TabIcon({ color, focused }: { color: ComponentProps<typeof Icon>['color']; focused: boolean }) {
+    return <TabIconPill name={name} color={color} focused={focused} />;
   };
+}
+
+/** Icona della scheda; quella attiva ha dietro una "pillola" colorata, così si vede subito dove sei. */
+function TabIconPill({ name, color, focused }: { name: IconName; color: ComponentProps<typeof Icon>['color']; focused: boolean }) {
+  const { colors, scheme } = useTheme();
+  return (
+    <View
+      style={[
+        styles.pill,
+        focused && { backgroundColor: scheme === 'dark' ? 'rgba(240,122,74,0.18)' : 'rgba(224,89,42,0.12)' },
+      ]}>
+      <Icon name={name} size={22} color={focused ? colors.primary : color} />
+    </View>
+  );
 }
 
 export default function TabsLayout() {
   const { t } = useTranslation();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   // spazio per la barretta dell'iPhone (e un minimo anche dove non c'è), così le scritte non si tagliano
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 8);
@@ -43,12 +58,24 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          // icona (28) + scritta (18) + margini del pulsante (10) + respiro sopra e sotto
-          height: 68 + bottom,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          // icona con pillola (32) + scritta (16) + respiro sopra e sotto, più la barretta dell'iPhone
+          height: 64 + bottom,
           paddingTop: 6,
           paddingBottom: bottom,
+          paddingHorizontal: 4,
+          // ombra leggera: la barra si stacca dal contenuto che scorre sotto
+          shadowColor: colors.shadow,
+          shadowOpacity: scheme === 'dark' ? 0.4 : 0.08,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: -2 },
+          elevation: 8,
         },
-        tabBarLabelStyle: { fontWeight: '600', fontSize: 12, lineHeight: 16, marginTop: 2 },
+        // tutte le schede larghe uguali, icona e scritta centrate
+        tabBarItemStyle: { flex: 1, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' },
+        tabBarIconStyle: { marginBottom: 0 },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 11, lineHeight: 14, marginTop: 2 },
+        tabBarAllowFontScaling: false,
       }}>
       <Tabs.Screen
         name="library"
@@ -87,3 +114,7 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  pill: { width: 48, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+});
