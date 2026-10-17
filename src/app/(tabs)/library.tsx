@@ -133,6 +133,8 @@ export default function LibraryScreen() {
 
         {tab === 'recipes' ? (
           <ChipRow>
+            <Chip label={t('library.writeRecipe')} onPress={() => router.push('/recipe/new')} />
+            <Chip label={t('library.friendsRecipes')} onPress={() => router.push('/friends-recipes')} />
             <Chip label={t('library.diceButton')} onPress={() => setDiceOpen(true)} />
           </ChipRow>
         ) : null}

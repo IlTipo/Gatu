@@ -50,6 +50,11 @@ export default function FriendRecipeScreen() {
           </View>
         ) : null}
         <AppText variant="title">{r.title}</AppText>
+        {r.author ? (
+          <AppText tone="secondary">
+            {r.homemade ? t('friendsRecipes.byHomemade', { name: r.author }) : t('friendsRecipes.by', { name: r.author })}
+          </AppText>
+        ) : null}
         {facts.length ? <AppText tone="secondary">{facts.join(' · ')}</AppText> : null}
         {r.description ? <AppText>{r.description}</AppText> : null}
         <Button label={t('friends.saveRecipe')} onPress={save} loading={copy.isPending} />

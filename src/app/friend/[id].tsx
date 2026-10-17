@@ -67,6 +67,28 @@ function FeedBody({ feed }: { feed: FriendFeed }) {
 
   return (
     <>
+      {feed.creations?.length ? (
+        <Section title={t('friends.creations')}>
+          {feed.creations.map((r, i) => (
+            <FadeIn key={r.id} index={i}>
+              <PressableScale
+                onPress={() => open(r.id)}
+                accessibilityRole="button"
+                style={[styles.item, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Thumb url={r.image_url} />
+                <View style={styles.flex}>
+                  <AppText variant="bodyStrong" numberOfLines={2}>
+                    {r.title}
+                  </AppText>
+                  <AppText variant="caption" tone="secondary">
+                    {[r.homemade ? t('friendsRecipes.homemadeShort') : null, r.kcal_per_serving ? `${r.kcal_per_serving} kcal` : null].filter(Boolean).join(' · ')}
+                  </AppText>
+                </View>
+              </PressableScale>
+            </FadeIn>
+          ))}
+        </Section>
+      ) : null}
       <Section title={t('friends.cooked')}>
         {feed.cooked === null ? (
           <AppText tone="secondary">{t('friends.notShared')}</AppText>

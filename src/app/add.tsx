@@ -97,6 +97,8 @@ export default function AddLinkScreen() {
 
         <InlineError message={save.isError ? errorMessage(save.error, t) : null} />
 
+        <Button label={t('add.writeOwn')} variant="secondary" onPress={() => router.replace('/recipe/new')} disabled={busy} />
+
         <View style={styles.photo}>
           <Button
             label={photo.isPending ? t('add.photoSaving') : t('add.photo')}

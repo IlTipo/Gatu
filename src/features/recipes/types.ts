@@ -44,6 +44,10 @@ export type Recipe = {
   difficulty: 'facile' | 'media' | 'difficile' | null;
   cost_level: number | null;
   insights_at: string | null;
+  /** ricetta inventata da me (scritta a mano in Morso) */
+  homemade: boolean;
+  /** visibile ai miei amici */
+  shared_with_friends: boolean;
 };
 
 export type VariantKind = 'vegana' | 'vegetariana' | 'senza_glutine' | 'senza_lattosio' | 'light' | 'veloce';

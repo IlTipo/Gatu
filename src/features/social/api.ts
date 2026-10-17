@@ -5,6 +5,7 @@ import { recipeKeys } from '@/features/recipes/api';
 import { invokeExtract } from '@/features/sources/api';
 import { pickRecipePhoto } from '@/lib/photo';
 import { supabase } from '@/lib/supabase';
+import { uploadPhoto } from '@/lib/upload';
 
 export type MyProfile = {
   display_name: string | null;
@@ -31,6 +32,7 @@ export type FriendFeed = {
   share_cooking: boolean;
   share_planner: boolean;
   share_diary: boolean;
+  creations: { id: string; title: string; image_url: string | null; total_minutes: number | null; kcal_per_serving: number | null; homemade: boolean; created_at: string }[];
   cooked: { id: string; title: string; image_url: string | null; rating: number | null; last_cooked_at: string; kcal_per_serving: number | null }[] | null;
   planner: { date: string; slot: 'lunch' | 'dinner'; recipe_id: string; title: string; image_url: string | null }[] | null;
   diary: { slot: string; name: string; kcal: number; protein_g: number | null; created_at: string }[] | null;
@@ -46,6 +48,8 @@ export type FriendRecipe = {
   total_minutes: number | null;
   tags: string[];
   kcal_per_serving: number | null;
+  homemade?: boolean;
+  author?: string | null;
   ingredients: { quantity: number | null; unit: string | null; name: string; note: string | null; aisle: string; estimated: boolean }[];
   steps: { text: string; timer_seconds: number | null }[];
 };
@@ -110,11 +114,7 @@ export function useChangeAvatar() {
       if (!uid) throw new Error('not signed in');
       const photo = await pickRecipePhoto(512);
       if (!photo) return false;
-      const bytes = Uint8Array.from(atob(photo.base64), (c) => c.charCodeAt(0));
-      const path = `${uid}/avatar-${Date.now()}.jpg`;
-      const { error } = await supabase.storage.from('images').upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
-      if (error) throw error;
-      const url = supabase.storage.from('images').getPublicUrl(path).data.publicUrl;
+      const url = await uploadPhoto(photo.base64, 'avatar');
       await update.mutateAsync({ avatar_url: url });
       // la foto vecchia non serve più
       const old = previousUrl?.split('/object/public/images/')[1];
@@ -211,11 +211,36 @@ export function useCopyFriendRecipe() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (recipe: FriendRecipe) => {
-      const { kcal_per_serving: _k, ...rest } = recipe;
+      const { kcal_per_serving: _k, homemade: _h, author: _a, ...rest } = recipe;
       const { data, error } = await supabase.rpc('create_recipe', { p_recipe: rest });
       if (error) throw error;
       return data as string;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }),
+  });
+}
+
+export type FriendSharedRecipe = {
+  id: string;
+  title: string;
+  image_url: string | null;
+  total_minutes: number | null;
+  kcal_per_serving: number | null;
+  homemade: boolean;
+  created_at: string;
+  author_id: string;
+  author_name: string | null;
+  author_avatar: string | null;
+};
+
+/** Le ultime ricette condivise dai miei amici. */
+export function useFriendsRecipes() {
+  return useQuery({
+    queryKey: ['friends-recipes'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('friends_recipes', { p_limit: 100 });
+      if (error) throw error;
+      return data as FriendSharedRecipe[];
+    },
   });
 }

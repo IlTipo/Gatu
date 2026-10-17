@@ -20,7 +20,7 @@ import { mealTimeFor } from '@/features/diary/logic';
 import { toISODate } from '@/features/planner/dates';
 import { usePortionPrefs } from '@/features/portions/api';
 import { type Nutrition, personalRecipe } from '@/features/portions/logic';
-import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights } from '@/features/recipes/api';
+import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights, useSetShared } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
 import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
 import { errorMessage } from '@/lib/errors';
@@ -58,6 +58,7 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const estimate = useEstimateDoses(r.id);
+  const setShared = useSetShared(r.id);
   const [doseMessage, setDoseMessage] = useState<string | null>(null);
   // persone scelte (di base quelle della ricetta)
   const [people, setPeople] = useState<number | null>(r.servings);
@@ -116,6 +117,14 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
               {r.tags.map((tag) => <Chip key={tag} label={tag} />)}
             </View>
           ) : null}
+          <View style={styles.chips}>
+            {r.homemade ? <Chip label={t('recipe.homemade')} /> : null}
+            <Chip
+              label={r.shared_with_friends ? t('recipe.sharedBadge') : t('recipe.notShared')}
+              selected={r.shared_with_friends}
+              onPress={() => setShared.mutate(!r.shared_with_friends)}
+            />
+          </View>
         </View>
 
         <View style={styles.buttons}>

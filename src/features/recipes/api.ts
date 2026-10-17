@@ -111,3 +111,25 @@ export function useRecipeFromVideo(id: string) {
     },
   });
 }
+
+/** Fa vedere (o nasconde) una ricetta ai miei amici. */
+export function useSetShared(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shared: boolean) => {
+      const { error } = await supabase.from('recipes').update({ shared_with_friends: shared }).eq('id', id);
+      if (error) throw error;
+    },
+    onMutate: async (shared) => {
+      const key = recipeKeys.detail(id);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<RecipeWithDetails>(key);
+      if (previous) queryClient.setQueryData(key, { ...previous, shared_with_friends: shared });
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(recipeKeys.detail(id), ctx.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }),
+  });
+}

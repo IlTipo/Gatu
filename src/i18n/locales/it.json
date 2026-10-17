@@ -92,7 +92,9 @@
     "toTryFilter": "Da provare",
     "triedFilter": "✓ Provate",
     "visitedFilter": "✓ Ci sono stato",
-    "topRated": "⭐ 4+"
+    "topRated": "⭐ 4+",
+    "writeRecipe": "✍️ Scrivi una ricetta",
+    "friendsRecipes": "👥 Ricette degli amici"
   },
   "planner": {
     "title": "Planner",
@@ -229,7 +231,8 @@
     "photo": "📷 Carica la foto di una ricetta",
     "photoHint": "Una pagina di un libro, un quaderno o uno screenshot: l'AI la legge.",
     "photoSaving": "Sto leggendo la foto…",
-    "orLink": "oppure incolla un link"
+    "orLink": "oppure incolla un link",
+    "writeOwn": "✍️ Scrivi una tua ricetta (inventata da te)"
   },
   "source": {
     "title": "Link salvato",
@@ -360,7 +363,18 @@
     },
     "aiError": "Non ci sono riuscito. Riprova tra poco.",
     "aiRateLimited": "L'AI gratuita ha finito le richieste per oggi: riprova domani (le altre funzioni vanno lo stesso).",
-    "startCooking": "👩‍🍳 Cucina"
+    "startCooking": "👩‍🍳 Cucina",
+    "newTitle": "✍️ La tua ricetta",
+    "newTitlePlaceholder": "es. Pasta al forno della nonna",
+    "photoLabel": "Foto della ricetta",
+    "addPhoto": "Aggiungi una foto del piatto",
+    "changePhoto": "Cambia foto",
+    "shareWithFriends": "👥 Fai vedere ai miei amici",
+    "shareWithFriendsHint": "La vedono solo gli amici che hai accettato, e possono salvarla nella loro libreria.",
+    "saveNew": "Salva la ricetta",
+    "homemade": "✍️ Ricetta tua",
+    "sharedBadge": "👥 La vedono i tuoi amici",
+    "notShared": "🔒 Solo tu"
   },
   "place": {
     "verified": "Indirizzo verificato",
@@ -735,7 +749,8 @@
       "not_found": "Codice non trovato: controllalo.",
       "self": "Questo è il tuo codice 😄",
       "limit": "Troppe richieste in attesa: aspetta che qualcuno risponda."
-    }
+    },
+    "creations": "👩‍🍳 Le sue ricette"
   },
   "stats": {
     "title": "📊 Le tue statistiche",
@@ -776,5 +791,14 @@
     "fridge": "Dal frigo: {{list}}",
     "cook": "👩‍🍳 Inizia a cucinare",
     "hide": "Nascondi il promemoria"
+  },
+  "friendsRecipes": {
+    "title": "👥 Ricette degli amici",
+    "emptyTitle": "Ancora niente qui",
+    "emptyBody": "Quando i tuoi amici scrivono una ricetta e la condividono, la trovi qui. Anche le tue, se attivi \"Fai vedere ai miei amici\", le vedono loro.",
+    "findFriends": "Aggiungi amici",
+    "by": "Condivisa da {{name}}",
+    "byHomemade": "✍️ Inventata da {{name}}",
+    "homemadeShort": "✍️ Inventata"
   }
 }

@@ -321,5 +321,23 @@ ok((await as(A, `select count(*)::int n from public.cook_log where recipe_id = '
 await as(A, `delete from public.recipes where id = '${recS}'`);
 ok((await as(A, `select count(*)::int n from public.cook_log where recipe_id = '${recS}'`)).rows[0].n === 0, 'cancellando la ricetta si cancella il suo storico');
 
+// --- Ricette inventate e condivise con gli amici ---
+ok((await as(B, `select public.send_friend_request('${codeA}') as r`)).rows[0].r === 'sent', 'Bruno richiede di nuovo l\'amicizia ad Anna');
+const req2 = (await as(A, `select id from public.list_friends() where incoming`)).rows[0].id;
+await as(A, `select public.respond_friend_request('${req2}', true)`);
+await as(A, `update public.profiles set share_cooking = false, share_planner = false where id = '${A}'`);
+const mine = (await as(A, `insert into public.recipes (title, homemade, shared_with_friends) values ('Torta della nonna Anna', true, true) returning id`)).rows[0].id;
+const secret = (await as(A, `insert into public.recipes (title, homemade) values ('Ricetta segreta', true) returning id`)).rows[0].id;
+const fr = (await as(B, `select * from public.friends_recipes()`)).rows;
+ok(fr.some((r) => r.title === 'Torta della nonna Anna' && r.author_name === 'Anna R.') && !fr.some((r) => r.title === 'Ricetta segreta'), 'Bruno vede SOLO le ricette che Anna ha condiviso');
+const feed2 = (await as(B, `select public.friend_feed('${A}', '2026-10-20') as f`)).rows[0].f;
+ok(feed2.creations.length === 1 && feed2.cooked === null, 'nella pagina di Anna: le sue ricette condivise (il resto resta privato)');
+ok((await as(B, `select public.friend_recipe('${mine}') as r`)).rows[0].r.author === 'Anna R.', 'Bruno apre la ricetta condivisa (anche se Anna non condivide altro)');
+await fails(() => as(B, `select public.friend_recipe('${secret}')`), 'Bruno NON apre la ricetta non condivisa');
+ok((await as(C, `select * from public.friends_recipes()`)).rows.length === 0, 'Carla (non amica) NON vede le ricette condivise di Anna');
+ok(((await as(B, `update public.recipes set shared_with_friends = false where id = '${mine}'`)).affectedRows ?? 0) === 0, 'Bruno NON può cambiare la condivisione delle ricette di Anna');
+await as(A, `update public.recipes set shared_with_friends = false where id = '${mine}'`);
+ok((await as(B, `select * from public.friends_recipes()`)).rows.length === 0, 'Anna smette di condividere: sparisce per Bruno');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

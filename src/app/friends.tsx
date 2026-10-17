@@ -227,6 +227,7 @@ function PrivacyCard() {
             disabled={!me.data}
             onValueChange={(value) => update.mutate({ [item.key]: value })}
             trackColor={{ true: colors.primary, false: colors.border }}
+            thumbColor={colors.surface}
             accessibilityLabel={item.label}
           />
         </View>

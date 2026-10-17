@@ -88,6 +88,7 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add" options={{ presentation: 'modal' }} />
           <Stack.Screen name="source/[id]" />
+          <Stack.Screen name="recipe/new" />
           <Stack.Screen name="recipe/[id]/index" />
           <Stack.Screen name="recipe/[id]/edit" />
           <Stack.Screen name="recipe/[id]/variant" />
@@ -102,6 +103,7 @@ function RootNavigator() {
           <Stack.Screen name="pantry" />
           <Stack.Screen name="plan/add" options={{ presentation: 'modal' }} />
           <Stack.Screen name="friends" />
+          <Stack.Screen name="friends-recipes" />
           <Stack.Screen name="stats" />
           <Stack.Screen name="friend/[id]" />
           <Stack.Screen name="friend/recipe/[id]" />
