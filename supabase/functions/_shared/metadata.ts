@@ -4,7 +4,7 @@
 // Nessuno scraping di contenuti privati, nessun login, nessun aggiramento di blocchi.
 
 import { parseHtmlMetadata } from './html.ts';
-import { detectPlatform, isSafePublicUrl, isShortLink, normalizeUrl, type Platform } from './links.ts';
+import { detectPlatform, isPublicIp, isSafePublicUrl, isShortLink, normalizeUrl, type Platform } from './links.ts';
 
 export type LinkMetadata = {
   url: string;
@@ -33,10 +33,27 @@ export class UnsafeUrlError extends Error {
 }
 
 /** fetch che segue i redirect a mano, controllando che ogni tappa sia un indirizzo pubblico. */
+/**
+ * Controlla dove porta davvero il nome (DNS): un nome "innocuo" potrebbe puntare a un IP interno.
+ * Se il DNS non è disponibile (test, ambienti senza permesso) si va avanti col solo controllo sul nome.
+ */
+export async function resolvesToPublicIp(url: string): Promise<boolean> {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, '').replace(/\.+$/, '');
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return isPublicIp(host);
+  const resolve = (globalThis as { Deno?: { resolveDns?: (h: string, t: 'A' | 'AAAA') => Promise<string[]> } }).Deno
+    ?.resolveDns;
+  if (!resolve) return true;
+  const answers = (
+    await Promise.all([resolve(host, 'A').catch(() => []), resolve(host, 'AAAA').catch(() => [])])
+  ).flat();
+  // nessuna risposta: il fetch fallirà da solo; se anche un solo indirizzo è interno, no
+  return answers.every((ip) => isPublicIp(ip));
+}
+
 export async function safeFetch(url: string, fetchImpl: FetchLike, init: RequestInit = {}): Promise<Response> {
   let current = url;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    if (!isSafePublicUrl(current)) throw new UnsafeUrlError();
+    if (!isSafePublicUrl(current) || !(await resolvesToPublicIp(current))) throw new UnsafeUrlError();
     const res = await fetchImpl(current, {
       ...init,
       redirect: 'manual',
@@ -61,6 +78,31 @@ export function finalUrlOf(res: Response, fallback: string): string {
 }
 
 /** Legge al massimo `maxBytes` del corpo della risposta (le pagine enormi vengono troncate). */
+/** Legge al massimo maxBytes; se la risposta è più lunga restituisce null (niente file enormi in memoria). */
+export async function readBytesLimited(res: Response, maxBytes: number): Promise<Uint8Array | null> {
+  if (!res.body) return new Uint8Array();
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    all.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return all;
+}
+
 export async function readTextLimited(res: Response, maxBytes = MAX_HTML_BYTES): Promise<string> {
   if (!res.body) return '';
   const reader = res.body.getReader();
@@ -93,7 +135,9 @@ async function fetchOEmbed(endpoint: string, fetchImpl: FetchLike): Promise<OEmb
       await res.body?.cancel();
       return null;
     }
-    return (await res.json()) as OEmbed;
+    // anche la risposta oEmbed ha un limite (è un piccolo JSON)
+    const bytes = await readBytesLimited(res, 256 * 1024);
+    return bytes ? (JSON.parse(new TextDecoder().decode(bytes)) as OEmbed) : null;
   } catch {
     return null;
   }

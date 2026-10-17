@@ -9,6 +9,9 @@
 //   { action: 'recipe_insights', recipeId }  calorie e valori per porzione, difficoltà, costo
 //   { action: 'recipe_variant', recipeId, kind }  variante vegana / senza glutine / light… (non salvata)
 //   { action: 'refresh_place', placeId }  aggiorna indirizzo, telefono, sito e orari di un locale
+//   { action: 'recipe_video', recipeId, videoPath }  procedimento e dosi dal video caricato
+//   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
+//   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'ask_library', question }  "Chiedi all'AI": sceglie tra le ricette e i locali salvati
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
@@ -18,7 +21,16 @@ import type { DoseEstimator, Extractor, RecipeTools } from '../_shared/ai.ts';
 import { cleanInsights } from '../_shared/insights.ts';
 import { isVariantKind } from '../_shared/recipeTools.ts';
 import { MAX_QUESTION_LENGTH } from '../_shared/ask.ts';
-import { askLibrary, recipeInsights, recipeVariant, refreshPlace } from './actions.ts';
+import {
+  askLibrary,
+  fridgeRecipe,
+  fridgeScan,
+  recipeFromVideo,
+  recipeInsights,
+  recipeVariant,
+  refreshPlace,
+} from './actions.ts';
+import { parseFridgeRequest } from '../_shared/fridge.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
@@ -35,6 +47,7 @@ import {
   type FetchLike,
   fetchLinkMetadata,
   type LinkMetadata,
+  readBytesLimited,
   safeFetch,
   UnsafeUrlError,
 } from '../_shared/metadata.ts';
@@ -103,6 +116,11 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     placeId?: unknown;
     kind?: unknown;
     question?: unknown;
+    videoPath?: unknown;
+    ingredients?: unknown;
+    servings?: unknown;
+    maxMinutes?: unknown;
+    avoid?: unknown;
     imageBase64?: unknown;
     mimeType?: unknown;
   };
@@ -120,7 +138,14 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   }
 
   // ---- Altre azioni su ricette e locali già salvati
-  const ctx = { supabase, recipeTools: deps.recipeTools, geocoder: deps.geocoder, dailyLimit: deps.dailyLimit };
+  const ctx = {
+    supabase,
+    recipeTools: deps.recipeTools,
+    extractor: deps.extractor,
+    geocoder: deps.geocoder,
+    dailyLimit: deps.dailyLimit,
+    userId: user.id,
+  };
   if (body.action === 'recipe_insights') {
     if (typeof body.recipeId !== 'string') return errorResponse('invalid_body', 400);
     return json(await recipeInsights(body.recipeId, ctx));
@@ -132,6 +157,22 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (body.action === 'refresh_place') {
     if (typeof body.placeId !== 'string') return errorResponse('invalid_body', 400);
     return json(await refreshPlace(body.placeId, ctx));
+  }
+  if (body.action === 'recipe_video') {
+    if (typeof body.recipeId !== 'string' || typeof body.videoPath !== 'string') {
+      return errorResponse('invalid_body', 400);
+    }
+    return json(await recipeFromVideo(body.recipeId, body.videoPath, ctx));
+  }
+  if (body.action === 'fridge_scan') {
+    const image = parsePhoto(body.imageBase64, body.mimeType);
+    if (!image) return errorResponse('invalid_image', 400);
+    return json(await fridgeScan(image, ctx));
+  }
+  if (body.action === 'fridge_recipe') {
+    const request = parseFridgeRequest(body as Record<string, unknown>);
+    if (!request) return errorResponse('invalid_body', 400);
+    return json(await fridgeRecipe(request, ctx));
   }
   if (body.action === 'ask_library') {
     const question = typeof body.question === 'string' ? body.question.trim() : '';
@@ -255,6 +296,8 @@ export async function analyze(
   supabase: SupabaseClient,
   deps: Deps,
   image: { mimeType: string; data: string } | null = null,
+  /** il limite giornaliero è già stato scalato (foto: si controlla prima di salvarla) */
+  quotaPaid = false,
 ): Promise<Analysis> {
   if (recipeJsonLd) {
     const direct = recipeFromJsonLd(recipeJsonLd);
@@ -295,11 +338,13 @@ export async function analyze(
     return { status: 'skipped', reason: 'needs_text' };
   }
 
-  const { data: allowed, error: quotaError } = await supabase.rpc('consume_extraction_quota', {
-    daily_limit: deps.dailyLimit,
-  });
-  if (quotaError) throw quotaError;
-  if (!allowed) return { status: 'skipped', reason: 'quota_exceeded' };
+  if (!quotaPaid) {
+    const { data: allowed, error: quotaError } = await supabase.rpc('consume_extraction_quota', {
+      daily_limit: deps.dailyLimit,
+    });
+    if (quotaError) throw quotaError;
+    if (!allowed) return { status: 'skipped', reason: 'quota_exceeded' };
+  }
 
   await setStatus(supabase, source.id, 'processing', null);
   const outcome = await deps.extractor(input);
@@ -467,7 +512,19 @@ async function reload(supabase: SupabaseClient, id: string) {
   return data;
 }
 
-const MAX_PHOTO_BYTES = 6 * 1024 * 1024;
+// come il limite della cartella 'images' (5 MB)
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/** Foto in base64 dal sito: tipo ammesso e dimensione massima, altrimenti null. */
+function parsePhoto(imageBase64: unknown, mimeType: unknown): { mimeType: string; data: string } | null {
+  if (typeof imageBase64 !== 'string') return null;
+  const type = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
+  if (!IMAGE_TYPES[type]) return null;
+  const data = imageBase64.replace(/^data:[^,]+,/, '');
+  // 4 caratteri base64 = 3 byte
+  if (!data || (data.length * 3) / 4 > MAX_PHOTO_BYTES || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return null;
+  return { mimeType: type, data };
+}
 
 /** Salva la foto di una ricetta nello storage, crea il "link" e la fa leggere all'AI. */
 async function savePhoto(
@@ -489,6 +546,14 @@ async function savePhoto(
   }
   if (!bytes.byteLength || bytes.byteLength > MAX_PHOTO_BYTES) return errorResponse('invalid_image', 400);
 
+  // prima il limite giornaliero, poi il salvataggio: niente foto caricate se l'AI non può leggerle
+  if (!deps.extractor) return errorResponse('ai_not_configured', 503);
+  const { data: allowed, error: quotaError } = await supabase.rpc('consume_extraction_quota', {
+    daily_limit: deps.dailyLimit,
+  });
+  if (quotaError) throw quotaError;
+  if (!allowed) return errorResponse('quota_exceeded', 429);
+
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error: uploadError } = await supabase.storage.from('images').upload(path, bytes, { contentType: type });
   if (uploadError) throw uploadError;
@@ -509,10 +574,14 @@ async function savePhoto(
   if (insertError) throw insertError;
 
   const source = inserted as Source;
-  const analysis = await analyze(source, null, supabase, deps, {
-    mimeType: type,
-    data: imageBase64.replace(/^data:[^,]+,/, ''),
-  });
+  const analysis = await analyze(
+    source,
+    null,
+    supabase,
+    deps,
+    { mimeType: type, data: imageBase64.replace(/^data:[^,]+,/, '') },
+    true,
+  );
   return json({ source: await reload(supabase, source.id), duplicate: false, needsText: false, analysis }, 201);
 }
 
@@ -534,8 +603,8 @@ async function copyThumbnail(
     await res.body?.cancel();
     return url;
   }
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.byteLength > MAX_IMAGE_BYTES) return url;
+  const bytes = await readBytesLimited(res, MAX_IMAGE_BYTES);
+  if (!bytes || !bytes.byteLength) return url;
 
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from('images').upload(path, bytes, { contentType: type, upsert: false });

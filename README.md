@@ -178,6 +178,24 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 3. Finendo la **modalità cucina** (**Fine 🎉**) la ricetta diventa "provata" con la data di oggi, e puoi darle subito un voto.
 4. In **Libreria** le card mostrano le stelle; i filtri **Da provare**, **✓ Provate** e **⭐ 4+** trovano subito cosa rifare o cosa non hai ancora provato.
 
+## Novità: procedimento dal video, scheda Frigo, sicurezza
+
+### 🎬 Procedimento dal video (TikTok, Instagram…)
+Da un link Morso può leggere solo la **descrizione** del post (è ciò che TikTok permette). Il procedimento spesso è detto **a voce** nel video:
+1. Salva il link come sempre: si apre la ricetta.
+2. Se mancano i passaggi compare **"Il procedimento non è nella descrizione"**. Su TikTok tocca **Condividi → Salva video** (lo trovi nella galleria del telefono).
+3. Su Morso tocca **🎬 Carica il video della ricetta** e scegli il video: l'AI lo guarda e lo ascolta e scrive **passaggi e dosi** nella stessa ricetta (voti, note, planner e collezioni restano).
+4. Il video va in una cartella **privata** e viene **cancellato subito** dopo la lettura. Massimo 50 MB. Usa una delle analisi AI del giorno.
+
+### 🧊 Scheda Frigo ("Cosa cucino con ciò che ho")
+1. Apri la scheda **Frigo**.
+2. **📷 Foto del frigo**: l'AI riconosce gli alimenti e li aggiunge all'elenco (controlla e togli quelli sbagliati con la ×). Oppure scrivili tu: "uova, zucchine e parmigiano".
+3. **✨ Crea una ricetta con questi ingredienti**: scegli persone e tempo massimo; l'AI inventa una ricetta, ti dice cosa usa e **cosa ti manca**. **🔄 Un'altra idea** per cambiarla, **Salva nella Libreria** se ti piace.
+4. Sotto, **Dalle tue ricette**: quelle che hai già salvato e puoi fare con ciò che hai.
+
+### 🔒 Sicurezza
+Ogni pubblicazione controlla in automatico che nessun utente possa vedere o cambiare i dati di un altro (database, foto, video). Dopo un controllo approfondito sono stati chiusi: un nome di locale "malevolo" che poteva eseguire codice nella mappa, alcuni modi per far aprire al server indirizzi interni, file enormi che potevano bloccarlo, e qualche uso senza limite giornaliero.
+
 ### Accesso con Google (facoltativo)
 
 Finché non lo attivi, il pulsante "Continua con Google" **non compare** (si entra con email e password). Per attivarlo servono due chiavi di Google, gratis:

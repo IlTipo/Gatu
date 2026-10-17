@@ -52,7 +52,8 @@
     "planner": "Planner",
     "shopping": "Spesa",
     "map": "Mappa",
-    "profile": "Profilo"
+    "profile": "Profilo",
+    "fridge": "Frigo"
   },
   "library": {
     "title": "Libreria",
@@ -186,7 +187,9 @@
     "notFound": "Non trovato: forse è stato eliminato.",
     "invalidImage": "Questa foto non va bene: usa una foto JPEG, PNG o WebP (massimo 6 MB).",
     "locationDenied": "Per calcolare le distanze serve il permesso di usare la posizione (puoi darlo dalle impostazioni del browser).",
-    "locationUnavailable": "Non riesco a trovare la tua posizione in questo momento."
+    "locationUnavailable": "Non riesco a trovare la tua posizione in questo momento.",
+    "videoTooLarge": "Il video è troppo grande (massimo 50 MB). Prova con un video più corto.",
+    "invalidVideo": "Questo video non va bene: usa un video MP4, MOV o WebM."
   },
   "add": {
     "title": "Aggiungi un link",
@@ -506,5 +509,48 @@
     "saved": "Salvato ✓",
     "quickTitle": "Com'è venuta?",
     "quickBody": "Un voto veloce: lo ritrovi nella ricetta e nella Libreria."
+  },
+  "video": {
+    "missingTitle": "Il procedimento non è nella descrizione",
+    "missingBody": "Su TikTok e Instagram spesso è detto a voce nel video. Salva il video sul telefono (su TikTok: Condividi → Salva video) e caricalo qui: l'AI lo guarda, lo ascolta e scrive passaggi e dosi.",
+    "button": "🎬 Carica il video della ricetta",
+    "again": "🎬 Rileggi dal video",
+    "againHint": "Hai il video? L'AI può riscrivere passaggi e dosi guardandolo.",
+    "uploading": "Carico il video…",
+    "reading": "L'AI sta guardando il video… (fino a 1–2 minuti)",
+    "done_steps": "Fatto: procedimento letto dal video.",
+    "done_both": "Fatto: procedimento e dosi letti dal video.",
+    "done_none": "Nel video non ho trovato passaggi nuovi.",
+    "no_recipe": "In questo video non ho riconosciuto una ricetta.",
+    "privacy": "Il video resta privato e viene cancellato subito dopo la lettura."
+  },
+  "fridge": {
+    "title": "Frigo",
+    "subtitle": "Dimmi cosa hai in casa: ti mostro le tue ricette che puoi fare, oppure l'AI ne inventa una nuova.",
+    "photo": "📷 Foto del frigo",
+    "photoHint": "L'AI riconosce cosa c'è: poi controlla l'elenco e togli quello che non va.",
+    "scanning": "Guardo la foto…",
+    "found_one": "Ho trovato {{count}} alimento: controllalo qui sotto.",
+    "found_other": "Ho trovato {{count}} alimenti: controllali qui sotto.",
+    "foundNone": "Non ho riconosciuto alimenti in questa foto: prova con più luce o scrivili tu.",
+    "label": "Cosa hai",
+    "placeholder": "Es. uova, zucchine, parmigiano",
+    "add": "Aggiungi",
+    "clear": "Svuota",
+    "empty": "Fai una foto al frigo o scrivi qualche ingrediente.",
+    "createTitle": "✨ Una ricetta nuova",
+    "people": "Per quante persone",
+    "time": "Tempo",
+    "anyTime": "Qualsiasi",
+    "create": "✨ Crea una ricetta con questi ingredienti",
+    "creating": "Sto inventando la ricetta…",
+    "another": "🔄 Un'altra idea",
+    "save": "Salva nella Libreria",
+    "saved": "Salvata!",
+    "uses": "Usa: {{list}}",
+    "missing": "Ti manca: {{list}}",
+    "nothingMissing": "✅ Hai tutto (più sale, olio e pepe)",
+    "fromLibrary": "Dalle tue ricette",
+    "noLibraryMatch": "Nessuna delle tue ricette usa questi ingredienti: prova a crearne una nuova qui sopra."
   }
 }

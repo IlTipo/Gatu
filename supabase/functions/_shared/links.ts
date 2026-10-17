@@ -110,9 +110,51 @@ export function isShortLink(input: string): boolean {
   }
 }
 
+// Nomi che portano (o possono portare) a una rete interna, e servizi DNS "jolly" che fanno
+// puntare un nome qualsiasi a un IP scelto da chi scrive il link (es. 127.0.0.1.nip.io).
+const INTERNAL_SUFFIXES = ['.localhost', '.local', '.internal', '.lan', '.home.arpa', '.intranet', '.svc', '.corp'];
+const WILDCARD_DNS = [
+  'nip.io',
+  'sslip.io',
+  'xip.io',
+  'localtest.me',
+  'lvh.me',
+  'vcap.me',
+  'traefik.me',
+  'localhost.run',
+];
+
+/** Vero se l'indirizzo IP (v4 o v6) è pubblico, cioè non di una rete interna o speciale. */
+export function isPublicIp(ip: string): boolean {
+  const host = ip.toLowerCase().replace(/^\[|\]$/g, '');
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b, c] = [Number(v4[1]), Number(v4[2]), Number(v4[3])];
+    if (a === 10 || a === 127 || a === 0) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false; // rete del provider (CGNAT)
+    if (a === 198 && (b === 18 || b === 19)) return false; // reti di test
+    if (a === 192 && b === 0 && (c === 0 || c === 2)) return false;
+    if (a === 198 && b === 51 && c === 100) return false;
+    if (a === 203 && b === 0 && c === 113) return false;
+    if (a >= 224) return false; // multicast e riservati
+    return true;
+  }
+  if (host.includes(':')) {
+    // IPv6: ammessi solo gli indirizzi pubblici "normali" (2000::/3), tranne le forme che
+    // nascondono un IPv4 (6to4, NAT64) e gli indirizzi di documentazione.
+    if (!/^[23][0-9a-f]{0,3}:/.test(host)) return false;
+    if (host.startsWith('2002:') || host.startsWith('2001:db8') || host.startsWith('2001:0db8')) return false;
+    return true;
+  }
+  return false;
+}
+
 /**
  * Evita che il server venga usato per aprire indirizzi interni (es. http://localhost, 192.168.x.x).
- * Controllo sul nome: non sostituisce un firewall, ma blocca i casi ovvi.
+ * Controllo sul nome; safeFetch controlla anche dove porta davvero il nome (DNS).
  */
 export function isSafePublicUrl(input: string): boolean {
   let url: URL;
@@ -123,27 +165,14 @@ export function isSafePublicUrl(input: string): boolean {
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
   if (url.port && !['80', '443'].includes(url.port)) return false;
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (!host.includes('.') && !host.includes(':')) return false; // "localhost", nomi interni
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
-    return false;
-  }
-
-  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4) {
-    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-    if (a === 10 || a === 127 || a === 0) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && b === 168) return false;
-    if (a === 100 && b >= 64 && b <= 127) return false;
-    if (a >= 224) return false;
-  }
-  if (host.includes(':')) {
-    // IPv6: blocca loopback, link-local, indirizzi privati e IPv4 mappati
-    if (host === '::1' || host === '::' || /^(fc|fd|fe8|fe9|fea|feb)/.test(host) || host.startsWith('::ffff:')) {
-      return false;
-    }
-  }
+  if (url.username || url.password) return false;
+  // "localhost." (col punto finale) è lo stesso nome di "localhost"
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.+$/, '');
+  if (!host) return false;
+  if (/^[\d.]+$/.test(host) || host.includes(':')) return isPublicIp(host); // IP scritto direttamente
+  if (!host.includes('.')) return false; // "localhost", nomi interni
+  if (host === 'localhost' || INTERNAL_SUFFIXES.some((s) => host.endsWith(s))) return false;
+  if (WILDCARD_DNS.some((d) => host === d || host.endsWith(`.${d}`))) return false;
+  if (host === 'metadata.google.internal' || host === 'kubernetes.default') return false;
   return true;
 }

@@ -1,6 +1,7 @@
 // Tipi comuni per il servizio AI che estrae ricette e locali (oggi Gemini, in futuro intercambiabile).
 import type { RawAnswer } from './ask.ts';
 import type { DoseEstimate, DoseInput } from './doses.ts';
+import type { FridgeRequest, RawFridgeRecipe, RawFridgeScan } from './fridge.ts';
 import type { ExtractionInput, RawExtraction } from './extraction.ts';
 import type { RawInsights } from './insights.ts';
 import type { RawVariant, RecipeForAi, VariantKind } from './recipeTools.ts';
@@ -26,10 +27,16 @@ type Usage = { model: string; usage: { input: number; output: number } };
 export type InsightsOutcome = ({ ok: true; insights: RawInsights } & Usage) | Failure;
 export type VariantOutcome = ({ ok: true; variant: RawVariant } & Usage) | Failure;
 export type AskOutcome = ({ ok: true; answer: RawAnswer } & Usage) | Failure;
+export type FridgeScanOutcome = ({ ok: true; scan: RawFridgeScan } & Usage) | Failure;
+export type FridgeRecipeOutcome = ({ ok: true; recipe: RawFridgeRecipe } & Usage) | Failure;
 
 /** Strumenti AI sulle cose salvate: valori/difficoltà/costo, varianti, domande sulla libreria. */
 export type RecipeTools = {
   insights: (recipe: RecipeForAi) => Promise<InsightsOutcome>;
   variant: (recipe: RecipeForAi, kind: VariantKind) => Promise<VariantOutcome>;
   ask: (question: string, catalog: string) => Promise<AskOutcome>;
+  /** foto del frigo → alimenti che si vedono */
+  fridgeScan: (image: { mimeType: string; data: string }) => Promise<FridgeScanOutcome>;
+  /** alimenti che hai → ricetta nuova */
+  fridgeRecipe: (request: FridgeRequest) => Promise<FridgeRecipeOutcome>;
 };

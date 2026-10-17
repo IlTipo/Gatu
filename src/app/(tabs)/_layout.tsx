@@ -31,6 +31,10 @@ export default function TabsLayout() {
         options={{ title: t('tabs.library'), tabBarIcon: tabIcon({ ios: 'book', android: 'menu_book' }) }}
       />
       <Tabs.Screen
+        name="fridge"
+        options={{ title: t('tabs.fridge'), tabBarIcon: tabIcon({ ios: 'refrigerator', android: 'kitchen' }) }}
+      />
+      <Tabs.Screen
         name="planner"
         options={{ title: t('tabs.planner'), tabBarIcon: tabIcon({ ios: 'calendar', android: 'calendar_month' }) }}
       />

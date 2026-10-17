@@ -96,3 +96,18 @@ export function useCreateRecipe() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }),
   });
 }
+
+export type VideoResult = { status: 'done'; changed: string[] } | Skipped | Failed;
+
+/** Procedimento (e dosi) dal video: carica il video nella cartella privata, poi lo fa leggere all'AI. */
+export function useRecipeFromVideo(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ videoPath }: { videoPath: string }) =>
+      invokeExtract<VideoResult>({ action: 'recipe_video', recipeId: id, videoPath }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: recipeKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: recipeKeys.all });
+    },
+  });
+}

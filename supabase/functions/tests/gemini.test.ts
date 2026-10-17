@@ -284,3 +284,68 @@ Deno.test('altri errori non passano al modello di riserva', async () => {
   await createGeminiExtractor('k', { fetch: none.fetch, fallbackModels: [] })(input);
   assertEquals(none.urls.length, 1);
 });
+
+/** Finto Google per i video: caricamento a riprese, elaborazione, risposta, cancellazione. */
+function videoApi(opts: { processingPolls?: number; finalState?: string; reply?: unknown } = {}) {
+  const calls: string[] = [];
+  let polls = opts.processingPolls ?? 1;
+  const fetchImpl = ((url: string | URL | Request, init?: RequestInit) => {
+    const u = String(url);
+    const method = init?.method ?? 'GET';
+    const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+      Promise.resolve(
+        new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } }),
+      );
+    if (u.includes('/upload/v1beta/files')) {
+      calls.push(`start ${new Headers(init?.headers).get('x-goog-upload-header-content-length')}`);
+      return json({}, 200, { 'x-goog-upload-url': 'https://upload.example/session-1' });
+    }
+    if (u === 'https://upload.example/session-1') {
+      calls.push(`upload ${(init?.body as Uint8Array).byteLength}`);
+      return json({
+        file: { name: 'files/abc', uri: 'https://files.example/abc', state: 'PROCESSING', mimeType: 'video/mp4' },
+      });
+    }
+    if (u.endsWith('/files/abc') && method === 'GET') {
+      calls.push('poll');
+      polls--;
+      return json({ state: polls > 0 ? 'PROCESSING' : (opts.finalState ?? 'ACTIVE') });
+    }
+    if (u.endsWith('/files/abc') && method === 'DELETE') {
+      calls.push('delete');
+      return json({});
+    }
+    if (u.includes(':generateContent')) {
+      const parts =
+        (JSON.parse(String(init?.body)) as { contents: { parts: Record<string, unknown>[] }[] }).contents[0].parts;
+      calls.push(`generate ${parts.map((p) => Object.keys(p)[0]).join('+')}`);
+      return json(opts.reply ?? reply(JSON.stringify(extraction)));
+    }
+    return json({}, 404);
+  }) as typeof fetch;
+  return { fetch: fetchImpl, calls };
+}
+
+const video = { mimeType: 'video/mp4', bytes: new Uint8Array(1234) };
+
+Deno.test('video: caricato su Gemini, letto e poi cancellato', async () => {
+  const fake = videoApi({ processingPolls: 2 });
+  const res = await createGeminiExtractor('k', { fetch: fake.fetch, pollMs: 1 })({ ...input, video });
+  assertEquals(res.ok, true);
+  assertEquals(fake.calls, ['start 1234', 'upload 1234', 'poll', 'poll', 'generate fileData+text', 'delete']);
+});
+
+Deno.test('video: elaborazione fallita → niente risposta inventata, file cancellato', async () => {
+  const fake = videoApi({ finalState: 'FAILED' });
+  const res = await createGeminiExtractor('k', { fetch: fake.fetch, pollMs: 1 })({ ...input, video });
+  assertEquals(res, { ok: false, reason: 'invalid_output' });
+  assertEquals(fake.calls.at(-1), 'delete');
+  assert(!fake.calls.some((c) => c.startsWith('generate')));
+});
+
+Deno.test('video: anche se la risposta è un errore, il file viene cancellato', async () => {
+  const fake = videoApi({ reply: { candidates: [{ finishReason: 'SAFETY', content: { parts: [] } }] } });
+  const res = await createGeminiExtractor('k', { fetch: fake.fetch, pollMs: 1 })({ ...input, video });
+  assertEquals(res, { ok: false, reason: 'refusal' });
+  assertEquals(fake.calls.at(-1), 'delete');
+});

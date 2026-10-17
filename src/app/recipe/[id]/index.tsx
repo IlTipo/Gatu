@@ -13,6 +13,7 @@ import { Notice } from '@/components/Notice';
 import { RatingCard } from '@/components/RatingCard';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
+import { VideoCard } from '@/components/VideoCard';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
 import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
@@ -184,6 +185,9 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             </AppText>
           ) : null}
         </Section>
+
+        {/* un solo riquadro: resta lo stesso (col suo messaggio) anche quando arrivano i passaggi */}
+        <VideoCard recipeId={r.id} hasSteps={r.recipe_steps.length > 0} />
 
         <Section title={t('recipe.steps')}>
           {r.recipe_steps.length ? (

@@ -466,6 +466,35 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  fridgeScan: (image: { mimeType: string }) => {
+    calls.push(`scan:${image.mimeType}`);
+    return Promise.resolve({
+      ok: true as const,
+      scan: { ingredients: ['Uova', 'zucchine', 'uova', ' parmigiano. '] },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
+  fridgeRecipe: (request: { ingredients: string[]; avoid: string[] }) => {
+    calls.push(`recipe:${request.ingredients.join(',')}|evita:${request.avoid.join(',')}`);
+    return Promise.resolve({
+      ok: true as const,
+      recipe: {
+        title: 'Frittata di zucchine al parmigiano',
+        description: 'Pronta in 20 minuti',
+        servings: 2,
+        prep_minutes: 5,
+        cook_minutes: 15,
+        tags: ['secondo', 'vegetariano', 'inventato'],
+        uses: ['uova', 'zucchine', 'parmigiano'],
+        missing: [],
+        ingredients: [{ quantity: 4, unit: null, name: 'uova', note: null, aisle: 'latticini' }],
+        steps: [{ text: 'Sbatti le uova.', timer_seconds: null }],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
   ask: (question: string, catalog: string) => {
     calls.push(`ask:${question}`);
     calls.push(catalog);
@@ -674,4 +703,164 @@ Deno.test("chiedi all'AI: libreria vuota, limite, domanda non valida", async () 
   });
   assertEquals((await handleRequest(post({ action: 'ask_library', question: 'x'.repeat(301) }), d)).status, 400);
   assertEquals((await handleRequest(post({ action: 'ask_library' }), d)).status, 400);
+});
+
+function videoFake(recipe: Record<string, unknown> | null, opts: { quota?: boolean; download?: boolean } = {}) {
+  const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
+  const storage: string[] = [];
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER } }, error: null }) },
+    from: (table: string) => {
+      const q = {
+        select: () => q,
+        eq: () => q,
+        maybeSingle: () =>
+          Promise.resolve({
+            data: table === 'recipes' ? recipe : {
+              url: 'https://www.tiktok.com/@chef/video/1',
+              platform: 'tiktok',
+              title: 'Frittata!',
+              description: 'frittata facile',
+              author_name: 'chef',
+              shared_text: null,
+            },
+            error: null,
+          }),
+      };
+      return q;
+    },
+    rpc: (name: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: name === 'consume_extraction_quota' ? opts.quota ?? true : null, error: null });
+    },
+    storage: {
+      from: (bucket: string) => ({
+        download: (path: string) => {
+          storage.push(`download ${bucket}/${path}`);
+          return Promise.resolve(
+            opts.download === false
+              ? { data: null, error: { message: 'not found' } }
+              : { data: new Blob([new Uint8Array(2048)], { type: 'video/mp4' }), error: null },
+          );
+        },
+        remove: (paths: string[]) => {
+          storage.push(`remove ${bucket}/${paths.join(',')}`);
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    },
+  };
+  return { client, rpcCalls, storage };
+}
+
+const VIDEO = `${USER}/22222222-2222-4222-8222-222222222222.mp4`;
+const videoExtraction: RawExtraction = {
+  ...recipeExtraction,
+  recipe: {
+    ...recipeExtraction.recipe!,
+    ingredients: [
+      { quantity: 4, unit: null, name: 'uova', note: null, aisle: 'latticini', estimated: false },
+      { quantity: 2, unit: null, name: 'zucchine', note: null, aisle: 'frutta_verdura', estimated: false },
+      { quantity: 30, unit: 'g', name: 'parmigiano', note: null, aisle: 'latticini', estimated: false },
+    ],
+    steps: [
+      { text: 'Affetta le zucchine e rosolale.', timer_seconds: 300 },
+      { text: 'Sbatti le uova col parmigiano.', timer_seconds: null },
+      { text: 'Cuoci la frittata coperta.', timer_seconds: 480 },
+    ],
+  },
+};
+
+Deno.test('video: procedimento letto dal video, stessa ricetta aggiornata, video cancellato', async () => {
+  const { client, rpcCalls, storage } = videoFake({ ...recipeRow, source_id: 's1' });
+  const d = deps(client);
+  let seen: { video?: { mimeType: string; bytes: Uint8Array } | null; description: string | null } | null = null;
+  d.extractor = (input) => {
+    seen = input;
+    return Promise.resolve({ ok: true, extraction: videoExtraction, model: 'gemini', usage: { input: 1, output: 1 } });
+  };
+  const res = await (await handleRequest(post({ action: 'recipe_video', recipeId: 'r1', videoPath: VIDEO }), d)).json();
+  assertEquals(res, { status: 'done', changed: ['steps', 'ingredients'] });
+  assertEquals(seen!.video!.mimeType, 'video/mp4');
+  assertEquals(seen!.video!.bytes.byteLength, 2048);
+  assertEquals(seen!.description, 'frittata facile'); // la caption del TikTok aiuta l'AI
+  const update = rpcCalls.find((c) => c.name === 'update_recipe')!;
+  assertEquals(update.args.p_recipe_id, 'r1');
+  const recipe = update.args.p_recipe as { title: string; steps: unknown[]; ingredients: { name: string }[] };
+  assertEquals(recipe.title, 'Frittata di zucchine');
+  assertEquals(recipe.steps.length, 3);
+  assertEquals(recipe.ingredients.map((i) => i.name), ['uova', 'zucchine', 'parmigiano']);
+  assertEquals(storage, [`download videos/${VIDEO}`, `remove videos/${VIDEO}`]);
+});
+
+Deno.test('video di un altro utente o percorso strano → rifiutato, nessuna lettura', async () => {
+  const { client, storage } = videoFake(recipeRow);
+  const d = deps(client);
+  for (
+    const path of ['33333333-3333-4333-8333-333333333333/22222222-2222-4222-8222-222222222222.mp4', `${USER}/../x.mp4`]
+  ) {
+    const res = await (await handleRequest(post({ action: 'recipe_video', recipeId: 'r1', videoPath: path }), d))
+      .json();
+    assertEquals(res, { status: 'error', reason: 'invalid_video' });
+  }
+  assertEquals(storage, []);
+  assertEquals((await handleRequest(post({ action: 'recipe_video', recipeId: 'r1' }), d)).status, 400);
+});
+
+Deno.test('video: limite giornaliero raggiunto → niente AI, ma il video si cancella', async () => {
+  const { client, storage } = videoFake(recipeRow, { quota: false });
+  const d = deps(client);
+  const res = await (await handleRequest(post({ action: 'recipe_video', recipeId: 'r1', videoPath: VIDEO }), d)).json();
+  assertEquals(res, { status: 'skipped', reason: 'quota_exceeded' });
+  assertEquals(d.aiCalls, 0);
+  assertEquals(storage, [`remove videos/${VIDEO}`]);
+});
+
+Deno.test('frigo: dalla foto agli alimenti (puliti, senza doppioni)', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res =
+    await (await handleRequest(post({ action: 'fridge_scan', imageBase64: btoa('foto'), mimeType: 'image/jpeg' }), d))
+      .json();
+  assertEquals(res, { status: 'done', ingredients: ['uova', 'zucchine', 'parmigiano'] });
+  assertEquals(calls, ['scan:image/jpeg']);
+  const bad = await handleRequest(
+    post({ action: 'fridge_scan', imageBase64: btoa('x'), mimeType: 'application/pdf' }),
+    d,
+  );
+  assertEquals(bad.status, 400);
+  const notBase64 = await handleRequest(
+    post({ action: 'fridge_scan', imageBase64: '<script>', mimeType: 'image/png' }),
+    d,
+  );
+  assertEquals(notBase64.status, 400);
+});
+
+Deno.test('frigo: ricetta nuova dagli ingredienti, etichette non ammesse tolte', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(
+    post({
+      action: 'fridge_recipe',
+      ingredients: ['uova', ' zucchine ', 'uova', 42],
+      servings: 2,
+      avoid: ['Frittata semplice'],
+    }),
+    d,
+  )).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.recipe.title, 'Frittata di zucchine al parmigiano');
+  assertEquals(res.recipe.total_minutes, 20);
+  assertEquals(res.recipe.tags, ['secondo', 'vegetariano']);
+  assertEquals(calls, ['recipe:uova,zucchine|evita:Frittata semplice']);
+  assertEquals((await handleRequest(post({ action: 'fridge_recipe', ingredients: [] }), d)).status, 400);
+  assertEquals((await handleRequest(post({ action: 'fridge_recipe', ingredients: 'uova' }), d)).status, 400);
+});
+
+Deno.test('frigo: senza AI o oltre il limite giornaliero', async () => {
+  const d = deps(actionFake({}).client);
+  const res = await (await handleRequest(post({ action: 'fridge_recipe', ingredients: ['uova'] }), d)).json();
+  assertEquals(res, { status: 'skipped', reason: 'not_configured' });
 });

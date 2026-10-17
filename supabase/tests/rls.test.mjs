@@ -209,5 +209,28 @@ await fails(() => as(A, `update public.recipes set rating = 0 where id = '${recN
 await fails(() => as(A, `update public.recipes set notes = repeat('a', 5001) where id = '${recN}'`), 'note troppo lunghe rifiutate');
 ok(((await as(B, `update public.recipes set rating = 1 where id = '${recN}'`)).affectedRows ?? 0) === 0, 'Bruno NON può votare la ricetta di Anna');
 
+// --- Video (procedimento dal video) ---
+await db.exec(`reset role`);
+ok((await db.query(`select public from storage.buckets where id = 'videos'`)).rows[0]?.public === false, 'la cartella dei video è privata (niente link pubblici)');
+await as(A, `insert into storage.objects (bucket_id, name) values ('videos', '${A}/v1.mp4')`);
+ok(true, 'Anna carica un video nella sua cartella');
+await fails(() => as(A, `insert into storage.objects (bucket_id, name) values ('videos', '${B}/v1.mp4')`), 'Anna NON può caricare video nella cartella di Bruno');
+ok((await as(B, `select * from storage.objects where bucket_id = 'videos'`)).rows.length === 0, 'Bruno NON vede i video di Anna');
+ok(((await as(B, `delete from storage.objects where bucket_id = 'videos' and name = '${A}/v1.mp4'`)).affectedRows ?? 0) === 0, 'Bruno NON può cancellare i video di Anna');
+
+// --- Rinforzi di sicurezza ---
+ok((await as(A, `select public.consume_extraction_quota(null) as ok`)).rows[0].ok === false, 'limite giornaliero assente → negato (non illimitato)');
+ok((await as(A, `select public.consume_extraction_quota(0) as ok`)).rows[0].ok === false, 'limite zero → negato');
+await fails(() => as(A, `insert into public.recipes (title) values (repeat('a', 301))`), 'titolo troppo lungo rifiutato');
+await fails(() => as(A, `insert into public.places (name, website) values ('x', repeat('a', 2001))`), 'sito troppo lungo rifiutato');
+const many = JSON.stringify({ title: 'Tanti ingredienti', ingredients: Array.from({ length: 201 }, (_, i) => ({ name: `ing ${i}` })), steps: [] });
+await fails(() => as(A, `select public.create_recipe('${many}'::jsonb)`), 'oltre 200 ingredienti rifiutati');
+const ok200 = JSON.stringify({ title: 'Ricetta lunga', ingredients: Array.from({ length: 200 }, (_, i) => ({ name: `ing ${i}` })), steps: [{ text: 'ok' }] });
+ok(!!(await as(A, `select public.create_recipe('${ok200}'::jsonb) as id`)).rows[0].id, '200 ingredienti vanno bene');
+
+await fails(() => as(A, `insert into public.recipes (title, image_url) values ('x', 'javascript:alert(1)')`), 'foto con link javascript: rifiutata');
+await fails(() => as(A, `insert into public.places (name, website) values ('x', 'data:text/html,ciao')`), 'sito con link data: rifiutato');
+await fails(() => as(A, `insert into storage.objects (bucket_id, name) values ('images', '${A}/../${B}/x.jpg')`), 'nomi file con ../ rifiutati');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

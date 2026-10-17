@@ -4,6 +4,15 @@
 import type { DoseEstimator, Extractor, Failure, RecipeTools } from './ai.ts';
 import { ASK_SYSTEM_PROMPT, AskSchema, buildAskMessage, GEMINI_ASK_SCHEMA } from './ask.ts';
 import { buildDoseMessage, DOSE_SYSTEM_PROMPT, DoseSchema, GEMINI_DOSE_SCHEMA } from './doses.ts';
+import {
+  buildFridgeMessage,
+  FRIDGE_RECIPE_PROMPT,
+  FRIDGE_SCAN_PROMPT,
+  FridgeRecipeSchema,
+  FridgeScanSchema,
+  GEMINI_FRIDGE_RECIPE_SCHEMA,
+  GEMINI_FRIDGE_SCAN_SCHEMA,
+} from './fridge.ts';
 import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT } from './extraction.ts';
 import { GEMINI_INSIGHTS_SCHEMA, INSIGHTS_SYSTEM_PROMPT, InsightsSchema } from './insights.ts';
 import {
@@ -22,6 +31,11 @@ export const DEFAULT_MODEL = 'gemini-flash-latest';
  */
 export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest'];
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
+const FILES_API = 'https://generativelanguage.googleapis.com/v1beta';
+const UPLOAD_API = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
+
+/** Allegato per Gemini: una foto (dentro la richiesta) o un file già caricato (i video, troppo grandi). */
+export type GeminiMedia = { mimeType: string; data: string } | { mimeType: string; fileUri: string };
 
 // Schema della risposta nel formato richiesto da Gemini (sottoinsieme di OpenAPI).
 const nullable = (type: string, description?: string) => ({
@@ -135,7 +149,14 @@ type GeminiResponse = {
 
 const BLOCKED = ['SAFETY', 'RECITATION', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII', 'IMAGE_SAFETY'];
 
-type GeminiOptions = { model?: string; fallbackModels?: string[]; fetch?: typeof fetch; timeoutMs?: number };
+type GeminiOptions = {
+  model?: string;
+  fallbackModels?: string[];
+  fetch?: typeof fetch;
+  timeoutMs?: number;
+  /** solo test: attesa tra i controlli del video in elaborazione */
+  pollMs?: number;
+};
 type JsonOutcome = { ok: true; json: unknown; model: string; usage: { input: number; output: number } } | Failure;
 
 /** Chiamata generica a Gemini che restituisce JSON secondo uno schema. */
@@ -216,13 +237,20 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     system: string,
     user: string,
     schema: unknown,
-    images: { mimeType: string; data: string }[] = [],
+    media: GeminiMedia[] = [],
   ): Promise<JsonOutcome> => {
     const body = JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{
         role: 'user',
-        parts: [...images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })), { text: user }],
+        parts: [
+          ...media.map((m) =>
+            'fileUri' in m
+              ? { fileData: { mimeType: m.mimeType, fileUri: m.fileUri } }
+              : { inlineData: { mimeType: m.mimeType, data: m.data } }
+          ),
+          { text: user },
+        ],
       }],
       generationConfig: {
         responseMimeType: 'application/json',
@@ -244,16 +272,116 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
   };
 }
 
+// ------------------------------------------------------------------ video (File API di Gemini)
+
+type UploadedFile = { name: string; uri: string; mimeType: string };
+
+/**
+ * Carica un video su Gemini (caricamento "a riprese", per file grandi), aspetta che sia pronto
+ * e restituisce il riferimento da usare nella richiesta. Il file va cancellato dopo (deleteGeminiFile).
+ */
+export async function uploadGeminiFile(
+  apiKey: string,
+  video: { mimeType: string; bytes: Uint8Array },
+  opts: { fetch?: typeof fetch; pollMs?: number; maxWaitMs?: number } = {},
+): Promise<UploadedFile | Failure> {
+  const doFetch = opts.fetch ?? fetch;
+  try {
+    const start = await doFetch(UPLOAD_API, {
+      method: 'POST',
+      signal: AbortSignal.timeout(30_000),
+      headers: {
+        'x-goog-api-key': apiKey,
+        'content-type': 'application/json',
+        'x-goog-upload-protocol': 'resumable',
+        'x-goog-upload-command': 'start',
+        'x-goog-upload-header-content-length': String(video.bytes.byteLength),
+        'x-goog-upload-header-content-type': video.mimeType,
+      },
+      body: JSON.stringify({ file: { display_name: 'morso-video' } }),
+    });
+    const uploadUrl = start.headers.get('x-goog-upload-url');
+    await start.body?.cancel();
+    if (start.status === 429) return { ok: false, reason: 'rate_limited' };
+    if (!start.ok || !uploadUrl) {
+      console.error('Gemini upload start failed', start.status);
+      return { ok: false, reason: start.status === 401 || start.status === 403 ? 'auth' : 'api_error' };
+    }
+
+    const done = await doFetch(uploadUrl, {
+      method: 'POST',
+      signal: AbortSignal.timeout(90_000),
+      headers: { 'x-goog-upload-offset': '0', 'x-goog-upload-command': 'upload, finalize' },
+      body: video.bytes as Uint8Array<ArrayBuffer>,
+    });
+    if (!done.ok) {
+      await done.body?.cancel();
+      console.error('Gemini upload failed', done.status);
+      return { ok: false, reason: 'api_error' };
+    }
+    let file =
+      ((await done.json()) as { file?: { name?: string; uri?: string; state?: string; mimeType?: string } }).file;
+    if (!file?.name || !file.uri) return { ok: false, reason: 'api_error' };
+
+    // il video va "elaborato" prima di poterlo usare: si controlla finché è pronto
+    const deadline = Date.now() + (opts.maxWaitMs ?? 60_000);
+    while (file?.state === 'PROCESSING') {
+      if (Date.now() > deadline) {
+        await deleteGeminiFile(apiKey, file.name!, doFetch);
+        return { ok: false, reason: 'overloaded' };
+      }
+      await new Promise((r) => setTimeout(r, opts.pollMs ?? 2000));
+      const res: Response = await doFetch(`${FILES_API}/${file.name}`, { headers: { 'x-goog-api-key': apiKey } });
+      if (!res.ok) {
+        await res.body?.cancel();
+        break;
+      }
+      file = { ...file, ...((await res.json()) as typeof file) };
+    }
+    if (file?.state === 'FAILED') {
+      await deleteGeminiFile(apiKey, file.name!, doFetch);
+      return { ok: false, reason: 'invalid_output' };
+    }
+    return { name: file!.name!, uri: file!.uri!, mimeType: file?.mimeType ?? video.mimeType };
+  } catch (e) {
+    console.error('Gemini upload error', e instanceof Error ? e.name : e);
+    return { ok: false, reason: e instanceof Error && e.name === 'TimeoutError' ? 'overloaded' : 'api_error' };
+  }
+}
+
+/** Cancella il video da Google appena letto (comunque Google lo cancellerebbe da solo dopo 48 ore). */
+export async function deleteGeminiFile(apiKey: string, name: string, doFetch: typeof fetch = fetch) {
+  try {
+    const res = await doFetch(`${FILES_API}/${name}`, { method: 'DELETE', headers: { 'x-goog-api-key': apiKey } });
+    await res.body?.cancel();
+  } catch {
+    // non grave: scade da solo
+  }
+}
+
 /** Estrae ricetta o locali dal testo di un post. `fetch` nelle opzioni serve solo ai test. */
 export function createGeminiExtractor(apiKey: string, opts: GeminiOptions = {}): Extractor {
+  // con un video la risposta può arrivare più lentamente: più tempo a disposizione
   const generate = createGeminiJsonClient(apiKey, opts);
+  const generateVideo = createGeminiJsonClient(apiKey, { ...opts, timeoutMs: opts.timeoutMs ?? 100_000 });
   return async (input) => {
-    const r = await generate(
+    let uploaded: UploadedFile | null = null;
+    if (input.video) {
+      const up = await uploadGeminiFile(apiKey, input.video, { fetch: opts.fetch, pollMs: opts.pollMs });
+      if ('ok' in up) return up;
+      uploaded = up;
+    }
+    const media: GeminiMedia[] = uploaded
+      ? [{ mimeType: uploaded.mimeType, fileUri: uploaded.uri }]
+      : input.image
+      ? [input.image]
+      : [];
+    const r = await (uploaded ? generateVideo : generate)(
       SYSTEM_PROMPT,
       buildUserMessage(input),
       GEMINI_RESPONSE_SCHEMA,
-      input.image ? [input.image] : [],
-    );
+      media,
+    ).finally(() => uploaded ? deleteGeminiFile(apiKey, uploaded.name, opts.fetch ?? fetch) : undefined);
     if (!r.ok) return r;
     const parsed = ExtractionSchema.safeParse(r.json);
     if (!parsed.success) {
@@ -301,6 +429,22 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = AskSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, answer: parsed.data, model: r.model, usage: r.usage };
+    },
+    async fridgeScan(image) {
+      const r = await generate(FRIDGE_SCAN_PROMPT, 'Quali alimenti vedi in questa foto?', GEMINI_FRIDGE_SCAN_SCHEMA, [
+        image,
+      ]);
+      if (!r.ok) return r;
+      const parsed = FridgeScanSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, scan: parsed.data, model: r.model, usage: r.usage };
+    },
+    async fridgeRecipe(request) {
+      const r = await generate(FRIDGE_RECIPE_PROMPT, buildFridgeMessage(request), GEMINI_FRIDGE_RECIPE_SCHEMA);
+      if (!r.ok) return r;
+      const parsed = FridgeRecipeSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, recipe: parsed.data, model: r.model, usage: r.usage };
     },
   };
 }

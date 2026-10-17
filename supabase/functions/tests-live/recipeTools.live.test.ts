@@ -4,6 +4,7 @@ import { assert, assertEquals } from 'jsr:@std/assert@1';
 
 import { createGeminiRecipeTools } from '../_shared/gemini.ts';
 import { buildCatalog, cleanAnswer } from '../_shared/ask.ts';
+import { cleanFridgeRecipe } from '../_shared/fridge.ts';
 import { cleanInsights, cleanVariant, type RecipeForAi } from '../_shared/recipeTools.ts';
 import { throttled } from './throttle.ts';
 
@@ -95,4 +96,15 @@ Deno.test({ name: "chiedi all'AI: sceglie la ricetta giusta dalla libreria", ign
   const answer = cleanAnswer(outcome.answer, refs);
   console.log(' ', answer.message, JSON.stringify(answer.items));
   assertEquals(answer.items[0]?.id, 'insalata');
+});
+
+Deno.test({ name: 'frigo: ricetta nuova con uova, zucchine e parmigiano', ignore: !tools }, async () => {
+  const request = { ingredients: ['uova', 'zucchine', 'parmigiano'], servings: 2, maxMinutes: 30, avoid: [] };
+  const outcome = await throttled(() => tools!.fridgeRecipe(request));
+  assert(outcome.ok, `chiamata fallita: ${JSON.stringify(outcome)}`);
+  const recipe = cleanFridgeRecipe(outcome.recipe, request);
+  console.log(' ', recipe?.title, '| manca:', recipe?.missing.join(', ') || '—');
+  assert(recipe, 'ricetta valida');
+  assert(recipe.ingredients.some((i) => /zucchin/i.test(i.name)), 'usa le zucchine');
+  assert(recipe.steps.length >= 2, 'ha un procedimento');
 });

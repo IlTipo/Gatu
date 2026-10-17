@@ -126,6 +126,7 @@ Regole:
 - Converti le unità americane in metriche (1 cup di farina ≈ 125 g, 1 cup di liquido ≈ 240 ml, 1 oz ≈ 28 g, 1 tbsp = 1 cucchiaio, 1 tsp = 1 cucchiaino, °F in °C).
 - Ingredienti: una riga per ingrediente, quantità numerica separata dal nome.
 - Passaggi: brevi, numerabili, nell'ordine giusto. Se nel testo i passaggi non ci sono ma gli ingredienti sì, scrivi pochi passaggi solo se sono ovvi dal testo, altrimenti lascia la lista vuota e segnalalo.
+- VIDEO: se c'è un video allegato, è la fonte principale. Guarda e ASCOLTA: il procedimento spesso è detto a voce o scritto sullo schermo. Riporta tutti i passaggi nell'ordine in cui si vedono, con tempi e temperature, e gli ingredienti con le dosi dette o mostrate.
 - Tag: scegli solo tra quelli ammessi e solo se evidenti ("veloce" = pronta in 30 minuti o meno).
 - Se il post cita più locali, elencali tutti, ognuno con la sua città se si capisce (anche dal contesto, es. "i migliori 5 posti a Bologna").
 - Gli hashtag, le menzioni e gli inviti a seguire l'account non sono informazioni sul cibo.
@@ -143,6 +144,8 @@ export type ExtractionInput = {
   recipeJsonLd: Record<string, unknown> | null;
   /** Foto della ricetta caricata dall'utente (base64), se c'è. */
   image?: { mimeType: string; data: string } | null;
+  /** video della ricetta caricato dall'utente (lo legge Gemini, poi viene cancellato) */
+  video?: { mimeType: string; bytes: Uint8Array } | null;
 };
 
 const MAX_FIELD = 8000;
@@ -163,6 +166,11 @@ export function buildUserMessage(input: ExtractionInput): string {
       }</scheda_ricetta_schema_org>`
       : null,
   ].filter(Boolean);
+  if (input.video) {
+    parts.push(
+      '<video_allegato>Il video qui sopra è la ricetta: guardalo e ascoltalo tutto. Il procedimento spesso è detto a voce o scritto sullo schermo.</video_allegato>',
+    );
+  }
   if (input.image) {
     parts.push(
       '<foto_allegata>La foto qui sopra è il contenuto principale: leggi il testo e osserva il piatto.</foto_allegata>',
@@ -192,7 +200,7 @@ function compactJsonLd(data: Record<string, unknown>) {
 
 /** C'è abbastanza testo per provarci? (evita di pagare una chiamata inutile) */
 export function hasEnoughText(input: ExtractionInput): boolean {
-  if (input.recipeJsonLd || input.image) return true;
+  if (input.recipeJsonLd || input.image || input.video) return true;
   const text = [input.title, input.description, input.sharedText].filter(Boolean).join(' ');
   return text.replace(/\s+/g, ' ').trim().length >= 25;
 }

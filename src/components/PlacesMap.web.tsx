@@ -57,7 +57,8 @@ export function PlacesMap({ places, me, onOpen, openLabel, focusKey }: PlacesMap
         fillOpacity: 1,
       })
         .bindPopup(() => popup(p, openLabel, colors.primary, () => openRef.current(p.id)))
-        .bindTooltip(p.name, { direction: 'top', offset: [0, -8] })
+        // il nome viene da internet: come testo, mai come HTML (Leaflet tratterebbe una stringa come HTML)
+        .bindTooltip(document.createTextNode(p.name) as unknown as HTMLElement, { direction: 'top', offset: [0, -8] })
         .addTo(group);
     }
     if (me) {

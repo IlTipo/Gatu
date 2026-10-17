@@ -136,7 +136,8 @@ async function configureAuth(ref) {
       .filter(Boolean),
   );
   allowed.add(`${siteUrl}**`);
-  allowed.add('http://localhost:8081/**'); // sviluppo in locale
+  // niente indirizzi localhost nel sito pubblicato: dopo l'accesso si torna solo sul sito vero
+  allowed.delete('http://localhost:8081/**');
   // "Accedi con Google": solo se ci sono entrambe le chiavi di Google (i secret non finiscono nel sito)
   const google =
     googleClientId && googleSecret

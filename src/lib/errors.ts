@@ -19,6 +19,9 @@ const CODE_TO_KEY = {
   not_found: 'errors.notFound',
   internal_error: 'common.genericError',
   invalid_image: 'errors.invalidImage',
+  invalid_video: 'errors.invalidVideo',
+  quota_exceeded: 'recipe.aiSkipped.quota_exceeded',
+  ai_not_configured: 'recipe.aiSkipped.not_configured',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };
@@ -30,6 +33,8 @@ export function errorMessage(error: unknown, t: TFunction): string {
     return t(CODE_TO_KEY[e.code as keyof typeof CODE_TO_KEY]);
   }
   if (e.name === 'LocationDeniedError') return t('errors.locationDenied');
+  if (e.name === 'VideoTooLargeError') return t('errors.videoTooLarge');
+  if (e.name === 'VideoTypeError') return t('errors.invalidVideo');
   const message = typeof e.message === 'string' ? e.message : '';
   if (e.name === 'AuthRetryableFetchError' || /network request failed|failed to fetch/i.test(message)) {
     return t('common.networkError');
