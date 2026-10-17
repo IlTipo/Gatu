@@ -7,6 +7,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
+import { PopOnChange } from '@/components/Motion';
 import { Chip } from '@/components/Chip';
 import { CollectionButton } from '@/components/CollectionButton';
 import { RatingCard } from '@/components/RatingCard';
@@ -131,12 +132,14 @@ function PlaceDetails({ place: p }: { place: Place }) {
           </View>
         </View>
 
-        <Button
-          label={p.wishlist ? t('place.wishlistOn') : t('place.wishlistAdd')}
-          variant={p.wishlist ? 'primary' : 'secondary'}
-          onPress={() => wishlist.mutate(!p.wishlist)}
-          loading={wishlist.isPending}
-        />
+        <PopOnChange value={p.wishlist}>
+          <Button
+            label={p.wishlist ? t('place.wishlistOn') : t('place.wishlistAdd')}
+            variant={p.wishlist ? 'primary' : 'secondary'}
+            onPress={() => wishlist.mutate(!p.wishlist)}
+            loading={wishlist.isPending}
+          />
+        </PopOnChange>
         <InlineError message={wishlist.isError ? errorMessage(wishlist.error, t) : null} />
 
         {p.phone || p.website || hours.length ? (

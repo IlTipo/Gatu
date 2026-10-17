@@ -12,6 +12,7 @@
 //   { action: 'recipe_video', recipeId, videoPath }  procedimento e dosi dal video caricato
 //   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
+//   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
 //   { action: 'ask_library', question }  "Chiedi all'AI": sceglie tra le ricette e i locali salvati
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
@@ -21,8 +22,10 @@ import type { DoseEstimator, Extractor, RecipeTools } from '../_shared/ai.ts';
 import { cleanInsights } from '../_shared/insights.ts';
 import { isVariantKind } from '../_shared/recipeTools.ts';
 import { MAX_QUESTION_LENGTH } from '../_shared/ask.ts';
+import { MAX_FOOD_TEXT } from '../_shared/food.ts';
 import {
   askLibrary,
+  estimateFood,
   fridgeRecipe,
   fridgeScan,
   recipeFromVideo,
@@ -173,6 +176,13 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const request = parseFridgeRequest(body as Record<string, unknown>);
     if (!request) return errorResponse('invalid_body', 400);
     return json(await fridgeRecipe(request, ctx));
+  }
+  if (body.action === 'estimate_food') {
+    const foodText = typeof body.text === 'string' ? body.text.trim() : '';
+    const photo = body.imageBase64 === undefined ? null : parsePhoto(body.imageBase64, body.mimeType);
+    if (body.imageBase64 !== undefined && !photo) return errorResponse('invalid_image', 400);
+    if (foodText.length > MAX_FOOD_TEXT || (!photo && foodText.length < 2)) return errorResponse('invalid_body', 400);
+    return json(await estimateFood(foodText, photo, ctx));
   }
   if (body.action === 'ask_library') {
     const question = typeof body.question === 'string' ? body.question.trim() : '';

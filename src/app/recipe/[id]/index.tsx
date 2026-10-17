@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -15,6 +15,11 @@ import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { VideoCard } from '@/components/VideoCard';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
+import { useLogRecipe } from '@/features/diary/api';
+import { mealTimeFor } from '@/features/diary/logic';
+import { toISODate } from '@/features/planner/dates';
+import { usePortionPrefs } from '@/features/portions/api';
+import { type Nutrition, personalRecipe } from '@/features/portions/logic';
 import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useRecipeInsights } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
 import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
@@ -58,6 +63,9 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
   const [people, setPeople] = useState<number | null>(r.servings);
   const base = r.servings;
   const factor = base && people ? people / base : 1;
+  // porzioni preferite del Profilo (es. pasta 100 g a persona)
+  const prefs = usePortionPrefs();
+  const mine = useMemo(() => personalRecipe(r, prefs), [r, prefs]);
   const missing = hasMissingDoses(r.servings, r.recipe_ingredients);
   const anyEstimated = r.recipe_ingredients.some((i) => i.estimated && i.quantity !== null);
   const choices = base && !PEOPLE.includes(base) ? [...PEOPLE, base] : PEOPLE;
@@ -131,7 +139,7 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
           ) : null}
         </View>
 
-        <InsightsCard recipe={r} />
+        <InsightsCard recipe={r} nutrition={mine.nutrition} personalized={mine.changed} />
 
         <Section title={t('recipe.ingredients')}>
           {base ? (
@@ -166,17 +174,23 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
           <InlineError message={estimate.isError ? errorMessage(estimate.error, t) : null} />
 
           {r.recipe_ingredients.length ? (
-            r.recipe_ingredients.map((i) => (
+            mine.ingredients.map((i) => (
               <View key={i.id} style={styles.ingredient}>
                 <View style={[styles.dot, { backgroundColor: i.estimated ? colors.textSecondary : colors.primary }]} />
                 <AppText style={styles.flex}>
                   {formatIngredient({ ...i, quantity: scaleQuantity(i.quantity, i.unit, factor) })}
+                  {i.personalized ? ' ⚙️' : ''}
                 </AppText>
               </View>
             ))
           ) : (
             <AppText tone="secondary">{t('recipe.noIngredients')}</AppText>
           )}
+          {mine.changed ? (
+            <AppText variant="caption" tone="secondary">
+              {t('portions.legend')}
+            </AppText>
+          ) : null}
           {anyEstimated || r.servings_estimated ? (
             <AppText variant="caption" tone="secondary">
               {[anyEstimated ? t('recipe.estimatedLegend') : null, r.servings_estimated ? t('recipe.servingsEstimated') : null]
@@ -240,11 +254,26 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
 }
 
 /** Calorie e valori per porzione, difficoltà e costo (stime). */
-function InsightsCard({ recipe: r }: { recipe: RecipeWithDetails }) {
+function InsightsCard({
+  recipe: r,
+  nutrition: n,
+  personalized,
+}: {
+  recipe: RecipeWithDetails;
+  nutrition: Nutrition;
+  personalized: boolean;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const compute = useRecipeInsights(r.id);
   const [message, setMessage] = useState<string | null>(null);
+  const logRecipe = useLogRecipe();
+  const [logged, setLogged] = useState(false);
+  const eatOne = () =>
+    logRecipe.mutate(
+      { recipeId: r.id, date: toISODate(new Date()), slot: mealTimeFor(new Date().getHours()) },
+      { onSuccess: () => setLogged(true) },
+    );
   const hasInsights = r.kcal_per_serving !== null || r.difficulty !== null || r.cost_level !== null;
 
   function run() {
@@ -271,18 +300,26 @@ function InsightsCard({ recipe: r }: { recipe: RecipeWithDetails }) {
       {hasInsights ? (
         <>
           <View style={styles.stats}>
-            <Stat label="kcal" value={r.kcal_per_serving !== null ? String(r.kcal_per_serving) : '—'} big />
-            <Stat label={t('recipe.protein')} value={grams(r.protein_g)} />
-            <Stat label={t('recipe.carbs')} value={grams(r.carbs_g)} />
-            <Stat label={t('recipe.fat')} value={grams(r.fat_g)} />
+            <Stat label="kcal" value={n.kcal !== null ? String(n.kcal) : '—'} big />
+            <Stat label={t('recipe.protein')} value={grams(n.protein)} />
+            <Stat label={t('recipe.carbs')} value={grams(n.carbs)} />
+            <Stat label={t('recipe.fat')} value={grams(n.fat)} />
           </View>
           <View style={styles.stats}>
             <Stat label={t('recipe.difficulty')} value={r.difficulty ? t(`recipe.difficultyLevel.${r.difficulty}`) : '—'} />
             <Stat label={t('recipe.cost')} value={r.cost_level ? '€'.repeat(r.cost_level) : '—'} />
           </View>
           <AppText variant="caption" tone="secondary">
-            {t('recipe.insightsNote')}
+            {personalized ? `${t('recipe.insightsNote')} ${t('portions.insightsNote')}` : t('recipe.insightsNote')}
           </AppText>
+          {n.kcal !== null ? (
+            logged ? (
+              <AppText tone="secondary">{t('diary.logged')}</AppText>
+            ) : (
+              <Button label={t('diary.logRecipe')} variant="secondary" onPress={eatOne} loading={logRecipe.isPending} />
+            )
+          ) : null}
+          <InlineError message={logRecipe.isError ? errorMessage(logRecipe.error, t) : null} />
         </>
       ) : (
         <>

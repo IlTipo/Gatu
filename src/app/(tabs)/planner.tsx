@@ -6,6 +6,7 @@ import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from
 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { CaloriesPanel } from '@/components/CaloriesPanel';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
@@ -65,6 +66,7 @@ export default function PlannerScreen() {
     const count = plan.data.length;
     body = (
       <View style={styles.days}>
+        <CaloriesPanel />
         {count ? (
           <AppText tone="secondary">{t('planner.summary', { count })}</AppText>
         ) : (

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { LibraryPlace } from '@/features/library/filter';
 import { priceLabel } from '@/features/places/format';
@@ -7,6 +7,7 @@ import { starsText } from '@/features/ratings/format';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { PressableScale } from './Motion';
 import { Icon } from './Icon';
 
 /** Card per un posto della Libreria. */
@@ -14,7 +15,7 @@ export function PlaceCard({ place: p, onPress }: { place: LibraryPlace; onPress:
   const { colors } = useTheme();
   const details = [p.cuisine, priceLabel(p.price_level)].filter(Boolean).join(' · ');
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={p.name}
       onPress={onPress}
@@ -54,7 +55,7 @@ export function PlaceCard({ place: p, onPress }: { place: LibraryPlace; onPress:
           </AppText>
         ) : null}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

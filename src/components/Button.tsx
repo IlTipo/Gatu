@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { PressableScale } from './Motion';
 
 type Props = {
   label: string;
@@ -20,7 +21,7 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
   const textTone = variant === 'primary' ? 'onPrimary' : variant === 'ghost' ? 'primary' : 'default';
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!inactive, busy: !!loading }}
@@ -47,7 +48,7 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled,
           </AppText>
         </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 

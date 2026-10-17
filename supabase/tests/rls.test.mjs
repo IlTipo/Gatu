@@ -232,5 +232,27 @@ await fails(() => as(A, `insert into public.recipes (title, image_url) values ('
 await fails(() => as(A, `insert into public.places (name, website) values ('x', 'data:text/html,ciao')`), 'sito con link data: rifiutato');
 await fails(() => as(A, `insert into storage.objects (bucket_id, name) values ('images', '${A}/../${B}/x.jpg')`), 'nomi file con ../ rifiutati');
 
+// --- Porzioni, obiettivi e diario calorie ---
+await as(A, `update public.profiles set portions = '{"pasta": 100}', kcal_goal = 2200, protein_goal = 140 where id = '${A}'`);
+const prefA = (await as(A, `select portions, kcal_goal from public.profiles`)).rows[0];
+ok(prefA.portions.pasta === 100 && prefA.kcal_goal === 2200, 'Anna salva porzioni e obiettivi');
+ok(((await as(B, `update public.profiles set kcal_goal = 900 where id = '${A}'`)).affectedRows ?? 0) === 0, 'Bruno NON può cambiare gli obiettivi di Anna');
+await fails(() => as(A, `update public.profiles set portions = '[1,2]' where id = '${A}'`), 'porzioni: deve essere un oggetto');
+await fails(() => as(A, `update public.profiles set kcal_goal = 100 where id = '${A}'`), 'obiettivo calorie assurdo rifiutato');
+const recL = (await as(A, `insert into public.recipes (title) values ('Pasta e ceci') returning id`)).rows[0].id;
+const logA = (await as(A, `insert into public.food_log (eaten_on, slot, name, kcal, protein_g, source, recipe_id, servings) values ('2026-10-20', 'lunch', 'Pasta e ceci', 650, 24, 'recipe', '${recL}', 1) returning id`)).rows[0].id;
+await as(A, `insert into public.food_log (eaten_on, name, kcal, source) values ('2026-10-20', 'Barretta proteica', 200, 'manual')`);
+ok((await as(A, `select sum(kcal)::int k from public.food_log where eaten_on = '2026-10-20'`)).rows[0].k === 850, 'il diario somma le calorie del giorno');
+ok((await as(B, `select * from public.food_log`)).rows.length === 0, 'Bruno NON vede il diario di Anna');
+ok(((await as(B, `delete from public.food_log where id = '${logA}'`)).affectedRows ?? 0) === 0, 'Bruno NON può cancellare il diario di Anna');
+await fails(() => as(B, `insert into public.food_log (eaten_on, name, kcal, recipe_id) values ('2026-10-20', 'x', 1, '${recL}')`), 'Bruno NON può collegare il suo diario alla ricetta di Anna');
+await fails(() => as(B, `insert into public.food_log (user_id, eaten_on, name, kcal) values ('${A}', '2026-10-20', 'x', 1)`), 'Bruno NON può scrivere nel diario di Anna');
+await fails(() => as(A, `insert into public.food_log (eaten_on, name, kcal) values ('2026-10-20', 'x', -5)`), 'calorie negative rifiutate');
+await fails(() => as(A, `insert into public.food_log (eaten_on, name, kcal, slot) values ('2026-10-20', 'x', 5, 'merenda')`), 'momento della giornata non valido');
+await as(A, `delete from public.recipes where id = '${recL}'`);
+const kept = (await as(A, `select recipe_id, kcal from public.food_log where id = '${logA}'`)).rows[0];
+ok(kept && kept.recipe_id === null && kept.kcal === 650, 'cancellando la ricetta la voce del diario resta (senza collegamento)');
+await fails(() => as(A, `insert into public.food_log (eaten_on, name, kcal) select '2026-10-22', 'x', 1 from generate_series(1, 101)`), 'al massimo 100 voci al giorno');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

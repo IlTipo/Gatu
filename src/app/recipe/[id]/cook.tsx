@@ -16,6 +16,8 @@ import { startTimer, stopRinging, useTimers } from '@/features/cooking/timers';
 import { useVoiceCommands, voiceSupported } from '@/features/cooking/voice';
 import { useUpdateMeta } from '@/features/ratings/api';
 import { useRecipe } from '@/features/recipes/api';
+import { usePortionPrefs } from '@/features/portions/api';
+import { personalRecipe } from '@/features/portions/logic';
 import { formatIngredient, formatMinutes, scaleQuantity } from '@/features/recipes/format';
 import type { Ingredient, RecipeWithDetails } from '@/features/recipes/types';
 import { errorMessage } from '@/lib/errors';
@@ -64,6 +66,9 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
   const saveMeta = meta.mutate; // funzione stabile: non fa ricreare i comandi a ogni rendering
   const [rated, setRated] = useState<number | null>(r.rating);
 
+  // porzioni preferite del Profilo (es. pasta 100 g a persona)
+  const prefs = usePortionPrefs();
+  const ingredients = useMemo(() => personalRecipe(r, prefs).ingredients, [r, prefs]);
   const base = r.servings;
   const factor = base && people ? people / base : 1;
   const show = useCallback(
@@ -73,8 +78,8 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
   const steps = r.recipe_steps;
   const step = steps[index];
   const stepIngredients = useMemo(
-    () => (step ? ingredientsForStep(step.text, r.recipe_ingredients) : []),
-    [step, r.recipe_ingredients],
+    () => (step ? ingredientsForStep(step.text, ingredients) : []),
+    [step, ingredients],
   );
   const stepTimerRunning = step ? timers.some((x) => x.label === timerLabel(index + 1, step.text)) : false;
 
@@ -159,12 +164,12 @@ function Cooking({ recipe: r }: { recipe: RecipeWithDetails }) {
         ) : null}
         <View style={styles.block}>
           <AppText variant="heading">{t('cook.checklist')}</AppText>
-          {r.recipe_ingredients.length ? (
+          {ingredients.length ? (
             <>
               <AppText tone="secondary">
-                {t('cook.checklistHint')} {t('cook.ready', { done: checked.size, total: r.recipe_ingredients.length })}
+                {t('cook.checklistHint')} {t('cook.ready', { done: checked.size, total: ingredients.length })}
               </AppText>
-              {r.recipe_ingredients.map((i) => {
+              {ingredients.map((i) => {
                 const on = checked.has(i.id);
                 return (
                   <Pressable

@@ -13,6 +13,7 @@ import {
   GEMINI_FRIDGE_RECIPE_SCHEMA,
   GEMINI_FRIDGE_SCAN_SCHEMA,
 } from './fridge.ts';
+import { buildFoodMessage, FOOD_PROMPT, FoodSchema, GEMINI_FOOD_SCHEMA } from './food.ts';
 import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT } from './extraction.ts';
 import { GEMINI_INSIGHTS_SCHEMA, INSIGHTS_SYSTEM_PROMPT, InsightsSchema } from './insights.ts';
 import {
@@ -445,6 +446,13 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = FridgeRecipeSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, recipe: parsed.data, model: r.model, usage: r.usage };
+    },
+    async food(text, image) {
+      const r = await generate(FOOD_PROMPT, buildFoodMessage(text), GEMINI_FOOD_SCHEMA, image ? [image] : []);
+      if (!r.ok) return r;
+      const parsed = FoodSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, food: parsed.data, model: r.model, usage: r.usage };
     },
   };
 }

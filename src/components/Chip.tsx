@@ -1,14 +1,16 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { PressableScale } from './Motion';
 
 /** Etichetta arrotondata; se ha onPress diventa selezionabile (es. tag nei filtri). */
 export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
   const { colors } = useTheme();
   return (
-    <Pressable
+    <PressableScale
+      scaleTo={0.92}
       disabled={!onPress}
       onPress={onPress}
       accessibilityRole={onPress ? 'checkbox' : 'text'}
@@ -23,7 +25,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
       <AppText variant="caption" style={{ color: selected ? colors.onPrimary : colors.text, fontWeight: '600' }}>
         {label}
       </AppText>
-    </Pressable>
+    </PressableScale>
   );
 }
 

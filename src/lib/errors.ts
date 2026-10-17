@@ -22,6 +22,7 @@ const CODE_TO_KEY = {
   invalid_video: 'errors.invalidVideo',
   quota_exceeded: 'recipe.aiSkipped.quota_exceeded',
   ai_not_configured: 'recipe.aiSkipped.not_configured',
+  no_kcal: 'diary.noKcal',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };

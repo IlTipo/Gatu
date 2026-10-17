@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { LibraryRecipe } from '@/features/library/filter';
 import { starsText } from '@/features/ratings/format';
@@ -7,6 +7,7 @@ import { formatMinutes } from '@/features/recipes/format';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { AppText } from './AppText';
+import { PressableScale } from './Motion';
 import { Icon } from './Icon';
 
 /** Card con foto grande per una ricetta della Libreria. */
@@ -17,7 +18,7 @@ export function RecipeCard({ recipe: r, onPress }: { recipe: LibraryRecipe; onPr
     r.kcal_per_serving ? `${r.kcal_per_serving} kcal` : null,
   ].filter(Boolean);
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={r.title}
       onPress={onPress}
@@ -52,7 +53,7 @@ export function RecipeCard({ recipe: r, onPress }: { recipe: LibraryRecipe; onPr
           </AppText>
         ) : null}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 

@@ -495,6 +495,22 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  food: (text: string, image: { mimeType: string } | null) => {
+    calls.push(`food:${text}|${image?.mimeType ?? 'no-photo'}`);
+    return Promise.resolve({
+      ok: true as const,
+      food: {
+        name: 'Uova strapazzate e pane',
+        kcal: 320.4,
+        protein_g: 18.26,
+        carbs_g: 22,
+        fat_g: 17,
+        items: [{ name: 'uova', grams: 120, kcal: 170 }, { name: '', grams: 1, kcal: 1 }],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
   ask: (question: string, catalog: string) => {
     calls.push(`ask:${question}`);
     calls.push(catalog);
@@ -863,4 +879,27 @@ Deno.test('frigo: senza AI o oltre il limite giornaliero', async () => {
   const d = deps(actionFake({}).client);
   const res = await (await handleRequest(post({ action: 'fridge_recipe', ingredients: ['uova'] }), d)).json();
   assertEquals(res, { status: 'skipped', reason: 'not_configured' });
+});
+
+Deno.test('diario: calorie stimate da testo o foto del piatto', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(post({ action: 'estimate_food', text: ' 2 uova e una fetta di pane ' }), d)).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.food.kcal, 320);
+  assertEquals(res.food.protein_g, 18.3);
+  assertEquals(res.food.items, [{ name: 'uova', grams: 120, kcal: 170 }]);
+  const photo = await (await handleRequest(
+    post({ action: 'estimate_food', imageBase64: btoa('piatto'), mimeType: 'image/jpeg' }),
+    d,
+  )).json();
+  assertEquals(photo.status, 'done');
+  assertEquals(calls, ['food:2 uova e una fetta di pane|no-photo', 'food:|image/jpeg']);
+  assertEquals((await handleRequest(post({ action: 'estimate_food', text: '' }), d)).status, 400);
+  assertEquals((await handleRequest(post({ action: 'estimate_food', text: 'a'.repeat(301) }), d)).status, 400);
+  assertEquals(
+    (await handleRequest(post({ action: 'estimate_food', imageBase64: '<x>', mimeType: 'image/png' }), d)).status,
+    400,
+  );
 });

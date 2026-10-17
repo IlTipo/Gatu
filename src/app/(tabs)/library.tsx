@@ -8,6 +8,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { DiceModal } from '@/components/DiceModal';
 import { Icon } from '@/components/Icon';
+import { FadeIn } from '@/components/Motion';
 import { PlaceCard } from '@/components/PlaceCard';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Screen } from '@/components/Screen';
@@ -213,7 +214,12 @@ export default function LibraryScreen() {
     };
     // cambiando tab o colonne la lista va ricreata
     const listKey = `${tab}-${columns}`;
-    const cell = (child: ReactNode) => <View style={{ flex: 1 / columns }}>{child}</View>;
+    // le schede entrano una dopo l'altra, con dolcezza
+    const cell = (child: ReactNode, index: number) => (
+      <FadeIn index={index} style={{ flex: 1 / columns }}>
+        {child}
+      </FadeIn>
+    );
 
     content =
       tab === 'recipes' ? (
@@ -224,8 +230,8 @@ export default function LibraryScreen() {
           keyExtractor={(item) => item.id}
           refreshing={recipes.isRefetching}
           onRefresh={() => recipes.refetch()}
-          renderItem={({ item }) =>
-            cell(<RecipeCard recipe={item} onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: item.id } })} />)
+          renderItem={({ item, index }) =>
+            cell(<RecipeCard recipe={item} onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: item.id } })} />, index)
           }
         />
       ) : tab === 'places' ? (
@@ -236,8 +242,8 @@ export default function LibraryScreen() {
           keyExtractor={(item) => item.id}
           refreshing={places.isRefetching}
           onRefresh={() => places.refetch()}
-          renderItem={({ item }) =>
-            cell(<PlaceCard place={item} onPress={() => router.push({ pathname: '/place/[id]', params: { id: item.id } })} />)
+          renderItem={({ item, index }) =>
+            cell(<PlaceCard place={item} onPress={() => router.push({ pathname: '/place/[id]', params: { id: item.id } })} />, index)
           }
         />
       ) : (
@@ -248,8 +254,8 @@ export default function LibraryScreen() {
           keyExtractor={(item) => item.id}
           refreshing={sources.isRefetching}
           onRefresh={() => sources.refetch()}
-          renderItem={({ item }) =>
-            cell(<SourceCard source={item} onPress={() => router.push({ pathname: '/source/[id]', params: { id: item.id } })} />)
+          renderItem={({ item, index }) =>
+            cell(<SourceCard source={item} onPress={() => router.push({ pathname: '/source/[id]', params: { id: item.id } })} />, index)
           }
         />
       );

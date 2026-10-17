@@ -5,6 +5,7 @@
 //   recipe_video     → procedimento (e dosi) dal video caricato dall'utente
 //   fridge_scan      → foto del frigo → alimenti che si vedono
 //   fridge_recipe    → alimenti che hai → ricetta nuova (proposta, non salvata)
+//   estimate_food    → "cosa ho mangiato" (testo o foto) → calorie e macro per il diario
 //   ask_library      → "Chiedi all'AI": sceglie tra ricette e locali salvati in base a una domanda
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.118.0';
@@ -22,6 +23,7 @@ import type { Geocoder } from '../_shared/geocode.ts';
 import { type CleanInsights, cleanInsights } from '../_shared/insights.ts';
 import { cleanExtraction, type CleanIngredient, type ExtractionInput } from '../_shared/extraction.ts';
 import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } from '../_shared/recipeTools.ts';
+import { type CleanFood, cleanFood } from '../_shared/food.ts';
 import { type CleanFridgeRecipe, cleanFridgeRecipe, cleanFridgeScan, type FridgeRequest } from '../_shared/fridge.ts';
 import { MAX_VIDEO_BYTES, mergeVideoRecipe, parseVideoPath, type SavedRecipe } from '../_shared/video.ts';
 
@@ -324,4 +326,18 @@ export async function fridgeRecipe(
   const recipe = cleanFridgeRecipe(outcome.recipe, request);
   if (!recipe) return { status: 'error', reason: 'invalid_output' };
   return { status: 'done', recipe };
+}
+
+/** Diario calorie: "cosa ho mangiato" (testo e/o foto del piatto) → calorie e macro stimate. */
+export async function estimateFood(
+  text: string,
+  image: { mimeType: string; data: string } | null,
+  ctx: Ctx,
+): Promise<{ status: 'done'; food: CleanFood } | { status: 'not_food' } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+  const outcome = await ctx.recipeTools.food(text, image);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  const food = cleanFood(outcome.food, text);
+  return food ? { status: 'done', food } : { status: 'not_food' };
 }

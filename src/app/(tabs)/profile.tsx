@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
+import { PortionsCard } from '@/components/PortionsCard';
 import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -34,7 +35,7 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen>
+    <Screen scroll>
       <View style={styles.container}>
         <AppText variant="title">{t('profile.title')}</AppText>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -56,6 +57,7 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+        <PortionsCard />
         <InlineError message={error} />
         <Button label={t('profile.signOut')} variant="secondary" onPress={signOut} loading={signingOut} />
         <AppText variant="caption" tone="secondary" style={styles.version}>

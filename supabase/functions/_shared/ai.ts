@@ -1,6 +1,7 @@
 // Tipi comuni per il servizio AI che estrae ricette e locali (oggi Gemini, in futuro intercambiabile).
 import type { RawAnswer } from './ask.ts';
 import type { DoseEstimate, DoseInput } from './doses.ts';
+import type { RawFood } from './food.ts';
 import type { FridgeRequest, RawFridgeRecipe, RawFridgeScan } from './fridge.ts';
 import type { ExtractionInput, RawExtraction } from './extraction.ts';
 import type { RawInsights } from './insights.ts';
@@ -29,6 +30,7 @@ export type VariantOutcome = ({ ok: true; variant: RawVariant } & Usage) | Failu
 export type AskOutcome = ({ ok: true; answer: RawAnswer } & Usage) | Failure;
 export type FridgeScanOutcome = ({ ok: true; scan: RawFridgeScan } & Usage) | Failure;
 export type FridgeRecipeOutcome = ({ ok: true; recipe: RawFridgeRecipe } & Usage) | Failure;
+export type FoodOutcome = ({ ok: true; food: RawFood } & Usage) | Failure;
 
 /** Strumenti AI sulle cose salvate: valori/difficoltà/costo, varianti, domande sulla libreria. */
 export type RecipeTools = {
@@ -39,4 +41,6 @@ export type RecipeTools = {
   fridgeScan: (image: { mimeType: string; data: string }) => Promise<FridgeScanOutcome>;
   /** alimenti che hai → ricetta nuova */
   fridgeRecipe: (request: FridgeRequest) => Promise<FridgeRecipeOutcome>;
+  /** "cosa ho mangiato" (testo e/o foto del piatto) → calorie e macro */
+  food: (text: string, image: { mimeType: string; data: string } | null) => Promise<FoodOutcome>;
 };

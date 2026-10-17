@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { addDays } from '@/features/planner/dates';
+import { usePortionPrefs } from '@/features/portions/api';
+import { personalize } from '@/features/portions/logic';
 import { supabase } from '@/lib/supabase';
 
 import { buildShoppingList, guessAisle, ingredientKey, type PlannedMeal, type PlannedRecipe } from './build';
@@ -46,6 +48,7 @@ const lineKey = (name: string, unit: string | null) => `${ingredientKey(name)}|$
  */
 export function useGenerateList(monday: string) {
   const queryClient = useQueryClient();
+  const prefs = usePortionPrefs();
   return useMutation({
     mutationFn: async (current: ShoppingItem[]) => {
       const { data: meals, error } = await supabase
@@ -67,7 +70,12 @@ export function useGenerateList(monday: string) {
             id: r.id,
             title: r.title,
             servings: r.servings,
-            ingredients: r.recipe_ingredients.map((i) => ({ ...i, quantity: i.quantity === null ? null : Number(i.quantity) })),
+            // con le porzioni preferite del Profilo (es. pasta 100 g a persona)
+            ingredients: personalize(
+              r.recipe_ingredients.map((i) => ({ ...i, quantity: i.quantity === null ? null : Number(i.quantity) })),
+              r.servings,
+              prefs,
+            ).ingredients,
           }),
         );
       }
