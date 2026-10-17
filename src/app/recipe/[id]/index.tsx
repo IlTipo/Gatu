@@ -145,6 +145,12 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             onPress={() => router.push({ pathname: '/plan/add', params: { recipeId: r.id } })}
           />
           <CollectionButton target={{ recipeId: r.id }} />
+          <Button
+            label={r.shared_with_friends ? t('recipe.unshare') : t('recipe.shareOnProfile')}
+            variant={r.shared_with_friends ? 'ghost' : 'secondary'}
+            onPress={() => setShared.mutate(!r.shared_with_friends)}
+            loading={setShared.isPending}
+          />
           {r.sources?.url ? (
             <Button label={t('recipe.openSource')} variant="ghost" onPress={() => openExternalUrl(r.sources!.url)} />
           ) : null}

@@ -382,7 +382,9 @@
     "delete": "🗑️ Elimina ricetta",
     "deleting": "Elimino…",
     "deleteConfirm": "Eliminare \"{{title}}\"? Sparisce anche dal planner e dalle collezioni. Non si può annullare.",
-    "deleteConfirmShared": "Eliminare \"{{title}}\"? Sparisce anche dal planner, dalle collezioni e dal tuo profilo (con mi piace e commenti). Non si può annullare."
+    "deleteConfirmShared": "Eliminare \"{{title}}\"? Sparisce anche dal planner, dalle collezioni e dal tuo profilo (con mi piace e commenti). Non si può annullare.",
+    "shareOnProfile": "👥 Condividi sul tuo profilo",
+    "unshare": "🔒 Togli dal tuo profilo"
   },
   "place": {
     "verified": "Indirizzo verificato",
@@ -807,7 +809,8 @@
     "findFriends": "Aggiungi amici",
     "by": "Condivisa da {{name}}",
     "byHomemade": "✍️ Inventata da {{name}}",
-    "homemadeShort": "✍️ Inventata"
+    "homemadeShort": "✍️ Inventata",
+    "source": "📱 Da {{platform}}{{author}} · apri l'originale"
   },
   "refresh": {
     "release": "Rilascia per aggiornare",

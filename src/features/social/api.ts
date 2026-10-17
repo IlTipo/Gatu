@@ -60,6 +60,8 @@ export type FriendRecipe = {
   author_avatar?: string | null;
   is_mine?: boolean;
   shared?: boolean;
+  /** ricetta salvata da un social: da dove viene (link pubblico) */
+  source?: { platform: string; url: string; author_name: string | null } | null;
   ingredients: { quantity: number | null; unit: string | null; name: string; note: string | null; aisle: string; estimated: boolean }[];
   steps: { text: string; timer_seconds: number | null }[];
 };

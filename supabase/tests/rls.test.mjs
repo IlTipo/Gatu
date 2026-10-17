@@ -410,5 +410,12 @@ ok((await as(C, `select public.send_friend_request('@bruno_88') as r`)).rows[0].
 ok((await as(B, `select public.my_notifications() as n`)).rows[0].n.some((n) => n.kind === 'friend_request' && n.username === 'carla'), 'Bruno riceve la notifica della richiesta di amicizia');
 ok((await as(C, `select public.send_friend_request('@nessuno.qui') as r`)).rows[0].r === 'not_found', 'username inesistente');
 
+// --- Ricetta salvata da TikTok e condivisa: la fonte originale si vede ---
+const srcA = (await as(A, `insert into public.sources (url, platform, author_name) values ('https://www.tiktok.com/@chef/video/1', 'tiktok', 'chef') returning id`)).rows[0].id;
+const savedA = (await as(A, `insert into public.recipes (title, source_id, shared_with_friends) values ('Pasta virale', '${srcA}', true) returning id`)).rows[0].id;
+const viral = (await as(B, `select public.friend_recipe('${savedA}') as r`)).rows[0].r;
+ok(viral.source?.platform === 'tiktok' && viral.source?.author_name === 'chef' && viral.homemade === false, 'chi vede una ricetta salvata da TikTok trova anche la fonte originale');
+ok((await as(B, `select * from public.sources where id = '${srcA}'`)).rows.length === 0, 'il resto del link salvato (testo, risultato AI) resta privato');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

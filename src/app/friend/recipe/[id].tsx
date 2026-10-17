@@ -14,7 +14,10 @@ import { RecipeSocial } from '@/components/social/RecipeSocial';
 import { formatIngredient, formatMinutes } from '@/features/recipes/format';
 import { useCopyFriendRecipe, useFriendRecipe } from '@/features/social/api';
 import { errorMessage } from '@/lib/errors';
+import { openExternalUrl } from '@/lib/openUrl';
 import { radius, spacing, useTheme } from '@/theme';
+
+const PLATFORMS: Record<string, string> = { tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', pinterest: 'Pinterest', web: 'web' };
 
 /** Ricetta di un amico: si guarda e si può salvare nella propria libreria. */
 export default function FriendRecipeScreen() {
@@ -64,6 +67,16 @@ export default function FriendRecipeScreen() {
           </Pressable>
         ) : null}
         {facts.length ? <AppText tone="secondary">{facts.join(' · ')}</AppText> : null}
+        {r.source ? (
+          <Pressable onPress={() => openExternalUrl(r.source!.url)} accessibilityRole="link" hitSlop={6}>
+            <AppText tone="primary">
+              {t('friendsRecipes.source', {
+                platform: PLATFORMS[r.source.platform] ?? r.source.platform,
+                author: r.source.author_name ? ` · @${r.source.author_name.replace(/^@/, '')}` : '',
+              })}
+            </AppText>
+          </Pressable>
+        ) : null}
         {r.description ? <AppText>{r.description}</AppText> : null}
         {r.is_mine ? null : <Button label={t('friends.saveRecipe')} onPress={save} loading={copy.isPending} />}
         <InlineError message={copy.isError ? errorMessage(copy.error, t) : null} />
