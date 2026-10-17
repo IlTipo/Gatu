@@ -39,6 +39,18 @@
   </head>
 
   <body>
+    <script>
+      // Tema scelto nel Profilo (Chiaro/Scuro): applicato subito, così la pagina non lampeggia
+      try {
+        var theme = localStorage.getItem('morso.theme');
+        if (theme === 'light' || theme === 'dark') {
+          var bg = theme === 'dark' ? '#16110D' : '#FBF7F2';
+          document.documentElement.style.colorScheme = theme;
+          document.documentElement.style.backgroundColor = bg;
+          document.body.style.backgroundColor = bg;
+        }
+      } catch (e) {}
+    </script>
     <noscript>Per usare Morso devi attivare JavaScript.</noscript>
     <div id="root"></div>
   </body>

@@ -25,7 +25,7 @@ export function DiceModal({ recipes, onClose }: { recipes: LibraryRecipe[]; onCl
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('dice.close')}>
+      <Pressable style={[styles.backdrop, { backgroundColor: colors.overlay }]} onPress={onClose} accessibilityLabel={t('dice.close')}>
         {/* il riquadro intercetta i tocchi: toccare fuori chiude */}
         <Pressable style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <AppText variant="heading">{t('dice.title')}</AppText>
@@ -57,7 +57,7 @@ export function DiceModal({ recipes, onClose }: { recipes: LibraryRecipe[]; onCl
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   sheet: { width: '100%', maxWidth: 380, gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, borderWidth: 1 },
   card: { width: '62%', alignSelf: 'center' },
 });

@@ -178,7 +178,13 @@
     "title": "Profilo",
     "signedInAs": "Accesso effettuato come",
     "signOut": "Esci",
-    "version": "Versione {{version}}"
+    "version": "Versione {{version}}",
+    "theme": "Aspetto",
+    "themes": {
+      "system": "⚙️ Automatico",
+      "light": "☀️ Chiaro",
+      "dark": "🌙 Scuro"
+    }
   },
   "errors": {
     "invalidUrl": "Questo non sembra un link valido. Copia l'indirizzo completo (inizia con https://).",

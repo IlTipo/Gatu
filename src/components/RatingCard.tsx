@@ -106,7 +106,7 @@ export function Stars({ value, onChange, size = 34 }: { value: number | null; on
             accessibilityState={{ checked: value === n }}
             accessibilityLabel={value === n ? t('rating.clearStars') : t('rating.star', { count: n })}
             hitSlop={4}>
-            <AppText style={{ fontSize: size, lineHeight: size + 6, color: on ? '#F2A900' : colors.border }}>★</AppText>
+            <AppText style={{ fontSize: size, lineHeight: size + 6, color: on ? colors.star : colors.border }}>★</AppText>
           </Pressable>
         );
       })}

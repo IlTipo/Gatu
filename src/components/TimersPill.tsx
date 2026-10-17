@@ -34,6 +34,7 @@ export function TimersPill() {
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.pill,
+        { shadowColor: colors.shadow },
         { bottom: Math.max(insets.bottom, 8) + 76, backgroundColor: ringing ? colors.danger : colors.text, opacity: pressed ? 0.85 : 1 },
       ]}>
       <AppText variant="bodyStrong" style={{ color: ringing ? colors.onPrimary : colors.background }}>
@@ -50,7 +51,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
-    shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },

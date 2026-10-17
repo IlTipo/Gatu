@@ -42,7 +42,7 @@ export function RecipeCard({ recipe: r, onPress }: { recipe: LibraryRecipe; onPr
           </AppText>
         ) : null}
         {r.rating || r.status === 'tried' ? (
-          <AppText variant="caption" style={{ color: '#D99A00' }} numberOfLines={1}>
+          <AppText variant="caption" style={{ color: colors.star }} numberOfLines={1}>
             {r.rating ? starsText(r.rating) : '✓'}
           </AppText>
         ) : null}

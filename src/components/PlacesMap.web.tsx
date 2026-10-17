@@ -11,7 +11,7 @@ import { useTheme } from '@/theme';
 import type { PlacesMapProps } from './PlacesMap.types';
 
 export function PlacesMap({ places, me, onOpen, openLabel, focusKey }: PlacesMapProps) {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -41,6 +41,12 @@ export function PlacesMap({ places, me, onOpen, openLabel, focusKey }: PlacesMap
       layer.current = null;
     };
   }, []);
+
+  // tema scuro: la mappa diventa scura anche lei (colori invertiti, ma acqua e parchi restano riconoscibili)
+  useEffect(() => {
+    const pane = map.current?.getPanes().tilePane;
+    if (pane) pane.style.filter = scheme === 'dark' ? 'invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9)' : '';
+  }, [scheme]);
 
   // segnaposti (ricreati quando cambiano i posti o la posizione)
   useEffect(() => {

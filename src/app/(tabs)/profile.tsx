@@ -5,17 +5,21 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
+import { Chip } from '@/components/Chip';
 import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { errorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
-import { radius, spacing, useTheme } from '@/theme';
+import { radius, setThemePreference, spacing, type ThemePreference, useTheme, useThemePreference } from '@/theme';
+
+const THEMES: ThemePreference[] = ['system', 'light', 'dark'];
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { session } = useAuth();
+  const themePreference = useThemePreference();
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +43,19 @@ export default function ProfileScreen() {
           </AppText>
           <AppText variant="bodyStrong">{session?.user.email ?? '—'}</AppText>
         </View>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <AppText variant="bodyStrong">{t('profile.theme')}</AppText>
+          <View style={styles.chips}>
+            {THEMES.map((value) => (
+              <Chip
+                key={value}
+                label={t(`profile.themes.${value}`)}
+                selected={themePreference === value}
+                onPress={() => setThemePreference(value)}
+              />
+            ))}
+          </View>
+        </View>
         <InlineError message={error} />
         <Button label={t('profile.signOut')} variant="secondary" onPress={signOut} loading={signingOut} />
         <AppText variant="caption" tone="secondary" style={styles.version}>
@@ -53,4 +70,5 @@ const styles = StyleSheet.create({
   container: { gap: spacing.lg },
   card: { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, gap: spacing.xs },
   version: { textAlign: 'center' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
 });

@@ -6,6 +6,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/Screen';
@@ -32,6 +33,18 @@ export default function RootLayout() {
       border: colors.border,
     },
   };
+
+  // sul sito anche lo sfondo della pagina e la barra del browser seguono il tema scelto
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    document.documentElement.style.colorScheme = scheme;
+    document.documentElement.style.backgroundColor = colors.background;
+    document.body.style.backgroundColor = colors.background;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      m.removeAttribute('media');
+      m.setAttribute('content', colors.background);
+    });
+  }, [scheme, colors.background]);
 
   return (
     <ThemeProvider value={navigationTheme}>

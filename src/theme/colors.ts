@@ -15,6 +15,9 @@ export const palette = {
     success: '#3E8E5E',
     danger: '#C2362B',
     dangerSurface: '#FBE9E7',
+    star: '#D99A00',
+    overlay: 'rgba(43,29,20,0.45)',
+    shadow: '#5A3A22',
   },
   dark: {
     background: '#16110D',
@@ -29,6 +32,9 @@ export const palette = {
     success: '#6BBF8A',
     danger: '#F0796E',
     dangerSurface: '#3A1E1A',
+    star: '#F2B935',
+    overlay: 'rgba(0,0,0,0.6)',
+    shadow: '#000000',
   },
 } as const;
 

@@ -44,7 +44,7 @@ export function PlaceCard({ place: p, onPress }: { place: LibraryPlace; onPress:
           </AppText>
         ) : null}
         {p.rating || p.status === 'tried' ? (
-          <AppText variant="caption" style={{ color: '#D99A00' }} numberOfLines={1}>
+          <AppText variant="caption" style={{ color: colors.star }} numberOfLines={1}>
             {p.rating ? starsText(p.rating) : '✓'}
           </AppText>
         ) : null}

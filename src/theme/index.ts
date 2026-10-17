@@ -1,6 +1,7 @@
 import { useColorScheme } from 'react-native';
 
 import { palette, type ThemeColors } from './colors';
+import { resolveScheme, useThemePreference } from './preference';
 
 export const spacing = {
   xs: 4,
@@ -33,10 +34,11 @@ export type Theme = {
   colors: ThemeColors;
 };
 
-/** Restituisce colori e schema (chiaro/scuro) in base alle impostazioni del telefono. */
+/** Restituisce colori e schema (chiaro/scuro): la scelta del Profilo o, in automatico, quella del telefono. */
 export function useTheme(): Theme {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const scheme = resolveScheme(useThemePreference(), useColorScheme());
   return { scheme, colors: palette[scheme] };
 }
 
 export { palette };
+export { setThemePreference, useThemePreference, type ThemePreference } from './preference';
