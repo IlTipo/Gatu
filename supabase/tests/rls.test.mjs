@@ -500,5 +500,47 @@ const left = (await db.query(`select
   + (select count(*) from public.action_log where user_id = '${C}') as n`)).rows[0].n;
 ok(Number(left) === 0, 'account eliminato: non resta nessun dato di Carla');
 
+// --- Notifiche push ---
+const pushDue = async () => { await db.exec('reset role'); return db.query(`select public.push_due() as m`); };
+await as(B, `insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://push.example.com/b1', '${'x'.repeat(87)}', '${'y'.repeat(22)}')`);
+ok((await as(A, `select * from public.push_subscriptions`)).rows.length === 0, 'Anna NON vede i dispositivi di Bruno');
+await fails(() => as(A, `insert into public.push_subscriptions (user_id, endpoint, p256dh, auth) values ('${B}', 'https://push.example.com/finto', '${'x'.repeat(87)}', '${'y'.repeat(22)}')`), 'Anna NON può iscrivere Bruno alle notifiche');
+await fails(() => as(B, `insert into public.push_subscriptions (endpoint, p256dh, auth) values ('http://evil/', '${'x'.repeat(87)}', '${'y'.repeat(22)}')`), 'indirizzo di notifica non sicuro rifiutato');
+await fails(() => as(B, `select public.push_due()`), 'gli utenti NON possono chiamare push_due');
+await fails(() => as(B, `select * from public.app_releases`), 'le versioni si scrivono solo dal server');
+await as(B, `insert into public.notification_settings (timezone, quiet_enabled, lunch_time) values ('Pianeta/Marte', false, ((now() at time zone 'Europe/Rome')::time - interval '1 minute'))`);
+ok((await as(B, `select timezone from public.notification_settings`)).rows[0].timezone === 'Europe/Rome', 'fuso orario sconosciuto → Italia');
+ok((await as(A, `select * from public.notification_settings`)).rows.length === 0, 'Anna NON vede le scelte di Bruno');
+const bLunch = (await as(B, `insert into public.recipes (title) values ('Risotto') returning id`)).rows[0].id;
+await as(B, `insert into public.meal_plan_entries (date, slot, recipe_id) values ((now() at time zone 'Europe/Rome')::date, 'lunch', '${bLunch}')`);
+await as(A, `select public.toggle_like('${bPost}')`);
+await db.exec(`reset role; insert into public.app_releases (version, notes) values ('9.9.9', '{"Novità di prova"}')`);
+let due = (await pushDue()).rows[0].m;
+ok(due.some((m) => m.user_id === B && m.title === '❤️ Mi piace' && m.body.includes('Pizza di Bruno pubblica')), 'push: mi piace a Bruno');
+ok(due.some((m) => m.user_id === B && m.title === '🍝 Oggi a pranzo' && m.body === 'Risotto'), 'push: promemoria del pranzo con il piatto del planner');
+ok(due.some((m) => m.user_id === B && m.title === '🎉 È disponibile Morso 9.9.9'), 'push: versione nuova');
+ok(!due.some((m) => m.user_id === A), 'chi non ha dispositivi non riceve push');
+due = (await pushDue()).rows[0].m;
+ok(due.length === 0, 'ogni push parte una volta sola');
+// di notte: i social aspettano; in pausa: niente
+await as(B, `update public.notification_settings set quiet_enabled = true, quiet_start = ((now() at time zone 'Europe/Rome')::time - interval '1 hour'), quiet_end = ((now() at time zone 'Europe/Rome')::time + interval '1 hour')`);
+await db.exec(`reset role; update public.notifications set pushed_at = null where user_id = '${B}'`);
+ok((await pushDue()).rows[0].m.length === 0, 'ore di silenzio: nessuna notifica');
+await as(B, `update public.notification_settings set quiet_enabled = false`);
+ok((await pushDue()).rows[0].m.some((m) => m.user_id === B), 'finito il silenzio arrivano quelle in attesa');
+await db.exec(`reset role; update public.notifications set pushed_at = null where user_id = '${B}'`);
+await as(B, `update public.notification_settings set muted_until = now() + interval '1 day'`);
+ok((await pushDue()).rows[0].m.length === 0, 'pausa notifiche: nessuna notifica');
+// stesso telefono, altro account: il dispositivo passa al nuovo
+await as(A, `select public.register_push('https://push.example.com/b1', '${'x'.repeat(87)}', '${'y'.repeat(22)}')`);
+ok((await as(B, `select * from public.push_subscriptions`)).rows.length === 0 && (await as(A, `select * from public.push_subscriptions`)).rows.length === 1, 'dispositivo passato al nuovo account');
+await as(A, `delete from public.push_subscriptions`);
+await as(B, `select public.register_push('https://push.example.com/b1', '${'x'.repeat(87)}', '${'y'.repeat(22)}')`);
+// tanti mi piace sulla stessa ricetta → una notifica sola
+await as(B, `update public.notification_settings set muted_until = null, social = true`);
+await db.exec(`reset role; insert into public.notifications (user_id, actor_id, kind, recipe_id) select '${B}', '${A}', 'like', '${bPost}' from generate_series(1, 3)`);
+due = (await pushDue()).rows[0].m.filter((m) => m.title === '❤️ Mi piace');
+ok(due.length === 1 && due[0].body.includes('e altre 2 persone'), 'i mi piace si raggruppano');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

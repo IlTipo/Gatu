@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
 import { TERMS_VERSION } from '@/features/legal/content';
+import { shouldShowPushIntro } from '@/lib/push';
 import { useMyProfile } from '@/features/social/api';
 import { useUnreadCount } from '@/features/social/network';
 import { useNews, useUpdateState } from '@/lib/updates';
@@ -50,6 +51,8 @@ export default function TabsLayout() {
   // prima di tutto: Termini e Privacy accettati (di nuovo se sono cambiati)
   if (me.data && (!me.data.terms_accepted_at || me.data.terms_version !== TERMS_VERSION)) return <Redirect href="/consent" />;
   if (me.data && !me.data.username) return <Redirect href="/username" />;
+  // una volta sola: "Vuoi le notifiche?"
+  if (me.data && shouldShowPushIntro()) return <Redirect href="/push-intro" />;
   const socialBadge = unread.data ? (unread.data > 9 ? '9+' : String(unread.data)) : undefined;
 
   return (

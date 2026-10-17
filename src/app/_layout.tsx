@@ -112,6 +112,7 @@ function RootNavigator() {
           <Stack.Screen name="username" options={{ gestureEnabled: false }} />
           <Stack.Screen name="consent" options={{ gestureEnabled: false }} />
           <Stack.Screen name="blocked" />
+          <Stack.Screen name="push-intro" options={{ gestureEnabled: false }} />
           <Stack.Screen name="map" />
           <Stack.Screen name="search" />
           <Stack.Screen name="notifications" />

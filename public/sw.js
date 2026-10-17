@@ -76,16 +76,40 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-// Tocco sulla notifica: torna alla scheda di Morso già aperta (o la apre).
+// Notifica push dal server (anche ad app chiusa): mi piace, commenti, promemoria, versioni nuove.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  // solo indirizzi interni all'app (es. /planner): mai link verso altri siti
+  const path = typeof data.url === 'string' && /^\/[A-Za-z0-9/_-]*$/.test(data.url) ? data.url : '/';
+  event.waitUntil(
+    self.registration.showNotification(String(data.title || 'Morso').slice(0, 80), {
+      body: String(data.body || '').slice(0, 240),
+      tag: typeof data.tag === 'string' ? data.tag : undefined,
+      renotify: typeof data.tag === 'string',
+      icon: `${SCOPE}icons/icon-192.png`,
+      badge: `${SCOPE}icons/icon-192.png`,
+      data: { url: SCOPE.replace(/\/$/, '') + path },
+    }),
+  );
+});
+
+// Tocco sulla notifica: torna alla scheda di Morso già aperta (sulla pagina giusta) o la apre.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data && event.notification.data.url;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((tabs) => {
       for (const tab of tabs) {
-        if ('focus' in tab) return tab.focus();
+        if ('focus' in tab) {
+          return tab.focus().then((client) => (url && client && 'navigate' in client ? client.navigate(url) : client));
+        }
       }
-      return url ? self.clients.openWindow(url) : undefined;
+      return url ? self.clients.openWindow(url) : self.clients.openWindow(SCOPE);
     }),
   );
 });

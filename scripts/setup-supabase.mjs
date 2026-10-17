@@ -134,6 +134,56 @@ async function saveProjectRef(ref) {
   );
 }
 
+// Notifiche push: chiavi VAPID e segreto creati una volta sola (restano nel database, mai nel sito),
+// poi una "sveglia" ogni minuto (pg_cron) che chiama la funzione push.
+async function setupPush(ref) {
+  const [{ n }] = await sql(ref, "select count(*)::int as n from public.app_settings where key in ('vapid_public', 'vapid_private_jwk', 'cron_secret')");
+  if (n < 3) {
+    const { subtle } = globalThis.crypto;
+    const pair = await subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const pub = Buffer.from(await subtle.exportKey('raw', pair.publicKey)).toString('base64url');
+    const jwk = JSON.stringify(await subtle.exportKey('jwk', pair.privateKey));
+    const secret = Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
+    const values = [
+      ['vapid_public', pub],
+      ['vapid_private_jwk', jwk],
+      ['cron_secret', secret],
+    ];
+    // valori generati qui (base64url e JSON senza apici): niente da sfuggire
+    if (values.some(([, v]) => v.includes("'"))) throw new Error('valore inatteso');
+    await sql(
+      ref,
+      `insert into public.app_settings (key, value) values ${values.map(([k, v]) => `('${k}', '${v}')`).join(', ')}
+       on conflict (key) do nothing`,
+    );
+    console.log('✔ Chiavi per le notifiche create');
+  }
+  if (siteUrl && /^https:\/\/[a-z0-9.-]+(\/[A-Za-z0-9._-]*)*\/?$/.test(siteUrl)) {
+    await sql(
+      ref,
+      `insert into public.app_settings (key, value) values ('vapid_subject', '${siteUrl}') on conflict (key) do update set value = excluded.value`,
+    );
+  }
+  await sql(
+    ref,
+    `create extension if not exists pg_cron;
+     create extension if not exists pg_net with schema extensions;
+     select cron.schedule('morso-push', '* * * * *', $cron$
+       select net.http_post(
+         url := 'https://${ref}.supabase.co/functions/v1/push',
+         headers := jsonb_build_object('content-type', 'application/json',
+                                       'x-cron-secret', (select value from public.app_settings where key = 'cron_secret')),
+         body := '{}'::jsonb,
+         timeout_milliseconds := 25000
+       );
+     $cron$);
+     select cron.schedule('morso-cron-cleanup', '17 3 * * *', $cron$
+       delete from cron.job_run_details where end_time < now() - interval '2 days';
+     $cron$);`,
+  );
+  console.log('✔ Notifiche push attive (controllo ogni minuto)');
+}
+
 // ---------------------------------------------------------------- 3. accesso
 async function configureAuth(ref) {
   if (!siteUrl) return;
@@ -184,6 +234,7 @@ const ref = await findOrCreateProject();
 await waitUntilReady(ref);
 await applyMigrations(ref);
 await saveProjectRef(ref);
+await setupPush(ref);
 await configureAuth(ref);
 const url = `https://${ref}.supabase.co`;
 const key = await publicKey(ref);

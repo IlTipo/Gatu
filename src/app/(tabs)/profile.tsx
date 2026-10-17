@@ -11,6 +11,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Collapsible } from '@/components/Collapsible';
 import { FadeIn, PressableScale } from '@/components/Motion';
+import { NotificationsCard } from '@/components/NotificationsCard';
 import { PortionsCard } from '@/components/PortionsCard';
 import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
@@ -21,6 +22,7 @@ import { useChangeAvatar, useFriends, useMyProfile, useSendFeedback, useUpdateMy
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { pickRawPhoto, type RawPhoto } from '@/lib/photo';
+import { disablePush } from '@/lib/push';
 import { shareLink, siteUrl } from '@/lib/share';
 import { supabase } from '@/lib/supabase';
 import { CURRENT_VERSION, markNewsSeen, reloadApp, useNews, useUpdateState } from '@/lib/updates';
@@ -43,6 +45,8 @@ export default function ProfileScreen() {
   async function signOut() {
     setSigningOut(true);
     setError(null);
+    // le notifiche di questo account non devono più arrivare su questo dispositivo
+    await disablePush().catch(() => {});
     const { error: e } = await supabase.auth.signOut();
     if (e) {
       setError(errorMessage(e, t));
@@ -112,6 +116,7 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+        <NotificationsCard />
         <PortionsCard />
         <FeedbackCard />
         <PrivacyDataCard />
