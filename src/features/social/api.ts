@@ -139,6 +139,8 @@ export function useSendFeedback() {
 export function useFriends() {
   return useQuery({
     queryKey: keys.friends,
+    // le richieste nuove arrivano da sole (ogni 30 secondi, e quando torni nell'app)
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_friends');
       if (error) throw error;

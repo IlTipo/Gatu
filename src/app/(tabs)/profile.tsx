@@ -17,11 +17,13 @@ import { TextField } from '@/components/TextField';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useChangeAvatar, useFriends, useMyProfile, useSendFeedback, useUpdateMyProfile } from '@/features/social/api';
 import { errorMessage } from '@/lib/errors';
+import { openExternalUrl } from '@/lib/openUrl';
 import { shareLink, siteUrl } from '@/lib/share';
 import { supabase } from '@/lib/supabase';
 import { radius, setThemePreference, spacing, type ThemePreference, useTheme, useThemePreference } from '@/theme';
 
 const THEMES: ThemePreference[] = ['system', 'light', 'dark'];
+const AUTHOR_URL = 'https://www.instagram.com/endrisssss?mdxt=MW5xeDJjaHJhZGl5bA%3D%3D&utm_source=qr';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -111,6 +113,11 @@ export default function ProfileScreen() {
         <AppText variant="caption" tone="secondary" style={styles.version}>
           {t('profile.version', { version: Constants.expoConfig?.version ?? '?' })}
         </AppText>
+        <Pressable onPress={() => openExternalUrl(AUTHOR_URL)} accessibilityRole="link" style={styles.madeBy}>
+          <AppText variant="caption" tone="primary" style={styles.link}>
+            {t('profile.madeBy')}
+          </AppText>
+        </Pressable>
       </View>
     </Screen>
   );
@@ -236,5 +243,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, gap: 2 },
   badge: { width: 10, height: 10, borderRadius: 5 },
   version: { textAlign: 'center' },
+  madeBy: { alignSelf: 'center', marginTop: -spacing.md, padding: spacing.xs },
+  link: { textDecorationLine: 'underline' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
 });

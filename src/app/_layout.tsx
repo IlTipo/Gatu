@@ -6,11 +6,12 @@ import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-rout
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/AppText';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Screen } from '@/components/Screen';
 import { EmptyState } from '@/components/StateViews';
 import { TimersPill } from '@/components/TimersPill';
@@ -18,6 +19,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { takePendingInvite } from '@/features/social/invite';
 import { config } from '@/lib/env';
 import { registerServiceWorker, useOnline } from '@/lib/offline';
+import { reloadApp, useAppUpdates } from '@/lib/updates';
 import { queryClient } from '@/lib/queryClient';
 import { useTheme } from '@/theme';
 
@@ -118,7 +120,28 @@ function RootNavigator() {
       {signedIn ? <TimersPill /> : null}
       {signedIn ? <PendingInvite /> : null}
       <OfflineBanner />
+      <UpdateBanner />
+      <PullToRefresh />
     </>
+  );
+}
+
+/** Versione nuova pubblicata mentre l'app è aperta: un tocco e si aggiorna. */
+function UpdateBanner() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const available = useAppUpdates();
+  const insets = useSafeAreaInsets();
+  if (!available) return null;
+  return (
+    <Pressable
+      onPress={reloadApp}
+      accessibilityRole="button"
+      style={[styles.offline, { bottom: insets.bottom + 90, backgroundColor: colors.primary }]}>
+      <AppText variant="caption" tone="onPrimary" style={{ fontWeight: '700' }}>
+        {t('refresh.updateAvailable')}
+      </AppText>
+    </Pressable>
   );
 }
 

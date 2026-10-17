@@ -202,7 +202,8 @@
     "changePhoto": "Cambia foto profilo",
     "name": "Il tuo nome",
     "editName": "Cambia nome",
-    "noName": "Aggiungi il tuo nome"
+    "noName": "Aggiungi il tuo nome",
+    "madeBy": "Sviluppata da Endris"
   },
   "errors": {
     "invalidUrl": "Questo non sembra un link valido. Copia l'indirizzo completo (inizia con https://).",
@@ -800,5 +801,9 @@
     "by": "Condivisa da {{name}}",
     "byHomemade": "✍️ Inventata da {{name}}",
     "homemadeShort": "✍️ Inventata"
+  },
+  "refresh": {
+    "release": "Rilascia per aggiornare",
+    "updateAvailable": "✨ Nuova versione di Morso: tocca per aggiornare"
   }
 }

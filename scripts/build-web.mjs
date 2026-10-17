@@ -17,8 +17,15 @@ if (customDomain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-
   throw new Error(`CUSTOM_DOMAIN non valido: "${customDomain}" (es. morso.app, senza https://)`);
 }
 
+// Numero di questa pubblicazione: l'app lo confronta con /version.json per sapere se c'è una versione nuova
+const buildId = (process.env.GITHUB_SHA || String(Date.now())).slice(0, 12);
+
 rmSync(out, { recursive: true, force: true });
-execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out], { stdio: 'inherit' });
+execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out], {
+  stdio: 'inherit',
+  env: { ...process.env, EXPO_PUBLIC_BUILD_ID: buildId },
+});
+writeFileSync(join(out, 'version.json'), JSON.stringify({ build: buildId }));
 
 // 1. Sostituisce %BASE_URL% nella pagina.
 const indexPath = join(out, 'index.html');
