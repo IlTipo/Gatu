@@ -67,7 +67,7 @@ function SharedCard({ recipe: r }: { recipe: FriendSharedRecipe }) {
       </View>
       <View style={styles.body}>
         <View style={styles.author}>
-          <Avatar url={r.author_avatar} name={r.author_name} size={24} />
+          <Avatar url={r.author_avatar} name={r.author_name} size={24} zoomable />
           <AppText variant="caption" tone="secondary" numberOfLines={1} style={styles.flex}>
             {r.author_name ?? t('friends.someone')}
           </AppText>

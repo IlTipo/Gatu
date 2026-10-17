@@ -146,7 +146,7 @@ function RequestRow({ friend: f }: { friend: Friend }) {
   const respond = useRespondFriend();
   return (
     <View style={[styles.row, styles.card, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
-      <Avatar url={f.avatar_url} name={f.display_name} size={44} />
+      <Avatar url={f.avatar_url} name={f.display_name} size={44} zoomable />
       <View style={styles.flex}>
         <AppText variant="bodyStrong">{f.display_name ?? t('friends.someone')}</AppText>
         <AppText variant="caption" tone="secondary">
@@ -174,7 +174,7 @@ function FriendRow({ friend: f }: { friend: Friend }) {
       onPress={() => router.push({ pathname: '/friend/[id]', params: { id: f.user_id, friendship: f.id } })}
       accessibilityRole="button"
       style={[styles.row, styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Avatar url={f.avatar_url} name={f.display_name} size={44} />
+      <Avatar url={f.avatar_url} name={f.display_name} size={44} zoomable />
       <AppText variant="bodyStrong" style={styles.flex}>
         {f.display_name ?? t('friends.someone')}
       </AppText>
@@ -193,7 +193,7 @@ function OutgoingRow({ friend: f }: { friend: Friend }) {
   };
   return (
     <View style={styles.row}>
-      <Avatar url={f.avatar_url} name={f.display_name} size={32} />
+      <Avatar url={f.avatar_url} name={f.display_name} size={32} zoomable />
       <AppText style={styles.flex}>
         {f.display_name ?? t('friends.someone')} · {t('friends.waiting')}
       </AppText>

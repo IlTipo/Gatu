@@ -818,5 +818,9 @@
     "zoomIn": "Ingrandisci",
     "zoomOut": "Rimpicciolisci",
     "use": "Usa questa foto"
+  },
+  "avatar": {
+    "open": "Apri la foto di {{name}}",
+    "close": "Chiudi la foto"
   }
 }

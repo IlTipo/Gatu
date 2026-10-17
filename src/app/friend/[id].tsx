@@ -45,7 +45,7 @@ export default function FriendScreen() {
       <View style={styles.container}>
         <BackButton />
         <View style={styles.header}>
-          <Avatar url={feed.data?.avatar_url} name={feed.data?.display_name} size={72} />
+          <Avatar url={feed.data?.avatar_url} name={feed.data?.display_name} size={72} zoomable />
           <AppText variant="title" style={styles.flex}>
             {feed.data?.display_name ?? t('friends.someone')}
           </AppText>
