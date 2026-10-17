@@ -156,7 +156,18 @@
   "map": {
     "title": "Mappa",
     "emptyTitle": "Nessun posto sulla mappa",
-    "emptyBody": "I ristoranti che salvi compariranno qui."
+    "emptyBody": "I ristoranti che salvi, con un indirizzo trovato, compaiono qui.",
+    "all": "Tutti · {{count}}",
+    "wishlist": "❤️ Voglio andarci · {{count}}",
+    "whereAmI": "📍 Dove sono",
+    "locating": "Cerco…",
+    "showAll": "Mostra tutti",
+    "open": "Apri",
+    "missing_one": "{{count}} posto senza indirizzo verificato non è sulla mappa.",
+    "missing_other": "{{count}} posti senza indirizzo verificato non sono sulla mappa.",
+    "missingAction": "Apri un posto e tocca \"Cerca telefono, sito e orari\" per trovarne la posizione.",
+    "legend": "Arancione: posti salvati · Rosso: voglio andarci · Blu: tu",
+    "noneInFilter": "Nessun posto con questo filtro."
   },
   "profile": {
     "title": "Profilo",

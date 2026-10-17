@@ -163,6 +163,14 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 5. Hai cambiato il planner? **🔄 Aggiorna dal planner**: le dosi si ricalcolano, le spunte e le cose aggiunte a mano restano.
 6. **📋 Copia la lista** (sul telefono si apre la condivisione: WhatsApp, Note…) e **Togli i già presi** a fine spesa.
 
+## Cosa provare nella Fase 7 — Mappa
+
+1. Apri la scheda **Mappa**: tutti i posti salvati con un indirizzo trovato (mappe gratuite di OpenStreetMap). Arancione = salvato, rosso = "Voglio andarci".
+2. Filtra con **❤️ Voglio andarci** o per **città**; **Mostra tutti** reinquadra la mappa.
+3. **📍 Dove sono** aggiunge il tuo punto (blu) e inquadra te e i posti.
+4. Tocca un segnaposto → nome, cucina, prezzo, città → **Apri** per la pagina del posto.
+5. Sotto la mappa vedi quanti posti non hanno ancora un indirizzo verificato (dalla pagina del posto, **Cerca telefono, sito e orari** prova a trovarlo).
+
 ### Accesso con Google (facoltativo)
 
 1. Su [console.cloud.google.com](https://console.cloud.google.com): **APIs & Services → Credentials → Create credentials → OAuth client ID**, tipo **Web application**.
