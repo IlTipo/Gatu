@@ -21,6 +21,16 @@ if (!project || !/^[a-z0-9]([a-z0-9-]{0,56}[a-z0-9])?$/.test(project)) {
   console.error(`Nome del progetto non valido: "${project ?? ''}" (usa solo minuscole, numeri e trattini, es. morso).`);
   process.exit(1);
 }
+// il token è fatto solo di lettere/numeri inglesi, - e _ : se c'è altro è stato incollato male
+if (!/^[A-Za-z0-9_-]{20,200}$/.test(token)) {
+  const bad = [...token].findIndex((c) => !/[A-Za-z0-9_-]/.test(c));
+  console.error(
+    'CLOUDFLARE_API_TOKEN non sembra giusto' +
+      (bad >= 0 ? ` (il carattere n. ${bad + 1} non è una lettera/numero normale)` : '') +
+      ': ricopialo da Cloudflare con il tasto Copia, senza riscriverlo a mano (vedi README).',
+  );
+  process.exit(1);
+}
 if (!/^[0-9a-f]{32}$/.test(account)) {
   console.error('CLOUDFLARE_ACCOUNT_ID non sembra giusto: sono 32 caratteri tra 0-9 e a-f (vedi README).');
   process.exit(1);
