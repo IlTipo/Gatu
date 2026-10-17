@@ -74,6 +74,8 @@ export type Deps = {
   geocodeDelayMs: number;
   /** Email dei consigli al proprietario (null/assente: i consigli restano solo salvati). */
   mailer?: Mailer | null;
+  /** Cancella per sempre l'utente: file in Storage e account (i dati nel database se ne vanno con lui). */
+  deleteAccount?: ((userId: string) => Promise<void>) | null;
 };
 
 type Source = Record<string, unknown> & {
@@ -99,6 +101,8 @@ export type Analysis =
   | { status: 'error'; reason: string };
 
 const MAX_TEXT_LENGTH = 10_000;
+/** Richieste più grandi (foto da 5 MB in base64 + testo) vengono rifiutate prima di leggerle. */
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_GEOCODED_PLACES = 10;
 const IMAGE_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -134,9 +138,13 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     message?: unknown;
     commentId?: unknown;
     reason?: unknown;
+    confirm?: unknown;
   };
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return errorResponse('too_large', 413);
   try {
-    body = await req.json();
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_BYTES) return errorResponse('too_large', 413);
+    body = JSON.parse(raw);
   } catch {
     return errorResponse('invalid_body', 400);
   }
@@ -159,9 +167,22 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     }
     const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
     const sent = deps.mailer
-      ? await deps.mailer(feedbackMail({ message, name: profile?.display_name ?? null, email: user.email ?? null }))
+      ? await deps.mailer(feedbackMail({
+        message,
+        name: profile?.display_name ?? null,
+        // si risponde solo a un'email verificata (altrimenti chiunque potrebbe scriverne una non sua)
+        email: user.email_confirmed_at ? user.email ?? null : null,
+      }))
       : false;
     return json({ status: sent ? 'sent' : 'saved' });
+  }
+
+  // ---- Elimina account: foto, video e tutti i dati, per sempre (serve la conferma scritta)
+  if (body.action === 'delete_account') {
+    if (body.confirm !== 'ELIMINA') return errorResponse('invalid_body', 400);
+    if (!deps.deleteAccount) return errorResponse('not_configured', 503);
+    await deps.deleteAccount(user.id);
+    return json({ status: 'deleted' });
   }
 
   // ---- Segnalazione di un commento: il database controlla che tu possa vederlo (max 10 al giorno)
@@ -286,7 +307,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   }
 
   const thumbnailUrl = meta.thumbnailUrl
-    ? await copyThumbnail(meta.thumbnailUrl, user.id, supabase, deps.fetch).catch(() => meta.thumbnailUrl)
+    ? await copyThumbnail(meta.thumbnailUrl, user.id, supabase, deps.fetch).catch(() => null)
     : null;
 
   const sharedText = text && text !== rawUrl ? text : null;
@@ -642,20 +663,20 @@ async function copyThumbnail(
   userId: string,
   supabase: SupabaseClient,
   fetchImpl: FetchLike,
-): Promise<string> {
+): Promise<string | null> {
   const res = await safeFetch(url, fetchImpl, { headers: { accept: 'image/*' } });
   const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
   const ext = IMAGE_TYPES[type];
   const declaredSize = Number(res.headers.get('content-length') ?? 0);
   if (!res.ok || !ext || declaredSize > MAX_IMAGE_BYTES) {
     await res.body?.cancel();
-    return url;
+    return null;
   }
   const bytes = await readBytesLimited(res, MAX_IMAGE_BYTES);
-  if (!bytes || !bytes.byteLength) return url;
+  if (!bytes || !bytes.byteLength) return null;
 
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from('images').upload(path, bytes, { contentType: type, upsert: false });
-  if (error) return url;
+  if (error) return null;
   return supabase.storage.from('images').getPublicUrl(path).data.publicUrl;
 }

@@ -108,6 +108,8 @@ function RootNavigator() {
           <Stack.Screen name="friends-recipes" />
           <Stack.Screen name="stats" />
           <Stack.Screen name="username" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="consent" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="blocked" />
           <Stack.Screen name="map" />
           <Stack.Screen name="search" />
           <Stack.Screen name="notifications" />
@@ -121,6 +123,7 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Screen name="auth/callback" />
         <Stack.Screen name="invite/[code]" />
+        <Stack.Screen name="legal/[doc]" />
       </Stack>
       {signedIn ? <TimersPill /> : null}
       {signedIn ? <PendingInvite /> : null}

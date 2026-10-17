@@ -933,7 +933,8 @@ Deno.test('consigli: salvati e mandati per email (solo testo, oggetto su una rig
   assertEquals(res, { status: 'sent' });
   assertEquals(inserted, [{ table: 'feedback', row: { message: 'Aggiungete le ricette vegane' } }]);
   assertEquals(mails[0].subject, '💡 Morso: consiglio da Anna Rossi');
-  assertEquals(mails[0].replyTo, 'anna@example.com');
+  // email non verificata (registrazione senza conferma): non si usa per rispondere
+  assertEquals(mails[0].replyTo, null);
   assertEquals(mails[0].text.includes('Aggiungete le ricette vegane'), true);
 });
 
@@ -971,4 +972,23 @@ Deno.test('segnalazione di un commento: controllata dal database e mandata per e
   assertEquals((await handleRequest(post({ action: 'report_comment' }), d)).status, 400);
   const denied = deps({ ...client, rpc: () => Promise.resolve({ data: null, error: { message: 'not found' } }) } as never);
   assertEquals((await handleRequest(post({ action: 'report_comment', commentId: 'x' }), denied)).status, 404);
+});
+
+Deno.test('elimina account: serve la conferma scritta, poi cancella tutto', async () => {
+  const { client } = feedbackFake();
+  const d = deps(client as never);
+  const deleted: string[] = [];
+  d.deleteAccount = (id) => (deleted.push(id), Promise.resolve());
+  const bad = await handleRequest(post({ action: 'delete_account', confirm: 'si' }), d);
+  assertEquals(bad.status, 400);
+  assertEquals(deleted, []);
+  const res = await (await handleRequest(post({ action: 'delete_account', confirm: 'ELIMINA' }), d)).json();
+  assertEquals(res, { status: 'deleted' });
+  assertEquals(deleted, [USER]);
+});
+
+Deno.test('richieste enormi rifiutate prima di leggerle', async () => {
+  const { client } = feedbackFake();
+  const res = await handleRequest(post({ action: 'send_feedback', message: 'x'.repeat(9 * 1024 * 1024) }), deps(client as never));
+  assertEquals(res.status, 413);
 });

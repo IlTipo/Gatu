@@ -40,14 +40,39 @@ export class UnsafeUrlError extends Error {
 export async function resolvesToPublicIp(url: string): Promise<boolean> {
   const host = new URL(url).hostname.replace(/^\[|\]$/g, '').replace(/\.+$/, '');
   if (/^[\d.]+$/.test(host) || host.includes(':')) return isPublicIp(host);
-  const resolve = (globalThis as { Deno?: { resolveDns?: (h: string, t: 'A' | 'AAAA') => Promise<string[]> } }).Deno
-    ?.resolveDns;
-  if (!resolve) return true;
-  const answers = (
-    await Promise.all([resolve(host, 'A').catch(() => []), resolve(host, 'AAAA').catch(() => [])])
-  ).flat();
-  // nessuna risposta: il fetch fallirà da solo; se anche un solo indirizzo è interno, no
-  return answers.every((ip) => isPublicIp(ip));
+  const answers = await lookupHost(host);
+  // senza permesso di rete (solo nei test automatici) non si può controllare: decide il fetch finto
+  if (answers === null) return true;
+  // nessuna risposta o anche un solo indirizzo interno: no (un DNS che "non risponde" al controllo
+  // e poi risponde 127.0.0.1 al fetch non passa)
+  return answers.length > 0 && answers.every((ip) => isPublicIp(ip));
+}
+
+type Resolver = (h: string, t: 'A' | 'AAAA') => Promise<string[]>;
+
+/** Indirizzi IP di un nome: con il DNS di Deno o, se non c'è, con il DNS sicuro di Cloudflare (HTTPS). */
+async function lookupHost(host: string): Promise<string[] | null> {
+  const resolve = (globalThis as { Deno?: { resolveDns?: Resolver } }).Deno?.resolveDns ?? resolveOverHttps;
+  const results = await Promise.allSettled([resolve(host, 'A'), resolve(host, 'AAAA')]);
+  if (results.every((r) => r.status === 'rejected' && isNoPermission(r.reason))) return null;
+  return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+}
+
+function isNoPermission(e: unknown): boolean {
+  const errors = (globalThis as { Deno?: { errors?: Record<string, unknown> } }).Deno?.errors;
+  const kinds = [errors?.PermissionDenied, errors?.NotCapable].filter((k): k is new () => Error => typeof k === 'function');
+  return kinds.some((k) => e instanceof k);
+}
+
+async function resolveOverHttps(host: string, type: 'A' | 'AAAA'): Promise<string[]> {
+  const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(host)}&type=${type}`, {
+    headers: { accept: 'application/dns-json' },
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!res.ok) throw new Error('dns_failed');
+  const body = (await res.json()) as { Answer?: { type: number; data: string }[] };
+  const wanted = type === 'A' ? 1 : 28;
+  return (body.Answer ?? []).filter((a) => a.type === wanted).map((a) => a.data);
 }
 
 export async function safeFetch(url: string, fetchImpl: FetchLike, init: RequestInit = {}): Promise<Response> {

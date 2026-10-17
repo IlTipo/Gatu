@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.0.2",
+    "date": "2026-10-17",
+    "notes": [
+      "🔒 Più sicurezza e privacy: Informativa privacy e Termini d'uso (Profilo → Privacy e dati)",
+      "Scarica tutti i tuoi dati in un file oppure elimina l'account per sempre",
+      "🚫 Blocca le persone che ti danno fastidio (dal loro profilo)",
+      "Il link d'invito ora ti chiede prima di mandare la richiesta di amicizia",
+      "Diario, planner e ricette cucinate restano privati finché non scegli tu di condividerli"
+    ]
+  },
+  {
     "version": "1.0.1",
     "date": "2026-10-17",
     "notes": [

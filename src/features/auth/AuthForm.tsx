@@ -7,7 +7,9 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { EmptyState, InlineError } from '@/components/StateViews';
+import { ConsentCheck } from '@/components/ConsentCheck';
 import { TextField } from '@/components/TextField';
+import { acceptTerms } from '@/features/legal/api';
 import { config } from '@/lib/env';
 import { errorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
@@ -35,6 +37,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [checkEmail, setCheckEmail] = useState(false);
+  // registrazione: età minima e Termini/Privacy accettati
+  const [consent, setConsent] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
   // Google si mostra solo se è attivo su Supabase (altrimenti porterebbe a una pagina di errore)
   const [googleAvailable, setGoogleAvailable] = useState(false);
@@ -51,6 +55,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setFieldErrors(nextErrors);
     setError(null);
     if (Object.keys(nextErrors).length) return;
+    if (mode === 'sign-up' && !consent) {
+      setError(t('legal.consentRequired'));
+      return;
+    }
 
     setBusy('email');
     try {
@@ -64,8 +72,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
           options: { emailRedirectTo: getAuthRedirectUrl() },
         });
         if (e) throw e;
-        // Se nel progetto è attiva la conferma email, la sessione arriva solo dopo il clic sul link.
+        // Se nel progetto è attiva la conferma email, la sessione arriva solo dopo il clic sul link
+        // (e i termini si accettano al primo accesso).
         if (!data.session) setCheckEmail(true);
+        else await acceptTerms().catch(() => {});
       }
     } catch (e) {
       setError(errorMessage(e, t));
@@ -135,6 +145,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             returnKeyType="go"
             onSubmitEditing={submitEmail}
           />
+          {mode === 'sign-up' ? <ConsentCheck checked={consent} onChange={setConsent} /> : null}
           <Button
             label={mode === 'sign-in' ? t('auth.signIn') : t('auth.signUp')}
             onPress={submitEmail}
@@ -181,6 +192,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {mode === 'sign-in' ? t('auth.goToSignUp') : t('auth.goToSignIn')}
           </AppText>
         </Link>
+        <AppText variant="caption" tone="secondary" style={styles.legal}>
+          <Link href={{ pathname: '/legal/[doc]', params: { doc: 'privacy' } }}>{t('legal.privacy')}</Link>
+          {'  ·  '}
+          <Link href={{ pathname: '/legal/[doc]', params: { doc: 'terms' } }}>{t('legal.terms')}</Link>
+        </AppText>
       </View>
     </Screen>
   );
@@ -191,6 +207,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   logo: { width: 56, height: 56 },
   form: { gap: spacing.md },
+  legal: { textAlign: 'center' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   line: { flex: 1, height: StyleSheet.hairlineWidth * 2 },
   switch: { alignSelf: 'center', padding: spacing.sm },

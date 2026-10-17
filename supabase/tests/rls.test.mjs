@@ -39,7 +39,7 @@ const fails = async (fn, msg) => { try { await fn(); ok(false, msg + ' (NON è f
 
 const profiles = (await as(A, `select display_name from public.profiles`)).rows;
 ok(profiles.length === 1 && profiles[0].display_name === 'Anna Rossi', 'il profilo si crea da solo e Anna vede solo il suo');
-ok((await as(B, `select display_name from public.profiles`)).rows[0].display_name === 'bruno', 'nome di riserva dalla email');
+ok((await as(B, `select display_name from public.profiles`)).rows[0].display_name === null, 'il nome NON viene più preso dalla email');
 
 const src = (await as(A, `insert into public.sources (url, platform) values ('https://www.tiktok.com/@x/video/1','tiktok') returning id`)).rows[0].id;
 const rec = (await as(A, `insert into public.recipes (title, source_id, servings, tags) values ('Carbonara', '${src}', 2, '{veloce}') returning id, user_id`)).rows[0];
@@ -290,6 +290,9 @@ const recF = (await as(A, `insert into public.recipes (title, last_cooked_at, im
 await as(A, `insert into public.recipe_ingredients (recipe_id, position, name) values ('${recF}', 0, 'sfoglia')`);
 await as(A, `insert into public.meal_plan_entries (date, slot, recipe_id) values ('2026-10-21', 'dinner', '${recF}')`);
 await as(A, `insert into public.food_log (eaten_on, name, kcal) values ('2026-10-20', 'Mela', 80)`);
+const defaults = (await as(A, `select share_cooking, share_planner, share_diary from public.profiles`)).rows[0];
+ok(!defaults.share_cooking && !defaults.share_planner && !defaults.share_diary, 'privacy di base: chi si registra non condivide niente');
+await as(A, `update public.profiles set share_cooking = true, share_planner = true where id = '${A}'`);
 let feed = (await as(B, `select public.friend_feed('${A}', '2026-10-20') as f`)).rows[0].f;
 ok(feed.cooked.some((r) => r.title === 'Lasagne' && r.image_url === null), 'Bruno vede cosa ha cucinato Anna (foto esterne tolte)');
 ok(feed.planner.some((m) => m.title === 'Lasagne'), 'Bruno vede il planner di Anna');
@@ -416,6 +419,86 @@ const savedA = (await as(A, `insert into public.recipes (title, source_id, share
 const viral = (await as(B, `select public.friend_recipe('${savedA}') as r`)).rows[0].r;
 ok(viral.source?.platform === 'tiktok' && viral.source?.author_name === 'chef' && viral.homemade === false, 'chi vede una ricetta salvata da TikTok trova anche la fonte originale');
 ok((await as(B, `select * from public.sources where id = '${srcA}'`)).rows.length === 0, 'il resto del link salvato (testo, risultato AI) resta privato');
+
+// --- Controllo di sicurezza di ottobre: blocchi, limiti anti-spam, foto, termini ---
+const img = (ref, uid, file) => `https://${ref}.supabase.co/storage/v1/object/public/images/${uid}/${file}`;
+ok((await as(A, `select public.safe_image('${img('abc', A, 'x.jpg')}') as u`)).rows[0].u !== null, 'foto del progetto accettata');
+await db.exec(`reset role; insert into public.app_settings (key, value) values ('project_ref', 'abc')`);
+ok((await as(A, `select public.safe_image('${img('altro', A, 'x.jpg')}') as u`)).rows[0].u === null, 'foto di un ALTRO progetto Supabase rifiutata');
+ok((await as(A, `select public.safe_image('${img('abc', A, '..x.jpg')}') as u`)).rows[0].u === null, 'nome con ".." rifiutato');
+ok((await as(A, `select public.safe_image('${img('abc', A, 'x.jpg')}/../../y') as u`)).rows[0].u === null, 'percorso con "../" rifiutato');
+await fails(() => as(A, `update public.profiles set avatar_url = '${img('altro', A, 'a.jpg')}' where id = '${A}'`), 'foto profilo da un altro progetto rifiutata');
+await as(A, `update public.profiles set avatar_url = '${img('abc', A, 'avatar-2.jpg')}' where id = '${A}'`);
+ok(true, 'foto profilo dal nostro progetto accettata');
+// copertina copiata da TikTok: Anna la vede, gli altri no (diritti d'autore)
+const thumb = img('abc', A, 'thumb-1.jpg');
+const srcT = (await as(A, `insert into public.sources (url, platform, thumbnail_url) values ('https://www.tiktok.com/@chef/video/2', 'tiktok', '${thumb}') returning id`)).rows[0].id;
+const recT = (await as(A, `insert into public.recipes (title, source_id, image_url, shared_with_friends) values ('Copertina', '${srcT}', '${thumb}', true) returning id`)).rows[0].id;
+ok((await as(A, `select public.friend_recipe('${recT}') as r`)).rows[0].r.image_url === thumb, 'Anna vede la sua copertina');
+ok((await as(B, `select public.friend_recipe('${recT}') as r`)).rows[0].r.image_url === null, 'gli altri NON vedono la copertina copiata da TikTok');
+const photo = img('abc', A, 'foto-mia.jpg');
+const srcP = (await as(A, `insert into public.sources (url, platform, thumbnail_url) values ('${photo}', 'manual', '${photo}') returning id`)).rows[0].id;
+const recP = (await as(A, `insert into public.recipes (title, source_id, image_url, shared_with_friends) values ('Foto mia', '${srcP}', '${photo}', true) returning id`)).rows[0].id;
+ok((await as(B, `select public.friend_recipe('${recP}') as r`)).rows[0].r.image_url === photo, 'la foto scattata da Anna si vede');
+
+// ricette degli amici: solo quelle davvero cucinate o nel planner
+await as(A, `update public.profiles set share_cooking = true, share_planner = true where id = '${A}'`);
+const hidden = (await as(A, `insert into public.recipes (title) values ('Mai cucinata') returning id`)).rows[0].id;
+await fails(() => as(B, `select public.friend_recipe('${hidden}')`), 'l\'amico NON apre ricette mai cucinate né in planner');
+
+// termini
+await fails(() => as(A, `update public.profiles set terms_accepted_at = now() where id = '${A}'`), 'la data di accettazione NON si scrive a mano');
+await fails(() => as(A, `select public.accept_terms('boh')`), 'versione dei termini non valida');
+await as(A, `select public.accept_terms('2026-10-22')`);
+const terms = (await as(A, `select terms_accepted_at, terms_version from public.profiles`)).rows[0];
+ok(terms.terms_accepted_at && terms.terms_version === '2026-10-22', 'accettazione dei termini salvata con data e versione');
+
+// anteprima invito
+ok((await as(C, `select public.invite_preview('@anna.rossi') as p`)).rows[0].p.username === 'anna.rossi', 'il link d\'invito mostra chi invita');
+ok((await as(C, `select public.invite_preview('ZZZZZZZZ') as p`)).rows[0].p === null, 'codice d\'invito sbagliato');
+
+// blocchi
+await as(A, `select public.block_user('${C}')`);
+ok((await as(A, `select public.my_blocks() as b`)).rows[0].b.some((p) => p.id === C), 'Anna vede chi ha bloccato');
+ok((await as(C, `select * from public.blocks`)).rows.length === 0, 'Carla NON vede chi l\'ha bloccata');
+await fails(() => as(C, `select public.get_person('${A}')`), 'chi è bloccato NON apre il profilo');
+ok((await as(C, `select public.search_people('anna') as r`)).rows[0].r.length === 0, 'chi è bloccato NON trova la persona nella ricerca');
+await fails(() => as(C, `select public.follow_user('${A}')`), 'chi è bloccato NON può seguire');
+ok((await as(C, `select public.send_friend_request('@anna.rossi') as r`)).rows[0].r === 'not_found', 'chi è bloccato NON manda richieste di amicizia');
+await fails(() => as(C, `select public.add_comment('${annaPost}', 'ciao')`), 'chi è bloccato NON commenta');
+await fails(() => as(C, `select public.friend_recipe('${annaPost}')`), 'chi è bloccato NON vede le ricette (anche se il profilo è pubblico)');
+ok((await as(A, `select public.get_person('${C}') as p`)).rows[0].p.blocked === true, 'Anna vede che Carla è bloccata');
+await fails(() => as(A, `insert into public.blocks (blocker, blocked) values ('${A}', '${B}')`), 'i blocchi si creano solo con la funzione');
+await as(A, `select public.unblock_user('${C}')`);
+ok((await as(C, `select public.get_person('${A}') as p`)).rows[0].p.id === A, 'sbloccata: Carla rivede il profilo');
+
+// anti-spam: segui/smetti a raffica → una sola notifica al giorno
+await as(A, `update public.profiles set is_public = false where id = '${A}'`);
+await as(A, `delete from public.notifications`);
+for (let i = 0; i < 5; i++) {
+  await as(C, `select public.follow_user('${A}')`);
+  await as(C, `select public.unfollow_user('${A}')`);
+}
+ok((await as(A, `select public.my_notifications() as n`)).rows[0].n.filter((n) => n.username === 'carla').length === 1, 'segui/smetti a raffica: una sola notifica');
+await as(A, `update public.profiles set is_public = true where id = '${A}'`);
+// commenti cancellati contano lo stesso nel limite
+await db.exec(`reset role; insert into public.action_log (user_id, kind) select '${C}', 'comment_hour' from generate_series(1, 30)`);
+await fails(() => as(C, `select public.add_comment('${annaPost}', 'ancora')`), 'oltre 30 commenti all\'ora (anche se cancellati) → rifiutato');
+await fails(() => as(C, `select * from public.action_log`), 'il registro anti-spam NON si legge');
+
+// tetto AI per tutto il progetto
+await db.exec(`reset role; insert into public.app_settings (key, value) values ('global_daily_ai_limit', '3') on conflict (key) do update set value = excluded.value`);
+ok((await as(B, `select public.consume_extraction_quota(40) as ok`)).rows[0].ok === false, 'tetto giornaliero AI del progetto raggiunto: niente analisi');
+await db.exec(`reset role; delete from public.app_settings where key = 'global_daily_ai_limit'`);
+
+// elimina account: con l'utente se ne vanno tutti i suoi dati
+await db.exec(`reset role; delete from auth.users where id = '${C}'`);
+const left = (await db.query(`select
+  (select count(*) from public.profiles where id = '${C}') + (select count(*) from public.follows where follower = '${C}' or followee = '${C}')
+  + (select count(*) from public.recipe_comments where user_id = '${C}') + (select count(*) from public.recipe_likes where user_id = '${C}')
+  + (select count(*) from public.friendships where requester = '${C}' or addressee = '${C}') + (select count(*) from public.notifications where actor_id = '${C}' or user_id = '${C}')
+  + (select count(*) from public.action_log where user_id = '${C}') as n`)).rows[0].n;
+ok(Number(left) === 0, 'account eliminato: non resta nessun dato di Carla');
 
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

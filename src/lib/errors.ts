@@ -27,6 +27,8 @@ const CODE_TO_KEY = {
   report_limit: 'social.reportLimit',
   discover_busy: 'nearby.discoverBusy',
   discover_failed: 'nearby.discoverFailed',
+  too_large: 'errors.tooLarge',
+  not_configured: 'errors.notConfigured',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };
@@ -41,6 +43,8 @@ export function errorMessage(error: unknown, t: TFunction): string {
   if (e.name === 'VideoTooLargeError') return t('errors.videoTooLarge');
   if (e.name === 'VideoTypeError') return t('errors.invalidVideo');
   const message = typeof e.message === 'string' ? e.message : '';
+  // limiti anti-spam del database (segui, commenti, mi piace, blocchi…)
+  if (/too many (actions|comments)/i.test(message)) return t('errors.tooMany');
   if (e.name === 'AuthRetryableFetchError' || /network request failed|failed to fetch/i.test(message)) {
     return t('common.networkError');
   }

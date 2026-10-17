@@ -150,19 +150,24 @@ export type ExtractionInput = {
 
 const MAX_FIELD = 8000;
 
+/** Il testo del post non può chiudere i tag e scrivere istruzioni sue: < e > diventano ‹ e ›. */
+export function tagSafe(text: string): string {
+  return text.replace(/</g, '‹').replace(/>/g, '›');
+}
+
 /** Costruisce il messaggio per l'AI. Il contenuto del post sta dentro tag, separato dalle istruzioni. */
 export function buildUserMessage(input: ExtractionInput): string {
   const parts = [
-    `<link piattaforma="${input.platform}">${input.url}</link>`,
-    input.title ? `<titolo>${input.title.slice(0, 1000)}</titolo>` : null,
-    input.author ? `<autore>${input.author.slice(0, 200)}</autore>` : null,
-    input.description ? `<caption>${input.description.slice(0, MAX_FIELD)}</caption>` : null,
+    `<link piattaforma="${input.platform}">${tagSafe(input.url)}</link>`,
+    input.title ? `<titolo>${tagSafe(input.title.slice(0, 1000))}</titolo>` : null,
+    input.author ? `<autore>${tagSafe(input.author.slice(0, 200))}</autore>` : null,
+    input.description ? `<caption>${tagSafe(input.description.slice(0, MAX_FIELD))}</caption>` : null,
     input.sharedText
-      ? `<testo_incollato_dall_utente>${input.sharedText.slice(0, MAX_FIELD)}</testo_incollato_dall_utente>`
+      ? `<testo_incollato_dall_utente>${tagSafe(input.sharedText.slice(0, MAX_FIELD))}</testo_incollato_dall_utente>`
       : null,
     input.recipeJsonLd
       ? `<scheda_ricetta_schema_org>${
-        JSON.stringify(compactJsonLd(input.recipeJsonLd)).slice(0, MAX_FIELD)
+        tagSafe(JSON.stringify(compactJsonLd(input.recipeJsonLd)).slice(0, MAX_FIELD))
       }</scheda_ricetta_schema_org>`
       : null,
   ].filter(Boolean);

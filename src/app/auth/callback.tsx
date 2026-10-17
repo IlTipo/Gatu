@@ -22,7 +22,8 @@ export default function AuthCallbackScreen() {
     async function run() {
       const parsed = params.code ? { kind: 'code' as const, code: params.code } : parseAuthCallback(url ?? '');
       if (parsed.kind === 'error') {
-        setError(parsed.message);
+        // il testo nel link può scriverlo chiunque: mostriamo solo un messaggio nostro
+        setError(t('auth.callbackFailed'));
         return;
       }
       if (parsed.kind === 'code') {

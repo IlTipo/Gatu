@@ -15,6 +15,8 @@ export type PersonCard = {
   is_public: boolean;
   following: Following;
   is_friend: boolean;
+  /** l'ho bloccata io */
+  blocked?: boolean;
 };
 export type Person = PersonCard & {
   bio: string | null;
@@ -131,6 +133,36 @@ export function useFollow() {
 export function useUnfollow() {
   const refresh = useRefreshPeople();
   return useMutation({ mutationFn: (userId: string) => rpc<void>('unfollow_user', { p_user: userId }), onSettled: refresh });
+}
+
+/** Blocca / sblocca una persona: niente più follow, amicizia, commenti e notifiche tra voi. */
+export function useBlock() {
+  const refresh = useRefreshPeople();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, block }: { userId: string; block: boolean }) =>
+      rpc<void>(block ? 'block_user' : 'unblock_user', { p_user: userId }),
+    onSettled: () => {
+      refresh();
+      for (const key of [['blocks'], ['friends'], ['notifications'], ['recipe-social']]) queryClient.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
+export function useMyBlocks() {
+  return useQuery({
+    queryKey: ['blocks'],
+    queryFn: () => rpc<{ id: string; username: string | null; display_name: string | null; avatar_url: string | null }[]>('my_blocks'),
+  });
+}
+
+/** Di chi è un link d'invito (codice amico o @username): null se non esiste. */
+export function useInvitePreview(code: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['invite-preview', code],
+    enabled: enabled && !!code,
+    queryFn: () => rpc<PersonCard | null>('invite_preview', { p_code: code }),
+  });
 }
 
 export function useFollowRequests() {

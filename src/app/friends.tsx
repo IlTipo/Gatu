@@ -225,7 +225,14 @@ function PrivacyCard() {
           <Switch
             value={!!me.data?.[item.key]}
             disabled={!me.data}
-            onValueChange={(value) => update.mutate({ [item.key]: value })}
+            onValueChange={async (value) => {
+              // il diario può dire qualcosa sulla salute: si condivide solo con un consenso esplicito
+              if (item.key === 'share_diary' && value) {
+                const ok = await confirm(t('friends.diaryConsent'), { ok: t('friends.diaryConsentOk'), cancel: t('common.cancel') });
+                if (!ok) return;
+              }
+              update.mutate({ [item.key]: value });
+            }}
             trackColor={{ true: colors.primary, false: colors.border }}
             thumbColor={colors.surface}
             accessibilityLabel={item.label}

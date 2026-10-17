@@ -92,3 +92,21 @@ Deno.test('Se la rete fallisce salva comunque il link (senza dati)', async () =>
   assertEquals(meta.url, 'https://www.example.com/ricetta');
   assertEquals(meta.needsText, true);
 });
+
+Deno.test('DNS: nessuna risposta o indirizzi interni → link rifiutato; indirizzi pubblici → ok', async () => {
+  const deno = Deno as unknown as { resolveDns: (h: string, t: string) => Promise<string[]> };
+  const original = deno.resolveDns;
+  const { resolvesToPublicIp } = await import('../_shared/metadata.ts');
+  try {
+    deno.resolveDns = () => Promise.reject(new Error('SERVFAIL'));
+    assertEquals(await resolvesToPublicIp('https://attacker.example/'), false);
+    deno.resolveDns = (_h, t) => Promise.resolve(t === 'A' ? ['127.0.0.1'] : []);
+    assertEquals(await resolvesToPublicIp('https://attacker.example/'), false);
+    deno.resolveDns = (_h, t) => Promise.resolve(t === 'A' ? ['93.184.216.34', '169.254.169.254'] : []);
+    assertEquals(await resolvesToPublicIp('https://attacker.example/'), false);
+    deno.resolveDns = (_h, t) => Promise.resolve(t === 'A' ? ['93.184.216.34'] : []);
+    assertEquals(await resolvesToPublicIp('https://www.example.com/'), true);
+  } finally {
+    deno.resolveDns = original;
+  }
+});

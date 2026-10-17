@@ -14,7 +14,8 @@ import { Screen } from '@/components/Screen';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
 import { FollowButton } from '@/components/social/FollowButton';
 import { useMyProfile, useSendFriendRequest } from '@/features/social/api';
-import { type Person, usePerson } from '@/features/social/network';
+import { type Person, useBlock, usePerson } from '@/features/social/network';
+import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -47,6 +48,14 @@ function Profile({ person: p }: { person: Person }) {
   const me = useMyProfile();
   const friendRequest = useSendFriendRequest();
   const [friendMessage, setFriendMessage] = useState<string | null>(null);
+  const block = useBlock();
+  const toggleBlock = async () => {
+    if (!p.blocked) {
+      const ok = await confirm(t('block.confirm', { username: p.username }), { ok: t('block.block'), cancel: t('common.cancel') });
+      if (!ok) return;
+    }
+    block.mutate({ userId: p.id, block: !p.blocked });
+  };
   // griglia a 3 colonne (larghezza dello schermo, massimo 720 come le altre pagine)
   const cell = (Math.min(width, 720) - spacing.lg * 2 - spacing.xs * 2) / 3;
 
@@ -73,6 +82,13 @@ function Profile({ person: p }: { person: Person }) {
 
       {p.is_me ? (
         <Button label={t('social.editProfile')} variant="secondary" onPress={() => router.push('/profile')} />
+      ) : p.blocked ? (
+        <View style={styles.actions}>
+          <AppText tone="secondary" style={styles.flex}>
+            {t('block.youBlocked')}
+          </AppText>
+          <Button label={t('block.unblock')} variant="secondary" onPress={toggleBlock} loading={block.isPending} />
+        </View>
       ) : (
         <View style={styles.actions}>
           <FollowButton userId={p.id} following={p.following} isPublic={p.is_public} />
@@ -92,7 +108,7 @@ function Profile({ person: p }: { person: Person }) {
       {friendMessage ? <AppText tone="secondary">{friendMessage}</AppText> : null}
       <InlineError message={friendRequest.isError ? errorMessage(friendRequest.error, t) : null} />
 
-      {p.can_view ? (
+      {p.blocked ? null : p.can_view ? (
         p.recipes.length ? (
           <View style={styles.grid}>
             {p.recipes.map((r, i) => (
@@ -142,6 +158,12 @@ function Profile({ person: p }: { person: Person }) {
           {t('social.youArePrivate')}
         </AppText>
       ) : null}
+      {!p.is_me && !p.blocked ? (
+        <View style={styles.blockRow}>
+          <Button label={t('block.blockUser', { username: p.username })} variant="ghost" onPress={toggleBlock} loading={block.isPending} />
+        </View>
+      ) : null}
+      <InlineError message={block.isError ? errorMessage(block.error, t) : null} />
     </>
   );
 }
@@ -158,6 +180,8 @@ function Count({ value, label }: { value: number; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  blockRow: { alignItems: 'center', marginTop: spacing.lg },
   container: { gap: spacing.md, paddingBottom: spacing.xl },
   top: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   counts: { flex: 1, flexDirection: 'row', justifyContent: 'space-around' },

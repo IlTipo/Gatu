@@ -57,10 +57,14 @@ export function startCachePersistence(client: QueryClient, userId: string): () =
 }
 
 /** All'uscita: niente dati di questo utente restano sul dispositivo. */
+const PERSONAL_KEYS = ['morso-cooking-timers', 'morso.aisles'];
+
 export function clearPersistedCache() {
   if (!isWeb) return;
   try {
     for (const key of Object.keys(window.localStorage)) if (key.startsWith(PREFIX)) window.localStorage.removeItem(key);
+    // anche timer di cucina (con i nomi delle ricette) e ordine dei reparti: restano solo a chi è collegato
+    for (const key of PERSONAL_KEYS) window.localStorage.removeItem(key);
   } catch {
     // niente da fare
   }

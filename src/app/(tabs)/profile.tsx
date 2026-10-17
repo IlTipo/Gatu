@@ -16,6 +16,7 @@ import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
 import { TextField } from '@/components/TextField';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useDeleteAccount, useExportMyData } from '@/features/legal/api';
 import { useChangeAvatar, useFriends, useMyProfile, useSendFeedback, useUpdateMyProfile } from '@/features/social/api';
 import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
@@ -113,6 +114,7 @@ export default function ProfileScreen() {
         </View>
         <PortionsCard />
         <FeedbackCard />
+        <PrivacyDataCard />
 
         <InlineError message={error} />
         <Button label={t('profile.signOut')} variant="ghost" onPress={signOut} loading={signingOut} />
@@ -291,6 +293,42 @@ function SocialSettings() {
       </View>
       <InlineError message={update.isError ? errorMessage(update.error, t) : null} />
     </View>
+  );
+}
+
+/** Privacy e dati: pagine legali, persone bloccate, scarica i miei dati, elimina account. */
+function PrivacyDataCard() {
+  const { t } = useTranslation();
+  const exportData = useExportMyData();
+  const deleteAccount = useDeleteAccount();
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const canDelete = confirmText.trim().toUpperCase() === 'ELIMINA';
+  return (
+    <Collapsible title={t('legal.dataTitle')} summary={t('legal.dataSummary')}>
+      <Button label={t('legal.privacy')} variant="ghost" onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: 'privacy' } })} />
+      <Button label={t('legal.terms')} variant="ghost" onPress={() => router.push({ pathname: '/legal/[doc]', params: { doc: 'terms' } })} />
+      <Button label={t('block.title')} variant="ghost" onPress={() => router.push('/blocked')} />
+      <Button label={t('legal.export')} variant="secondary" onPress={() => exportData.mutate()} loading={exportData.isPending} />
+      {exportData.isSuccess ? <AppText tone="secondary">{t('legal.exportDone')}</AppText> : null}
+      <InlineError message={exportData.isError ? errorMessage(exportData.error, t) : null} />
+      {deleting ? (
+        <>
+          <AppText tone="secondary">{t('legal.deleteWarning')}</AppText>
+          <TextField label={t('legal.deleteType')} value={confirmText} onChangeText={setConfirmText} autoCapitalize="characters" />
+          <Button
+            label={t('legal.deleteForever')}
+            onPress={() => deleteAccount.mutate()}
+            disabled={!canDelete}
+            loading={deleteAccount.isPending}
+          />
+          <Button label={t('common.cancel')} variant="ghost" onPress={() => setDeleting(false)} />
+          <InlineError message={deleteAccount.isError ? errorMessage(deleteAccount.error, t) : null} />
+        </>
+      ) : (
+        <Button label={t('legal.delete')} variant="ghost" onPress={() => setDeleting(true)} />
+      )}
+    </Collapsible>
   );
 }
 

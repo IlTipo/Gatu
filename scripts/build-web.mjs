@@ -6,6 +6,7 @@
 //   CUSTOM_DOMAIN  facoltativo, es. morso.app: scrive il file CNAME per GitHub Pages
 //   HOSTING        "cloudflare" per Cloudflare Pages (senza 404.html: lì ogni pagina apre l'app da sola)
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -88,5 +89,52 @@ const manifest = {
   ],
 };
 writeFileSync(join(out, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
+
+// 5. Intestazioni di sicurezza (le legge Cloudflare Pages; su GitHub Pages il file viene ignorato).
+//    La pagina può parlare solo con il sito stesso, con Supabase e con OpenStreetMap; niente iframe altrui.
+const supabaseOrigin = (() => {
+  try {
+    return new URL(process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').origin;
+  } catch {
+    return '';
+  }
+})();
+const inlineScripts = [...readFileSync(indexPath, 'utf8').matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+  .map((m) => m[1])
+  .filter((code) => code.trim())
+  .map((code) => `'sha256-${createHash('sha256').update(code).digest('base64')}'`);
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' ${inlineScripts.join(' ')}`.trim(),
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  `connect-src 'self' ${supabaseOrigin} ${supabaseOrigin.replace(/^https:/, 'wss:')} https://overpass-api.de`.replace(/\s+/g, ' ').trim(),
+  "media-src 'self' blob: https:",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+writeFileSync(
+  join(out, '_headers'),
+  [
+    '/*',
+    `  Content-Security-Policy: ${csp}`,
+    '  X-Frame-Options: DENY',
+    '  X-Content-Type-Options: nosniff',
+    '  Referrer-Policy: strict-origin-when-cross-origin',
+    '  Permissions-Policy: geolocation=(self), camera=(self), microphone=(), payment=(), usb=()',
+    '  Strict-Transport-Security: max-age=31536000; includeSubDomains',
+    '  Cross-Origin-Opener-Policy: same-origin',
+    '/sw.js',
+    '  Cache-Control: no-cache',
+    '/version.json',
+    '  Cache-Control: no-store',
+    '',
+  ].join('\n'),
+);
 
 console.log(`\n✔ Sito pronto in ${out}/ (percorso: "${baseUrl || '/'}"${customDomain ? `, dominio: ${customDomain}` : ''})`);

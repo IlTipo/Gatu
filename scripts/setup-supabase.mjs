@@ -125,6 +125,15 @@ async function applyMigrations(ref) {
   }
 }
 
+// Il database mostra agli altri solo le foto di QUESTO progetto (non di altri progetti Supabase).
+async function saveProjectRef(ref) {
+  if (!/^[a-z0-9]+$/.test(ref)) throw new Error('Codice del progetto Supabase non valido.');
+  await sql(
+    ref,
+    `insert into public.app_settings (key, value) values ('project_ref', '${ref}') on conflict (key) do update set value = excluded.value`,
+  );
+}
+
 // ---------------------------------------------------------------- 3. accesso
 async function configureAuth(ref) {
   if (!siteUrl) return;
@@ -174,6 +183,7 @@ async function publicKey(ref) {
 const ref = await findOrCreateProject();
 await waitUntilReady(ref);
 await applyMigrations(ref);
+await saveProjectRef(ref);
 await configureAuth(ref);
 const url = `https://${ref}.supabase.co`;
 const key = await publicKey(ref);

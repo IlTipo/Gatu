@@ -46,7 +46,8 @@
       "oauthCancelled": "Accesso annullato.",
       "oauthFailed": "Accesso non riuscito. Riprova.",
       "appleUnavailable": "L'accesso con Apple non è disponibile su questo dispositivo."
-    }
+    },
+    "callbackFailed": "Accesso non riuscito o annullato. Riprova."
   },
   "tabs": {
     "library": "Libreria",
@@ -217,7 +218,10 @@
     "locationDenied": "Per calcolare le distanze serve il permesso di usare la posizione (puoi darlo dalle impostazioni del browser).",
     "locationUnavailable": "Non riesco a trovare la tua posizione in questo momento.",
     "videoTooLarge": "Il video è troppo grande (massimo 50 MB). Prova con un video più corto.",
-    "invalidVideo": "Questo video non va bene: usa un video MP4, MOV o WebM."
+    "invalidVideo": "Questo video non va bene: usa un video MP4, MOV o WebM.",
+    "tooLarge": "È troppo grande: prova con una foto o un testo più piccolo.",
+    "notConfigured": "Questa funzione non è ancora attiva sul server. Riprova più tardi.",
+    "tooMany": "Hai fatto troppe azioni in poco tempo: riprova più tardi."
   },
   "add": {
     "title": "Aggiungi un link",
@@ -760,7 +764,12 @@
       "self": "Questo è il tuo codice 😄",
       "limit": "Troppe richieste in attesa: aspetta che qualcuno risponda."
     },
-    "creations": "👩‍🍳 Le sue ricette"
+    "creations": "👩‍🍳 Le sue ricette",
+    "inviteTitle": "Invito su Morso",
+    "inviteHint": "Vuoi diventare amico? Vedrete le ricette che ognuno sceglie di condividere.",
+    "sendRequest": "Manda richiesta di amicizia",
+    "diaryConsent": "Il diario calorie può dire qualcosa sulla tua salute. Vuoi davvero mostrarlo ai tuoi amici? Puoi toglierlo quando vuoi.",
+    "diaryConsentOk": "Sì, condividi"
   },
   "stats": {
     "title": "📊 Le tue statistiche",
@@ -911,5 +920,35 @@
     "bio": "Bio",
     "bioPlaceholder": "es. Amo la pasta fresca e i dolci della nonna 🍝",
     "reportLimit": "Hai già fatto molte segnalazioni oggi: riprova domani."
+  },
+  "legal": {
+    "privacy": "Informativa privacy",
+    "terms": "Termini d'uso",
+    "consent": "Ho almeno {{age}} anni e accetto Termini e Privacy",
+    "consentStart": "Ho almeno {{age}} anni e accetto i ",
+    "consentAnd": " e l'",
+    "consentRequired": "Per registrarti conferma l'età e accetta Termini e Privacy.",
+    "gateTitle": "Prima di continuare",
+    "gateBody": "Abbiamo scritto le regole di Morso e come trattiamo i tuoi dati. Leggile e, se sei d'accordo, accetta per continuare.",
+    "gateContinue": "Accetto e continuo",
+    "gateDecline": "Non accetto (esci)",
+    "dataTitle": "Privacy e dati",
+    "dataSummary": "Informativa, persone bloccate, scarica o elimina i tuoi dati",
+    "export": "Scarica i miei dati",
+    "exportDone": "Fatto: il file con tutti i tuoi dati è stato scaricato.",
+    "delete": "Elimina account",
+    "deleteWarning": "Verranno cancellati per sempre account, ricette, locali, foto, diario, amici, commenti e tutto il resto. Non si può annullare.",
+    "deleteType": "Scrivi ELIMINA per confermare",
+    "deleteForever": "Elimina per sempre"
+  },
+  "block": {
+    "title": "Persone bloccate",
+    "none": "Nessuna persona bloccata",
+    "noneBody": "Dal profilo di una persona puoi bloccarla: non potrà più vederti, seguirti, scriverti o mandarti richieste.",
+    "block": "Blocca",
+    "unblock": "Sblocca",
+    "blockUser": "Blocca @{{username}}",
+    "confirm": "Bloccare @{{username}}? Non potrà più vedere il tuo profilo, seguirti, commentare o mandarti richieste. Amicizia e follow tra voi verranno tolti.",
+    "youBlocked": "Hai bloccato questa persona."
   }
 }

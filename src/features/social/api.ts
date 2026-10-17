@@ -17,6 +17,9 @@ export type MyProfile = {
   username: string | null;
   bio: string | null;
   is_public: boolean;
+  /** quando ha accettato Termini e Privacy (null: non ancora) e quale versione */
+  terms_accepted_at: string | null;
+  terms_version: string | null;
 };
 type ProfilePatch = Partial<
   Pick<MyProfile, 'display_name' | 'avatar_url' | 'share_cooking' | 'share_planner' | 'share_diary' | 'username' | 'bio' | 'is_public'>
@@ -83,7 +86,9 @@ export function useMyProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url, friend_code, share_cooking, share_planner, share_diary, username, bio, is_public')
+        .select(
+          'display_name, avatar_url, friend_code, share_cooking, share_planner, share_diary, username, bio, is_public, terms_accepted_at, terms_version',
+        )
         .eq('id', uid!)
         .single();
       if (error) throw error;

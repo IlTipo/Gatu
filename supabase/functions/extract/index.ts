@@ -38,6 +38,29 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FEEDBACK_EMAIL = Deno.env.get('FEEDBACK_EMAIL')?.trim();
 const mailer = RESEND_API_KEY && FEEDBACK_EMAIL ? createResendMailer(RESEND_API_KEY, FEEDBACK_EMAIL, fetch) : null;
 
+// "Elimina account": serve la chiave di servizio (Supabase la mette da sola nelle funzioni, mai nel sito)
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const admin = SERVICE_KEY
+  ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null;
+
+async function deleteAccount(userId: string) {
+  if (!admin) throw new Error('service key missing');
+  // prima le foto e i video della sua cartella, poi l'account (i dati nel database se ne vanno con lui)
+  for (const bucket of ['images', 'videos']) {
+    for (;;) {
+      const { data, error } = await admin.storage.from(bucket).list(userId, { limit: 1000 });
+      if (error) throw error;
+      const files = (data ?? []).filter((f) => f.id).map((f) => `${userId}/${f.name}`);
+      if (!files.length) break;
+      const { error: removeError } = await admin.storage.from(bucket).remove(files);
+      if (removeError) throw removeError;
+    }
+  }
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw error;
+}
+
 Deno.serve(async (req) => {
   try {
     return await handleRequest(req, {
@@ -47,6 +70,7 @@ Deno.serve(async (req) => {
       recipeTools,
       geocoder,
       mailer,
+      deleteAccount: admin ? deleteAccount : null,
       dailyLimit: DAILY_LIMIT,
       geocodeDelayMs: GOOGLE_PLACES_API_KEY ? 0 : 1100,
       supabaseForRequest(request) {
