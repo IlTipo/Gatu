@@ -123,14 +123,14 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 
 1. Apri **Libreria**: in alto la ricerca, sotto le schede **Ricette · Posti · Link** (con quanti ne hai).
 2. **Cerca**: scrivi "zucchine" o "cocco" → trova le ricette anche dagli ingredienti; nei Posti cerca per nome, città, cucina o piatto. Maiuscole e accenti non contano ("creme" trova "Crème brûlée").
-3. **Filtri**: nelle Ricette tocca le etichette (es. *veloce*, *vegetariano*; se ne scegli due, devono esserci entrambe). Nei Posti filtra per **città** o **❤️ Voglio andarci**. **Togli i filtri** li azzera.
+3. **Filtri**: nei Posti filtra per **città** o **❤️ Voglio andarci**. **Togli i filtri** li azzera.
 4. **Collezioni**: tocca **+ Nuova collezione**, dai un nome (es. "Cene veloci") e scegli un'icona → **Crea collezione**.
 5. Apri una ricetta o un posto → **📁 Aggiungi a una collezione** → tocca le collezioni per mettere o togliere (puoi anche crearne una al volo) → **Fatto**. Una collezione può mescolare ricette e posti.
 6. In Libreria tocca la collezione: vedi solo ciò che contiene. **✏️ Modifica collezione** per rinominarla o eliminarla (ricette e posti restano nella Libreria).
 
 ### Novità della Libreria
 
-7. **🧊 Cosa cucino con ciò che ho** (scheda Ricette): scrivi "uova, zucchine e parmigiano" → vedi le ricette che puoi fare, prima quelle a cui manca meno ("✅ Hai tutto!" oppure "Manca 1: panna"). Sale, pepe e olio li do per scontati; "pasta" vale per spaghetti, penne…
+7. **🧊 Cosa cucino con ciò che ho**: ora è la scheda **Frigo**: scrivi "uova, zucchine e parmigiano" → vedi le ricette che puoi fare, prima quelle a cui manca meno ("✅ Hai tutto!" oppure "Manca 1: panna"). Sale, pepe e olio li do per scontati; "pasta" vale per spaghetti, penne…
 8. **🎲 Che cucino stasera?**: pesca una ricetta a caso tra quelle che vedi (rispetta filtri e collezione). **Un'altra** per ripescare.
 9. **✨ Chiedi all'AI**: scrivi nella ricerca come parleresti ("qualcosa di leggero col pollo") e tocca **Chiedi all'AI**: sceglie solo tra le tue ricette e i tuoi posti, spiegando il perché. Usa una delle analisi AI del giorno.
 10. **Collezioni automatiche**: in **+ Nuova collezione** scegli **⚡ Automatica** e le regole (es. *vegetariano* + *≤ 30 min*, oppure posti a *Milano* "Voglio andarci"). Vedi subito quanti elementi contiene; si aggiorna da sola quando salvi cose nuove.

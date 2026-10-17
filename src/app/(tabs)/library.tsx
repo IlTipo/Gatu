@@ -19,7 +19,7 @@ import { resolveCollection } from '@/features/collections/helpers';
 import type { Collection } from '@/features/collections/types';
 import type { ItemStatus } from '@/features/recipes/types';
 import { useLibraryPlaces, useLibraryRecipes } from '@/features/library/api';
-import { cityCounts, filterPlaces, filterRecipes, matchesQuery, tagCounts } from '@/features/library/filter';
+import { cityCounts, filterPlaces, filterRecipes, matchesQuery } from '@/features/library/filter';
 import { useSources } from '@/features/sources/api';
 import { errorMessage } from '@/lib/errors';
 import { radius, spacing, useTheme } from '@/theme';
@@ -39,7 +39,6 @@ export default function LibraryScreen() {
 
   const [tab, setTab] = useState<Tab>('recipes');
   const [query, setQuery] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
   const [city, setCity] = useState<string | null>(null);
   const [wishlistOnly, setWishlistOnly] = useState(false);
   const [status, setStatus] = useState<ItemStatus | null>(null);
@@ -60,8 +59,8 @@ export default function LibraryScreen() {
   };
 
   const visibleRecipes = useMemo(
-    () => filterRecipes(recipes.data ?? [], { query, tags, collection: scope, status, minRating }),
-    [recipes.data, query, tags, scope, status, minRating],
+    () => filterRecipes(recipes.data ?? [], { query, tags: [], collection: scope, status, minRating }),
+    [recipes.data, query, scope, status, minRating],
   );
   const visiblePlaces = useMemo(
     () => filterPlaces(places.data ?? [], { query, wishlistOnly, city, collection: scope, status, minRating }),
@@ -73,26 +72,20 @@ export default function LibraryScreen() {
   );
 
   // le etichette e le città proposte sono quelle presenti (nella collezione scelta, se c'è)
-  const tagOptions = useMemo(
-    () => tagCounts(filterRecipes(recipes.data ?? [], { query: '', tags: [], collection: scope })),
-    [recipes.data, scope],
-  );
   const cityOptions = useMemo(
     () => cityCounts(filterPlaces(places.data ?? [], { query: '', wishlistOnly: false, city: null, collection: scope })),
     [places.data, scope],
   );
 
   const goToAdd = () => router.push('/add');
-  const filtersActive = !!query.trim() || tags.length > 0 || !!city || wishlistOnly || !!status || !!minRating;
+  const filtersActive = !!query.trim() || !!city || wishlistOnly || !!status || !!minRating;
   function clearFilters() {
     setQuery('');
-    setTags([]);
     setCity(null);
     setWishlistOnly(false);
     setStatus(null);
     setMinRating(null);
   }
-  const toggleTag = (tag: string) => setTags((old) => (old.includes(tag) ? old.filter((x) => x !== tag) : [...old, tag]));
 
   const active = tab === 'recipes' ? recipes : tab === 'places' ? places : sources;
   const libraryEmpty = recipes.data?.length === 0 && places.data?.length === 0 && sources.data?.length === 0;
@@ -122,8 +115,7 @@ export default function LibraryScreen() {
             selected={collectionId}
             onSelect={(id) => {
               setCollectionId(id);
-              setTags([]);
-              setCity(null);
+                        setCity(null);
             }}
           />
         ) : null}
@@ -139,15 +131,7 @@ export default function LibraryScreen() {
 
         {tab === 'recipes' ? (
           <ChipRow>
-            <Chip label={t('library.pantryButton')} onPress={() => router.push('/fridge')} />
             <Chip label={t('library.diceButton')} onPress={() => setDiceOpen(true)} />
-          </ChipRow>
-        ) : null}
-        {tab === 'recipes' && tagOptions.length ? (
-          <ChipRow>
-            {tagOptions.map(({ value, count: n }) => (
-              <Chip key={value} label={`${value} · ${n}`} selected={tags.includes(value)} onPress={() => toggleTag(value)} />
-            ))}
           </ChipRow>
         ) : null}
         {tab === 'places' ? (
