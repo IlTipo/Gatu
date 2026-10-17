@@ -42,15 +42,32 @@ jobs:
           npm run lint:functions
           npm run test:functions
 
+      # Cloudflare Pages (facoltativo): con la variabile CLOUDFLARE_PROJECT (es. "morso") e i secret
+      # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID il sito va su https://morso.pages.dev
+      - name: Cloudflare Pages (progetto e indirizzo)
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT: ${{ vars.CLOUDFLARE_PROJECT }}
+        if: vars.CLOUDFLARE_PROJECT != ''
+        run: node scripts/cloudflare-pages.mjs
+
       # Indirizzo del sito: https://<utente>.github.io/<repo>/ oppure, se c'è la variabile
       # CUSTOM_DOMAIN (es. morso.app), https://morso.app/ alla radice del dominio.
       - name: Indirizzo del sito
         id: site
         env:
           CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          CF_URL: ${{ steps.cloudflare.outputs.url }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
+          if [ -n "$CF_URL" ]; then
+            { echo "hosting=cloudflare"; echo "domain="; echo "base="; echo "url=$CF_URL"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "hosting=github" >> "$GITHUB_OUTPUT"
           DOMAIN=$(echo "$CUSTOM_DOMAIN" | tr '[:upper:]' '[:lower:]' | sed -e 's#^https\?://##' -e 's#/.*$##')
           if [ -n "$DOMAIN" ]; then
             if ! echo "$DOMAIN" | grep -Eq '^[a-z0-9.-]+\.[a-z]{2,}$'; then
@@ -100,15 +117,33 @@ jobs:
         env:
           EXPO_BASE_URL: ${{ steps.site.outputs.base }}
           CUSTOM_DOMAIN: ${{ steps.site.outputs.domain }}
+          HOSTING: ${{ steps.site.outputs.hosting }}
           # Chiavi PUBBLICHE di Supabase: lette in automatico dal passo precedente
           # (oppure, in alternativa, dalle Variables SUPABASE_URL / SUPABASE_KEY del repository)
           EXPO_PUBLIC_SUPABASE_URL: ${{ steps.supabase.outputs.supabase_url || vars.SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_KEY: ${{ steps.supabase.outputs.supabase_key || vars.SUPABASE_KEY }}
         run: npm run build:web
 
+      - name: Pubblica su Cloudflare Pages
+        if: steps.site.outputs.hosting == 'cloudflare'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages deploy dist --project-name "${{ steps.cloudflare.outputs.project }}" --branch main --commit-dirty=true
+
+      # Su GitHub Pages: il sito vero, oppure (se il sito è su Cloudflare) una pagina che rimanda lì.
       - name: Pubblica nel branch gh-pages
-        working-directory: dist
+        env:
+          HOSTING: ${{ steps.site.outputs.hosting }}
+          SITE_URL: ${{ steps.site.outputs.url }}
+          REPO: ${{ github.event.repository.name }}
         run: |
+          if [ "$HOSTING" = "cloudflare" ]; then
+            node scripts/redirect-page.mjs "$SITE_URL" ghpages "/$REPO"
+            cd ghpages
+          else
+            cd dist
+          fi
           git init -q -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

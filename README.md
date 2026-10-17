@@ -54,6 +54,25 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 > Per sicurezza ogni utente può fare al massimo **40 analisi AI al giorno** (secret Supabase `DAILY_EXTRACTION_LIMIT`). Il modello usato è `gemini-flash-latest`; si può cambiare con il secret Supabase `GEMINI_MODEL` (e i modelli di riserva con `GEMINI_FALLBACK_MODELS`, separati da virgola).
 > Facoltativo: con un secret `GOOGLE_PLACES_API_KEY` gli indirizzi dei locali vengono verificati con Google Places invece che con OpenStreetMap (gratis).
 
+### 3b-bis. Indirizzo gratis su Cloudflare (morso.pages.dev) — facoltativo
+
+Al posto di `iltipo.github.io/Gatu` il sito può stare su **`morso.pages.dev`**, gratis (se il nome è già preso, Cloudflare aggiunge qualche lettera, es. `morso-a1b.pages.dev`). Il vecchio indirizzo rimanda da solo al nuovo.
+
+1. Crea un account gratuito su **[dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up)** e conferma l'email.
+2. **ID dell'account**: nel pannello apri **Workers & Pages** (menu a sinistra); a destra c'è **Account ID** → copialo (32 caratteri).
+3. **Chiave**: in alto a destra l'icona del profilo → **Profilo → API Tokens → Create Token** → in fondo **Create Custom Token** → **Get started**:
+   - **Token name**: `Morso`
+   - **Permissions**: `Account` · `Cloudflare Pages` · `Edit`
+   - **Account Resources**: `Include` · il tuo account
+   - **Continue to summary → Create Token** → copia il token (si vede una volta sola; non incollarlo in chat).
+4. Su GitHub → **[Settings → Secrets and variables → Actions](https://github.com/IlTipo/Gatu/settings/secrets/actions)**:
+   - scheda **Secrets**: `CLOUDFLARE_API_TOKEN` = il token, `CLOUDFLARE_ACCOUNT_ID` = l'ID dell'account
+   - scheda **Variables**: `CLOUDFLARE_PROJECT` = `morso`
+5. Rilancia **Actions → Pubblica il sito → Run workflow**: alla fine, nel passo "Cloudflare Pages", trovi l'indirizzo definitivo.
+6. Sul telefono: accedi di nuovo e, se l'avevi aggiunto alla schermata Home, aggiungilo di nuovo dal nuovo indirizzo.
+
+Se un giorno compri `morso.app`, su Cloudflare lo colleghi in **Workers & Pages → morso → Custom domains**.
+
 ### 3c. Un indirizzo tutto tuo (es. morso.app) — facoltativo
 
 Al posto di `iltipo.github.io/Gatu` il sito può stare su un dominio tuo. Serve comprarlo (un `.app` costa circa 15–20 € l'anno, ad esempio su Cloudflare, Porkbun o Namecheap).

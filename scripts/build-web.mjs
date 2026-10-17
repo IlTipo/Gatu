@@ -4,6 +4,7 @@
 //   EXPO_BASE_URL  percorso del sito (vuoto se sta alla radice del dominio)
 //   EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_KEY  chiavi pubbliche di Supabase
 //   CUSTOM_DOMAIN  facoltativo, es. morso.app: scrive il file CNAME per GitHub Pages
+//   HOSTING        "cloudflare" per Cloudflare Pages (senza 404.html: lì ogni pagina apre l'app da sola)
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,7 +27,9 @@ writeFileSync(indexPath, html);
 
 // 2. GitHub Pages non conosce le pagine dell'app (/planner, /recipe/123…):
 //    con 404.html uguale a index.html, ogni indirizzo apre comunque l'app.
-copyFileSync(indexPath, join(out, '404.html'));
+//    Cloudflare Pages invece, SENZA 404.html, apre già index.html per ogni pagina.
+const hosting = (process.env.HOSTING ?? '').trim().toLowerCase();
+if (hosting !== 'cloudflare') copyFileSync(indexPath, join(out, '404.html'));
 
 // 3. Senza questo file GitHub Pages ignorerebbe la cartella _expo (inizia con "_").
 writeFileSync(join(out, '.nojekyll'), '');
