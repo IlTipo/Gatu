@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { CaloriesPanel } from '@/components/CaloriesPanel';
 import { Icon } from '@/components/Icon';
@@ -169,6 +170,7 @@ export default function PlannerScreen() {
 
   return (
     <Screen>
+      <BackButton />
       <AppText variant="title">{t('planner.title')}</AppText>
       <View style={styles.weekNav}>
         <NavArrow label={t('planner.prevWeek')} symbol="‹" onPress={() => goWeek(-1)} />

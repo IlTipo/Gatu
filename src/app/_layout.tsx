@@ -103,6 +103,8 @@ function RootNavigator() {
           <Stack.Screen name="collections" />
           <Stack.Screen name="ask" />
           <Stack.Screen name="pantry" />
+          <Stack.Screen name="planner" />
+          <Stack.Screen name="shopping" />
           <Stack.Screen name="plan/add" options={{ presentation: 'modal' }} />
           <Stack.Screen name="friends" />
           <Stack.Screen name="friends-recipes" />

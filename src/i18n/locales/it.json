@@ -98,7 +98,9 @@
     "topRated": "⭐ 4+",
     "writeRecipe": "✍️ Scrivi una ricetta",
     "friendsRecipes": "👥 Ricette degli amici",
-    "openMap": "🗺️ Mappa"
+    "openMap": "🗺️ Mappa",
+    "plannerHint": "La settimana",
+    "shoppingHint": "Da comprare"
   },
   "planner": {
     "title": "Planner",

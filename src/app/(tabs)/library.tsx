@@ -8,7 +8,7 @@ import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { DiceModal } from '@/components/DiceModal';
 import { Icon } from '@/components/Icon';
-import { FadeIn } from '@/components/Motion';
+import { FadeIn, PressableScale } from '@/components/Motion';
 import { TodayReminder } from '@/components/TodayReminder';
 import { PlaceCard } from '@/components/PlaceCard';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -287,6 +287,10 @@ export default function LibraryScreen() {
           icon={<Icon name={{ ios: 'plus', android: 'add' }} size={20} color={colors.onPrimary} />}
         />
       </View>
+      <View style={styles.shortcuts}>
+        <Shortcut emoji="📅" title={t('tabs.planner')} hint={t('library.plannerHint')} onPress={() => router.push('/planner')} />
+        <Shortcut emoji="🛒" title={t('tabs.shopping')} hint={t('library.shoppingHint')} onPress={() => router.push('/shopping')} />
+      </View>
       <TodayReminder />
       {libraryEmpty ? null : (
         <View style={styles.controls}>
@@ -320,6 +324,28 @@ export default function LibraryScreen() {
       {content}
       {diceOpen ? <DiceModal recipes={visibleRecipes} onClose={() => setDiceOpen(false)} /> : null}
     </Screen>
+  );
+}
+
+/** Scorciatoia grande a Planner e Spesa (non sono più schede in basso). */
+function Shortcut({ emoji, title, hint, onPress }: { emoji: string; title: string; hint: string; onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={[styles.shortcut, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <AppText variant="heading">{emoji}</AppText>
+      <View style={styles.flex}>
+        <AppText variant="bodyStrong" numberOfLines={1}>
+          {title}
+        </AppText>
+        <AppText variant="caption" tone="secondary" numberOfLines={1}>
+          {hint}
+        </AppText>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -367,6 +393,16 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   controls: { gap: spacing.md, marginBottom: spacing.md },
   segments: { flexDirection: 'row', borderRadius: radius.md, padding: 3, gap: 3 },
+  shortcuts: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  shortcut: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   segment: {
     flex: 1,
     alignItems: 'center',

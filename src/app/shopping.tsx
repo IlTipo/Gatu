@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Collapsible } from '@/components/Collapsible';
@@ -210,6 +211,7 @@ export default function ShoppingScreen() {
 
   return (
     <Screen>
+      <BackButton />
       <AppText variant="title">{t('shopping.title')}</AppText>
       <View style={styles.weekNav}>
         <Arrow label={t('planner.prevWeek')} symbol="‹" onPress={() => goWeek(-1)} />
