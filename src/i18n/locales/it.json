@@ -131,7 +131,11 @@
     "added": "Aggiunta al planner!",
     "addToPlanner": "📅 Aggiungi al planner",
     "inPlanner": "📅 In programma: {{when}}",
-    "shopping": "🛒 Fai la spesa per questa settimana"
+    "shopping": "🛒 Fai la spesa per questa settimana",
+    "weekKcal_one": "🥗 In media ~{{kcal}} kcal a testa al giorno (su {{days}} giorno con pasti).",
+    "weekKcal_other": "🥗 In media ~{{kcal}} kcal a testa al giorno (su {{days}} giorni con pasti).",
+    "weekKcalMissing_one": "{{count}} pasto senza calorie: aprilo e tocca \"Calcola\".",
+    "weekKcalMissing_other": "{{count}} pasti senza calorie: aprili e tocca \"Calcola\"."
   },
   "shopping": {
     "title": "Spesa",

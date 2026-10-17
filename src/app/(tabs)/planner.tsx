@@ -44,6 +44,28 @@ export default function PlannerScreen() {
   const week = useMemo(() => groupWeek(plan.data ?? []), [plan.data]);
   const isThisWeek = monday === startOfWeek(today);
 
+  // calorie stimate A PERSONA (una porzione di ogni pasto del giorno)
+  const dayKcal = (date: string) => {
+    const meals = (plan.data ?? []).filter((m) => m.date === date);
+    let total = 0;
+    let missing = 0;
+    for (const m of meals) {
+      const k = byId.get(m.recipe_id)?.kcal_per_serving;
+      if (k) total += k;
+      else missing++;
+    }
+    return { total, missing, meals: meals.length };
+  };
+  const weekNutrition = (() => {
+    const days = weekDays(monday).map(dayKcal).filter((d) => d.total > 0);
+    const missing = weekDays(monday).reduce((n, d) => n + dayKcal(d).missing, 0);
+    return {
+      days: days.length,
+      average: days.length ? Math.round(days.reduce((sum, d) => sum + d.total, 0) / days.length) : 0,
+      missing,
+    };
+  })();
+
   const goWeek = (delta: number) => {
     setMessage(null);
     setMonday(addDays(monday, delta * 7));
@@ -72,9 +94,16 @@ export default function PlannerScreen() {
         ) : (
           <AppText tone="secondary">{t('planner.emptyHint')}</AppText>
         )}
+        {weekNutrition.days ? (
+          <AppText tone="secondary">
+            {t('planner.weekKcal', { kcal: weekNutrition.average, count: weekNutrition.days })}
+            {weekNutrition.missing ? ` ${t('planner.weekKcalMissing', { count: weekNutrition.missing })}` : ''}
+          </AppText>
+        ) : null}
         {weekDays(monday).map((date) => {
           const isToday = date === today;
           const day = week.get(date);
+          const kcal = dayKcal(date);
           return (
             <View
               key={date}
@@ -91,6 +120,11 @@ export default function PlannerScreen() {
               ]}>
               <AppText variant="heading">
                 {dayLabel(date)}
+                {kcal.total ? (
+                  <AppText variant="caption" tone="secondary">
+                    {'  '}~{kcal.total} kcal
+                  </AppText>
+                ) : null}
                 {isToday ? (
                   <AppText variant="caption" tone="primary">
                     {'  '}
