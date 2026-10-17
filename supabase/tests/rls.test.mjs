@@ -254,5 +254,58 @@ const kept = (await as(A, `select recipe_id, kcal from public.food_log where id 
 ok(kept && kept.recipe_id === null && kept.kcal === 650, 'cancellando la ricetta la voce del diario resta (senza collegamento)');
 await fails(() => as(A, `insert into public.food_log (eaten_on, name, kcal) select '2026-10-22', 'x', 1 from generate_series(1, 101)`), 'al massimo 100 voci al giorno');
 
+// --- Profilo, consigli e amici ---
+const C = '33333333-3333-3333-3333-333333333333';
+await db.exec(`reset role; insert into auth.users (id, email) values ('${C}', 'carla@example.com')`);
+const codeA = (await as(A, `select friend_code from public.profiles`)).rows[0].friend_code;
+const codeB = (await as(B, `select friend_code from public.profiles`)).rows[0].friend_code;
+ok(/^[0-9A-F]{8}$/.test(codeA) && codeA !== codeB, 'ognuno ha il suo codice amico');
+await fails(() => as(A, `update public.profiles set friend_code = '${codeB}' where id = '${A}'`), 'il codice amico NON si cambia a mano');
+await as(A, `update public.profiles set display_name = 'Anna R.' where id = '${A}'`);
+ok((await as(A, `select display_name from public.profiles`)).rows[0].display_name === 'Anna R.', 'Anna cambia il suo nome');
+await fails(() => as(A, `update public.profiles set display_name = repeat('a', 51) where id = '${A}'`), 'nome troppo lungo rifiutato');
+await fails(() => as(A, `update public.profiles set avatar_url = 'https://evil.example.com/pixel.png' where id = '${A}'`), 'foto profilo da siti esterni rifiutata');
+await fails(() => as(A, `update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/images/${B}/a.jpg' where id = '${A}'`), 'foto profilo dalla cartella di un altro rifiutata');
+await as(A, `update public.profiles set avatar_url = 'https://abc.supabase.co/storage/v1/object/public/images/${A}/avatar-1.jpg' where id = '${A}'`);
+ok(true, 'foto profilo dalla propria cartella accettata');
+
+await as(A, `insert into public.feedback (message) values ('Aggiungete la modalità vegana')`);
+ok((await as(B, `select * from public.feedback`)).rows.length === 0, 'Bruno NON legge i consigli di Anna');
+await fails(() => as(A, `insert into public.feedback (message) select 'idea ' || g from generate_series(1, 5) g`), 'al massimo 5 consigli al giorno');
+
+ok((await as(A, `select public.send_friend_request('nessuno') as r`)).rows[0].r === 'not_found', 'codice sbagliato');
+ok((await as(A, `select public.send_friend_request('${codeA}') as r`)).rows[0].r === 'self', 'non puoi aggiungere te stesso');
+ok((await as(A, `select public.send_friend_request(' ${codeB.toLowerCase()} ') as r`)).rows[0].r === 'sent', 'Anna manda la richiesta a Bruno (codice anche minuscolo)');
+ok((await as(A, `select public.send_friend_request('${codeB}') as r`)).rows[0].r === 'already', 'richiesta doppia non creata');
+await fails(() => as(B, `select public.friend_feed('${A}', '2026-10-20')`), 'prima di accettare Bruno NON vede niente di Anna');
+await fails(() => as(A, `insert into public.friendships (requester, addressee, status) values ('${A}', '${C}', 'accepted')`), 'NON si può creare un\'amicizia "già accettata" a mano');
+const reqB = (await as(B, `select * from public.list_friends()`)).rows[0];
+ok(reqB.incoming === true && reqB.status === 'pending' && reqB.display_name === 'Anna R.', 'Bruno vede la richiesta di Anna');
+await as(A, `select public.respond_friend_request('${reqB.id}', true)`);
+ok((await as(B, `select status from public.list_friends()`)).rows[0].status === 'pending', 'Anna NON può accettare da sola la propria richiesta');
+await as(B, `select public.respond_friend_request('${reqB.id}', true)`);
+ok((await as(A, `select status from public.list_friends()`)).rows[0].status === 'accepted', 'Bruno accetta: ora sono amici');
+
+const recF = (await as(A, `insert into public.recipes (title, last_cooked_at, image_url) values ('Lasagne', now(), 'https://evil.example.com/x.jpg') returning id`)).rows[0].id;
+await as(A, `insert into public.recipe_ingredients (recipe_id, position, name) values ('${recF}', 0, 'sfoglia')`);
+await as(A, `insert into public.meal_plan_entries (date, slot, recipe_id) values ('2026-10-21', 'dinner', '${recF}')`);
+await as(A, `insert into public.food_log (eaten_on, name, kcal) values ('2026-10-20', 'Mela', 80)`);
+let feed = (await as(B, `select public.friend_feed('${A}', '2026-10-20') as f`)).rows[0].f;
+ok(feed.cooked.some((r) => r.title === 'Lasagne' && r.image_url === null), 'Bruno vede cosa ha cucinato Anna (foto esterne tolte)');
+ok(feed.planner.some((m) => m.title === 'Lasagne'), 'Bruno vede il planner di Anna');
+ok(feed.diary === null, 'il diario di Anna resta privato (non condiviso)');
+await as(A, `update public.profiles set share_diary = true, share_planner = false where id = '${A}'`);
+feed = (await as(B, `select public.friend_feed('${A}', '2026-10-20') as f`)).rows[0].f;
+ok(feed.diary.some((d) => d.name === 'Mela') && feed.planner === null, 'Anna sceglie cosa condividere');
+const copied = (await as(B, `select public.friend_recipe('${recF}') as r`)).rows[0].r;
+ok(copied.title === 'Lasagne' && copied.ingredients[0].name === 'sfoglia', 'Bruno può vedere e salvare una ricetta di Anna');
+await fails(() => as(C, `select public.friend_feed('${A}', '2026-10-20')`), 'Carla (non amica) NON vede niente di Anna');
+await fails(() => as(C, `select public.friend_recipe('${recF}')`), 'Carla NON può copiare le ricette di Anna');
+ok((await as(C, `select * from public.list_friends()`)).rows.length === 0, 'Carla NON vede le amicizie degli altri');
+ok((await as(C, `select * from public.profiles`)).rows.length <= 1, 'Carla NON vede i profili degli altri');
+ok((await as(C, `select * from public.recipes where id = '${recF}'`)).rows.length === 0, 'le tabelle restano private anche tra amici');
+await as(B, `select public.remove_friend('${reqB.id}')`);
+await fails(() => as(B, `select public.friend_feed('${A}', '2026-10-20')`), 'dopo aver tolto l\'amicizia non si vede più niente');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

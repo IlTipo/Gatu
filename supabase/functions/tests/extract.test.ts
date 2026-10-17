@@ -903,3 +903,51 @@ Deno.test('diario: calorie stimate da testo o foto del piatto', async () => {
     400,
   );
 });
+
+function feedbackFake(insertError: { message: string } | null = null) {
+  const inserted: unknown[] = [];
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER, email: 'anna@example.com' } }, error: null }) },
+    from: (table: string) => {
+      const q = {
+        insert: (row: unknown) => {
+          inserted.push({ table, row });
+          return Promise.resolve({ error: insertError });
+        },
+        select: () => q,
+        eq: () => q,
+        maybeSingle: () => Promise.resolve({ data: { display_name: 'Anna\nRossi' }, error: null }),
+      };
+      return q;
+    },
+  };
+  return { client, inserted };
+}
+
+Deno.test('consigli: salvati e mandati per email (solo testo, oggetto su una riga)', async () => {
+  const { client, inserted } = feedbackFake();
+  const d = deps(client as never);
+  const mails: { subject: string; text: string; replyTo?: string | null }[] = [];
+  d.mailer = (m) => (mails.push(m), Promise.resolve(true));
+  const res = await (await handleRequest(post({ action: 'send_feedback', message: '  Aggiungete le ricette vegane  ' }), d)).json();
+  assertEquals(res, { status: 'sent' });
+  assertEquals(inserted, [{ table: 'feedback', row: { message: 'Aggiungete le ricette vegane' } }]);
+  assertEquals(mails[0].subject, '💡 Morso: consiglio da Anna Rossi');
+  assertEquals(mails[0].replyTo, 'anna@example.com');
+  assertEquals(mails[0].text.includes('Aggiungete le ricette vegane'), true);
+});
+
+Deno.test('consigli: senza email configurata restano salvati; limiti rispettati', async () => {
+  const { client } = feedbackFake();
+  const d = deps(client as never);
+  assertEquals(await (await handleRequest(post({ action: 'send_feedback', message: 'Più ricette veloci' }), d)).json(), {
+    status: 'saved',
+  });
+  assertEquals((await handleRequest(post({ action: 'send_feedback', message: 'no' }), d)).status, 400);
+  assertEquals((await handleRequest(post({ action: 'send_feedback', message: 'a'.repeat(1001) }), d)).status, 400);
+  const limited = deps(feedbackFake({ message: 'too many feedback messages' }).client as never);
+  limited.mailer = () => Promise.reject(new Error('non deve partire'));
+  const res = await handleRequest(post({ action: 'send_feedback', message: 'Sesto consiglio' }), limited);
+  assertEquals(res.status, 429);
+  assertEquals((await res.json()).error, 'feedback_limit');
+});

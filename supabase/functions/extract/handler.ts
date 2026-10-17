@@ -13,6 +13,7 @@
 //   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
+//   { action: 'send_feedback', message }  "Cosa aggiungeresti?": salva il consiglio e lo manda per email
 //   { action: 'ask_library', question }  "Chiedi all'AI": sceglie tra le ricette e i locali salvati
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
@@ -23,6 +24,7 @@ import { cleanInsights } from '../_shared/insights.ts';
 import { isVariantKind } from '../_shared/recipeTools.ts';
 import { MAX_QUESTION_LENGTH } from '../_shared/ask.ts';
 import { MAX_FOOD_TEXT } from '../_shared/food.ts';
+import { feedbackMail, type Mailer, MAX_FEEDBACK, MIN_FEEDBACK } from '../_shared/mail.ts';
 import {
   askLibrary,
   estimateFood,
@@ -69,6 +71,8 @@ export type Deps = {
   dailyLimit: number;
   /** Pausa tra una ricerca di indirizzo e l'altra (OpenStreetMap chiede max 1 al secondo). */
   geocodeDelayMs: number;
+  /** Email dei consigli al proprietario (null/assente: i consigli restano solo salvati). */
+  mailer?: Mailer | null;
 };
 
 type Source = Record<string, unknown> & {
@@ -126,6 +130,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     avoid?: unknown;
     imageBase64?: unknown;
     mimeType?: unknown;
+    message?: unknown;
   };
   try {
     body = await req.json();
@@ -138,6 +143,22 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
   if (body.action === 'estimate_doses') {
     if (typeof body.recipeId !== 'string') return errorResponse('invalid_body', 400);
     return json(await estimateDoses(body.recipeId, supabase, deps));
+  }
+
+  // ---- "Cosa aggiungeresti?": consiglio salvato (max 5 al giorno, lo controlla il database) e mandato per email
+  if (body.action === 'send_feedback') {
+    const message = typeof body.message === 'string' ? body.message.trim() : '';
+    if (message.length < MIN_FEEDBACK || message.length > MAX_FEEDBACK) return errorResponse('invalid_body', 400);
+    const { error: insertError } = await supabase.from('feedback').insert({ message });
+    if (insertError) {
+      if (/too many feedback/.test(insertError.message ?? '')) return errorResponse('feedback_limit', 429);
+      throw insertError;
+    }
+    const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle();
+    const sent = deps.mailer
+      ? await deps.mailer(feedbackMail({ message, name: profile?.display_name ?? null, email: user.email ?? null }))
+      : false;
+    return json({ status: sent ? 'sent' : 'saved' });
   }
 
   // ---- Altre azioni su ricette e locali già salvati

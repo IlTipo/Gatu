@@ -23,6 +23,7 @@ const CODE_TO_KEY = {
   quota_exceeded: 'recipe.aiSkipped.quota_exceeded',
   ai_not_configured: 'recipe.aiSkipped.not_configured',
   no_kcal: 'diary.noKcal',
+  feedback_limit: 'feedback.limit',
 } as const;
 
 type ErrorLike = { code?: unknown; message?: unknown; name?: unknown; status?: unknown };

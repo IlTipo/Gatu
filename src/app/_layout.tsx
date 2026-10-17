@@ -2,7 +2,7 @@ import '@/i18n';
 import '@/features/install/device'; // cattura subito l'invito "Installa" di Chrome
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -13,6 +13,7 @@ import { Screen } from '@/components/Screen';
 import { EmptyState } from '@/components/StateViews';
 import { TimersPill } from '@/components/TimersPill';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { takePendingInvite } from '@/features/social/invite';
 import { config } from '@/lib/env';
 import { queryClient } from '@/lib/queryClient';
 import { useTheme } from '@/theme';
@@ -95,16 +96,30 @@ function RootNavigator() {
           <Stack.Screen name="ask" />
           <Stack.Screen name="pantry" />
           <Stack.Screen name="plan/add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="friends" />
+          <Stack.Screen name="friend/[id]" />
+          <Stack.Screen name="friend/recipe/[id]" />
         </Stack.Protected>
         {/* ...e le schermate di accesso solo a chi non l'ha fatto. */}
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
         <Stack.Screen name="auth/callback" />
+        <Stack.Screen name="invite/[code]" />
       </Stack>
       {signedIn ? <TimersPill /> : null}
+      {signedIn ? <PendingInvite /> : null}
     </>
   );
+}
+
+/** Dopo l'accesso: se prima era stato aperto un link d'invito, lo riprende. */
+function PendingInvite() {
+  useEffect(() => {
+    const code = takePendingInvite();
+    if (code) router.push({ pathname: '/invite/[code]', params: { code } });
+  }, []);
+  return null;
 }
 
 function MissingConfig() {

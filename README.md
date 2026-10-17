@@ -258,6 +258,23 @@ Finché non lo attivi, il pulsante "Continua con Google" **non compare** (si ent
 
 ---
 
+### 💡 "Cosa aggiungeresti?" via email (facoltativo)
+
+I consigli scritti nel Profilo restano sempre salvati (tabella `feedback` su Supabase).
+Per riceverli anche per email:
+
+1. Crea un account gratuito su [resend.com](https://resend.com) **con la tua email**.
+2. In Resend → **API Keys** → **Create API Key** (permesso "Sending access") e copiala.
+3. Su GitHub → Settings → Secrets and variables → Actions → **New repository secret**:
+   - `RESEND_API_KEY` = la chiave di Resend
+   - `FEEDBACK_EMAIL` = la stessa email con cui ti sei registrato su Resend
+4. Rilancia "Pubblica il sito". Senza un dominio tuo Resend può mandare email solo al tuo indirizzo: va benissimo, i consigli devono arrivare a te.
+
+### 👥 Amici
+
+Profilo → **Amici**: ognuno ha un codice di 8 caratteri e un link d'invito. Gli amici vedono solo
+quello che scegli (ricette cucinate, planner, diario calorie) e solo dopo che hai **accettato**.
+
 ## Per chi sviluppa
 
 ```bash

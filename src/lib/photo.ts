@@ -10,13 +10,13 @@ export type PickedPhoto = { uri: string; base64: string; mimeType: 'image/jpeg' 
  * e la rimpicciolisce a max 1600 px in JPEG: si carica in fretta e l'AI la legge bene lo stesso.
  * Restituisce null se l'utente annulla.
  */
-export async function pickRecipePhoto(): Promise<PickedPhoto | null> {
+export async function pickRecipePhoto(maxSide = MAX_SIDE): Promise<PickedPhoto | null> {
   const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
   if (result.canceled || !result.assets?.length) return null;
   const asset = result.assets[0];
-  const scale = Math.min(1, MAX_SIDE / Math.max(asset.width || MAX_SIDE, asset.height || MAX_SIDE));
+  const scale = Math.min(1, maxSide / Math.max(asset.width || maxSide, asset.height || maxSide));
   const context = ImageManipulator.manipulate(asset.uri);
-  if (scale < 1) context.resize({ width: Math.round((asset.width || MAX_SIDE) * scale) });
+  if (scale < 1) context.resize({ width: Math.round((asset.width || maxSide) * scale) });
   const image = await context.renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
   if (!saved.base64) throw new Error('photo_encoding_failed');

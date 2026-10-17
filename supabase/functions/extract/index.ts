@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.118.0';
 
 import { createGeminiDoseEstimator, createGeminiExtractor, createGeminiRecipeTools } from '../_shared/gemini.ts';
 import { createGeocoder } from '../_shared/geocode.ts';
+import { createResendMailer } from '../_shared/mail.ts';
 import { errorResponse } from '../_shared/http.ts';
 import { handleRequest } from './handler.ts';
 
@@ -32,6 +33,10 @@ const recipeTools = GEMINI_API_KEY
   })
   : null;
 const geocoder = createGeocoder({ googleApiKey: GOOGLE_PLACES_API_KEY, fetch });
+// "Cosa aggiungeresti?": i consigli arrivano a FEEDBACK_EMAIL tramite Resend (facoltativo)
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+const FEEDBACK_EMAIL = Deno.env.get('FEEDBACK_EMAIL')?.trim();
+const mailer = RESEND_API_KEY && FEEDBACK_EMAIL ? createResendMailer(RESEND_API_KEY, FEEDBACK_EMAIL, fetch) : null;
 
 Deno.serve(async (req) => {
   try {
@@ -41,6 +46,7 @@ Deno.serve(async (req) => {
       doseEstimator,
       recipeTools,
       geocoder,
+      mailer,
       dailyLimit: DAILY_LIMIT,
       geocodeDelayMs: GOOGLE_PLACES_API_KEY ? 0 : 1100,
       supabaseForRequest(request) {
