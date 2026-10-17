@@ -6,6 +6,8 @@ export const queryClient = new QueryClient({
     queries: {
       retry: 2,
       staleTime: 30_000,
+      // i dati restano in memoria un giorno: servono anche offline
+      gcTime: 24 * 60 * 60_000,
     },
   },
 });

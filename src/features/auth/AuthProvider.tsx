@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { clearPersistedCache, restoreCache, startCachePersistence } from '@/lib/offline';
 import { queryClient } from '@/lib/queryClient';
 import { supabase } from '@/lib/supabase';
 
@@ -21,6 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth
       .getSession()
       .then(({ data }) => {
+        // offline: si vedono subito le cose già aperte l'ultima volta
+        if (data.session) restoreCache(queryClient, data.session.user.id);
         if (mounted) setState({ session: data.session, initializing: false });
       })
       .catch(() => {
@@ -29,7 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       // All'uscita svuotiamo la cache, così i dati di un utente non restano visibili a un altro.
-      if (event === 'SIGNED_OUT') queryClient.clear();
+      if (event === 'SIGNED_OUT') {
+        queryClient.clear();
+        clearPersistedCache();
+      }
       setState({ session, initializing: false });
     });
 
@@ -38,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  // salva sul dispositivo (per l'offline) i dati dell'utente collegato
+  const userId = state.session?.user.id;
+  useEffect(() => (userId ? startCachePersistence(queryClient, userId) : undefined), [userId]);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }

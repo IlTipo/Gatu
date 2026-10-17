@@ -765,5 +765,8 @@
     "todayShort": "Oggi",
     "averageRating": "⭐ Voto medio che dai: {{rating}}",
     "historyNote": "Lo storico delle ricette cucinate parte da oggi: più usi Morso, più le statistiche diventano precise."
+  },
+  "offline": {
+    "banner": "📴 Offline: vedi le cose già aperte"
   }
 }

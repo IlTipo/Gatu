@@ -6,19 +6,24 @@ import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-rout
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
+import { AppText } from '@/components/AppText';
 import { Screen } from '@/components/Screen';
 import { EmptyState } from '@/components/StateViews';
 import { TimersPill } from '@/components/TimersPill';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { takePendingInvite } from '@/features/social/invite';
 import { config } from '@/lib/env';
+import { registerServiceWorker, useOnline } from '@/lib/offline';
 import { queryClient } from '@/lib/queryClient';
 import { useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// sul sito: file disponibili anche senza internet
+registerServiceWorker();
 
 export default function RootLayout() {
   const { scheme, colors } = useTheme();
@@ -110,7 +115,27 @@ function RootNavigator() {
       </Stack>
       {signedIn ? <TimersPill /> : null}
       {signedIn ? <PendingInvite /> : null}
+      <OfflineBanner />
     </>
+  );
+}
+
+/** Senza internet: una striscia in alto che spiega cosa si può fare. */
+function OfflineBanner() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const online = useOnline();
+  const insets = useSafeAreaInsets();
+  if (online) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={[styles.offline, { top: insets.top + 6, backgroundColor: colors.text }]}
+      accessibilityLiveRegion="polite">
+      <AppText variant="caption" style={{ color: colors.background, fontWeight: '600' }}>
+        {t('offline.banner')}
+      </AppText>
+    </View>
   );
 }
 
@@ -134,3 +159,14 @@ function MissingConfig() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  offline: {
+    position: 'absolute',
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    maxWidth: '92%',
+  },
+});
