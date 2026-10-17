@@ -339,5 +339,76 @@ ok(((await as(B, `update public.recipes set shared_with_friends = false where id
 await as(A, `update public.recipes set shared_with_friends = false where id = '${mine}'`);
 ok((await as(B, `select * from public.friends_recipes()`)).rows.length === 0, 'Anna smette di condividere: sparisce per Bruno');
 
+// --- Social: username, seguire, mi piace, commenti, notifiche ---
+await as(A, `update public.profiles set username = 'anna.rossi', bio = 'Amo la pasta' where id = '${A}'`);
+await as(B, `update public.profiles set username = 'bruno_88' where id = '${B}'`);
+await as(C, `update public.profiles set username = 'carla' where id = '${C}'`);
+await fails(() => as(C, `update public.profiles set username = 'anna.rossi' where id = '${C}'`), 'username già preso rifiutato');
+await fails(() => as(C, `update public.profiles set username = 'Carla!' where id = '${C}'`), 'username con maiuscole o simboli rifiutato');
+await fails(() => as(C, `update public.profiles set username = '.carla' where id = '${C}'`), 'username che inizia col punto rifiutato');
+ok((await as(C, `select public.username_available('anna.rossi') as a`)).rows[0].a === false, 'controllo username: occupato');
+ok((await as(C, `select public.username_available('nuovo.nome') as a`)).rows[0].a === true, 'controllo username: libero');
+const found = (await as(C, `select public.search_people('@ann') as r`)).rows[0].r;
+ok(found.length === 1 && found[0].username === 'anna.rossi' && found[0].following === 'none', 'Carla trova Anna cercando @ann');
+ok((await as(C, `select public.search_people('%') as r`)).rows[0].r.length === 0, 'ricerca con caratteri jolly: niente');
+
+// profilo privato di Anna: Carla vede la scheda ma non le ricette
+const annaPost = (await as(A, `insert into public.recipes (title, homemade, shared_with_friends) values ('Lasagna di Anna', true, true) returning id`)).rows[0].id;
+let anna = (await as(C, `select public.get_person('${A}') as p`)).rows[0].p;
+ok(anna.username === 'anna.rossi' && anna.can_view === false && anna.recipes.length === 0 && anna.bio === 'Amo la pasta', 'profilo privato: Carla vede nome e bio, NON le ricette');
+await fails(() => as(C, `select public.friend_recipe('${annaPost}')`), 'Carla NON apre le ricette di un profilo privato');
+await fails(() => as(C, `select public.toggle_like('${annaPost}')`), 'Carla NON può mettere mi piace a una ricetta che non vede');
+ok((await as(C, `select public.follow_user('${A}') as r`)).rows[0].r === 'requested', 'Carla chiede di seguire Anna (privato → richiesta)');
+ok((await as(C, `select public.get_person('${A}') as p`)).rows[0].p.can_view === false, 'finché non accetta, Carla non vede niente');
+ok((await as(A, `select public.follow_requests() as r`)).rows[0].r[0].username === 'carla', 'Anna vede la richiesta di Carla');
+await fails(() => as(C, `insert into public.follows (follower, followee, status) values ('${C}', '${B}', 'accepted')`), 'NON si può "seguire accettato" a mano');
+await as(A, `select public.respond_follow('${C}', true)`);
+anna = (await as(C, `select public.get_person('${A}') as p`)).rows[0].p;
+ok(anna.can_view && anna.recipes.some((r) => r.title === 'Lasagna di Anna') && anna.following === 'accepted', 'Anna accetta: Carla vede le sue ricette condivise');
+ok(!anna.recipes.some((r) => r.title === 'Ricetta segreta'), 'le ricette NON condivise restano private anche per chi segue');
+await fails(() => as(C, `select public.friend_feed('${A}', '2026-10-20')`), 'seguire NON dà accesso a diario e planner (solo amici)');
+
+// mi piace e commenti
+ok((await as(C, `select public.toggle_like('${annaPost}') as l`)).rows[0].l === true, 'Carla mette mi piace');
+const cm = (await as(C, `select public.add_comment('${annaPost}', ' Buonissima! ') as id`)).rows[0].id;
+let social = (await as(A, `select public.recipe_social('${annaPost}') as s`)).rows[0].s;
+ok(social.likes === 1 && social.comments[0].body === 'Buonissima!' && social.comments[0].can_delete === true, 'Anna vede mi piace e commento (e può cancellarlo)');
+ok((await as(C, `select public.recipe_social('${annaPost}') as s`)).rows[0].s.liked === true, 'Carla vede il suo mi piace');
+const notes = (await as(A, `select public.my_notifications() as n`)).rows[0].n.map((n) => n.kind);
+ok(notes.includes('like') && notes.includes('comment') && notes.includes('follow_request'), 'Anna riceve le notifiche (richiesta, mi piace, commento)');
+ok((await as(A, `select public.unread_notifications() as n`)).rows[0].n >= 3, 'contatore delle notifiche non lette');
+await as(A, `select public.mark_notifications_read()`);
+ok((await as(A, `select public.unread_notifications() as n`)).rows[0].n === 0, 'notifiche segnate come lette');
+ok((await as(C, `select * from public.notifications`)).rows.every((n) => n.user_id === C), 'ognuno vede solo le sue notifiche');
+await fails(() => as(C, `select public.add_comment('${annaPost}', '   ')`), 'commento vuoto rifiutato');
+await fails(() => as(C, `select public.add_comment('${annaPost}', repeat('a', 501))`), 'commento troppo lungo rifiutato');
+ok((await as(B, `select public.report_comment('${cm}', 'spam') as r`)).rows[0].r.author === 'carla', 'Bruno (amico di Anna) segnala il commento');
+
+await as(B, `select public.delete_comment('${cm}')`);
+ok((await as(A, `select public.recipe_social('${annaPost}') as s`)).rows[0].s.comments.length === 1, 'Bruno NON può cancellare il commento di Carla');
+const feedC = (await as(C, `select public.social_feed() as f`)).rows[0].f;
+ok(feedC.some((p) => p.title === 'Lasagna di Anna' && p.username === 'anna.rossi' && p.liked === true), 'Novità di Carla: la ricetta di Anna che segue');
+await as(A, `select public.delete_comment('${cm}')`);
+ok((await as(A, `select public.recipe_social('${annaPost}') as s`)).rows[0].s.comments.length === 0, 'Anna cancella un commento sotto la sua ricetta');
+// profilo pubblico: si segue subito
+const bPost = (await as(B, `insert into public.recipes (title, shared_with_friends) values ('Pizza di Bruno pubblica', true) returning id`)).rows[0].id;
+ok((await as(C, `select public.get_person('${B}') as p`)).rows[0].p.can_view === false, 'Bruno privato: Carla non vede');
+await as(B, `update public.profiles set is_public = true where id = '${B}'`);
+ok((await as(C, `select public.get_person('${B}') as p`)).rows[0].p.can_view === true, 'Bruno pubblico: tutti vedono le ricette condivise');
+ok((await as(C, `select public.follow_user('${B}') as r`)).rows[0].r === 'following', 'profilo pubblico: Carla lo segue subito');
+ok((await as(C, `select public.friend_recipe('${bPost}') as r`)).rows[0].r.author_username === 'bruno_88', 'Carla apre la ricetta pubblica di Bruno');
+await as(C, `select public.unfollow_user('${A}')`);
+ok((await as(C, `select public.get_person('${A}') as p`)).rows[0].p.can_view === false, 'smesso di seguire Anna: non vede più le sue ricette');
+ok((await as(C, `select public.follow_user('${C}') as r`)).rows[0].r === 'self', 'non puoi seguire te stesso');
+await as(A, `update public.profiles set is_public = false where id = '${A}'`);
+ok((await as(C, `select public.follow_user('${A}') as r`)).rows[0].r === 'requested', 'nuova richiesta a Anna');
+await as(A, `update public.profiles set is_public = true where id = '${A}'`);
+ok((await as(C, `select public.get_person('${A}') as p`)).rows[0].p.following === 'accepted', 'Anna diventa pubblica: le richieste in attesa vengono accettate');
+await fails(() => as(C, `update public.profiles set bio = repeat('a', 161) where id = '${C}'`), 'bio troppo lunga rifiutata');
+
+ok((await as(C, `select public.send_friend_request('@bruno_88') as r`)).rows[0].r === 'sent', 'richiesta di amicizia con lo @username');
+ok((await as(B, `select public.my_notifications() as n`)).rows[0].n.some((n) => n.kind === 'friend_request' && n.username === 'carla'), 'Bruno riceve la notifica della richiesta di amicizia');
+ok((await as(C, `select public.send_friend_request('@nessuno.qui') as r`)).rows[0].r === 'not_found', 'username inesistente');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

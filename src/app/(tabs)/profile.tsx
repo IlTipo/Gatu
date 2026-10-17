@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
 import { Avatar } from '@/components/Avatar';
@@ -60,6 +60,8 @@ export default function ProfileScreen() {
         <AppText variant="title">{t('profile.title')}</AppText>
         <UpdateCard />
         <ProfileHeader />
+
+        <SocialSettings />
 
         <PressableScale
           onPress={() => router.push('/friends')}
@@ -241,6 +243,57 @@ function ProfileHeader() {
   );
 }
 
+/** Parte social del profilo: @username, bio, pubblico/privato, link al mio profilo. */
+function SocialSettings() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const me = useMyProfile();
+  const update = useUpdateMyProfile();
+  const [bio, setBio] = useState<string | null>(null);
+  const shownBio = bio ?? me.data?.bio ?? '';
+  const bioChanged = bio !== null && bio.trim() !== (me.data?.bio ?? '');
+  if (!me.data) return null;
+  return (
+    <View style={[styles.card, styles.social, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <AppText variant="bodyStrong">@{me.data.username}</AppText>
+          <Pressable onPress={() => router.push('/username')} accessibilityRole="button" hitSlop={6}>
+            <AppText variant="caption" tone="primary">
+              {t('social.changeUsername')}
+            </AppText>
+          </Pressable>
+        </View>
+        <Button label={t('social.seeMyProfile')} variant="secondary" onPress={() => router.push({ pathname: '/u/[id]', params: { id: 'me' } })} />
+      </View>
+      <TextField label={t('social.bio')} value={shownBio} onChangeText={setBio} maxLength={160} multiline placeholder={t('social.bioPlaceholder')} />
+      {bioChanged ? (
+        <Button
+          label={t('common.save')}
+          onPress={() => update.mutate({ bio: shownBio.trim() || null }, { onSuccess: () => setBio(null) })}
+          loading={update.isPending}
+        />
+      ) : null}
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <AppText variant="bodyStrong">{me.data.is_public ? t('social.publicProfile') : t('social.privateProfile')}</AppText>
+          <AppText variant="caption" tone="secondary">
+            {me.data.is_public ? t('social.publicHint') : t('social.privateHint')}
+          </AppText>
+        </View>
+        <Switch
+          value={me.data.is_public}
+          onValueChange={(v) => update.mutate({ is_public: v })}
+          trackColor={{ true: colors.primary, false: colors.border }}
+          thumbColor={colors.surface}
+          accessibilityLabel={t('social.publicProfile')}
+        />
+      </View>
+      <InlineError message={update.isError ? errorMessage(update.error, t) : null} />
+    </View>
+  );
+}
+
 /** "Cosa aggiungeresti?": il consiglio arriva per email. */
 function FeedbackCard() {
   const { t } = useTranslation();
@@ -299,6 +352,7 @@ const styles = StyleSheet.create({
   badge: { width: 10, height: 10, borderRadius: 5 },
   version: { textAlign: 'center' },
   updateCard: { gap: spacing.sm, borderWidth: 1.5 },
+  social: { gap: spacing.md },
   madeBy: { alignSelf: 'center', marginTop: -spacing.md, padding: spacing.xs },
   link: { textDecorationLine: 'underline' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },

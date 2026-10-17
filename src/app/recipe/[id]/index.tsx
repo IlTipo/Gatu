@@ -11,6 +11,7 @@ import { Chip } from '@/components/Chip';
 import { CollectionButton } from '@/components/CollectionButton';
 import { Notice } from '@/components/Notice';
 import { RatingCard } from '@/components/RatingCard';
+import { RecipeSocial } from '@/components/social/RecipeSocial';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { VideoCard } from '@/components/VideoCard';
@@ -244,6 +245,9 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
           notes={r.notes}
           doneAt={r.last_cooked_at}
         />
+
+        {/* le tue ricette condivise: mi piace e commenti di chi le vede */}
+        {r.shared_with_friends ? <RecipeSocial recipeId={r.id} /> : null}
 
         <Section title={t('recipe.variants')}>
           <AppText tone="secondary">{t('recipe.variantsHint')}</AppText>

@@ -140,7 +140,14 @@ export default function LibraryScreen() {
         ) : null}
         {tab === 'places' ? (
           <>
-            <Button label={t('nearby.button')} variant="secondary" onPress={() => router.push('/nearby')} />
+            <View style={styles.placeButtons}>
+              <View style={styles.flex}>
+                <Button label={t('nearby.button')} variant="secondary" onPress={() => router.push('/nearby')} />
+              </View>
+              <View style={styles.flex}>
+                <Button label={t('library.openMap')} variant="secondary" onPress={() => router.push('/map')} />
+              </View>
+            </View>
             <ChipRow>
               <Chip label={t('library.wishlistOnly')} selected={wishlistOnly} onPress={() => setWishlistOnly((v) => !v)} />
               {cityOptions.map(({ value, count: n }) => (
@@ -355,6 +362,8 @@ function CollectionsRow({
 }
 
 const styles = StyleSheet.create({
+  placeButtons: { flexDirection: 'row', gap: spacing.sm },
+  flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   controls: { gap: spacing.md, marginBottom: spacing.md },
   segments: { flexDirection: 'row', borderRadius: radius.md, padding: 3, gap: 3 },

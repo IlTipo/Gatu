@@ -12,12 +12,14 @@ export function SearchBar({
   placeholder,
   label,
   clearLabel,
+  autoFocus,
 }: {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
   label: string;
   clearLabel: string;
+  autoFocus?: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -33,6 +35,7 @@ export function SearchBar({
         autoCorrect={false}
         returnKeyType="search"
         inputMode="search"
+        autoFocus={autoFocus}
         style={[styles.input, typography.body, { color: colors.text }]}
       />
       {value ? (

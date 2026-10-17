@@ -24,6 +24,7 @@ const CODE_TO_KEY = {
   ai_not_configured: 'recipe.aiSkipped.not_configured',
   no_kcal: 'diary.noKcal',
   feedback_limit: 'feedback.limit',
+  report_limit: 'social.reportLimit',
   discover_busy: 'nearby.discoverBusy',
   discover_failed: 'nearby.discoverFailed',
 } as const;

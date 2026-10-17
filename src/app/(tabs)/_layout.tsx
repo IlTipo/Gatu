@@ -1,9 +1,12 @@
+import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
+import { useMyProfile } from '@/features/social/api';
+import { useUnreadCount } from '@/features/social/network';
 import { useNews, useUpdateState } from '@/lib/updates';
 import { useTheme } from '@/theme';
 
@@ -25,6 +28,11 @@ export default function TabsLayout() {
   const update = useUpdateState();
   const news = useNews();
   const profileBadge = update.kind === 'version' || news ? '1' : undefined;
+  // la parte social ha bisogno di uno username: chi non l'ha ancora scelto lo sceglie subito
+  const me = useMyProfile();
+  const unread = useUnreadCount(!!me.data?.username);
+  if (me.data && !me.data.username) return <Redirect href="/username" />;
+  const socialBadge = unread.data ? (unread.data > 9 ? '9+' : String(unread.data)) : undefined;
 
   return (
     <Tabs
@@ -58,7 +66,15 @@ export default function TabsLayout() {
         name="shopping"
         options={{ title: t('tabs.shopping'), tabBarIcon: tabIcon({ ios: 'cart', android: 'shopping_cart' }) }}
       />
-      <Tabs.Screen name="map" options={{ title: t('tabs.map'), tabBarIcon: tabIcon({ ios: 'map', android: 'map' }) }} />
+      <Tabs.Screen
+        name="social"
+        options={{
+          title: t('tabs.social'),
+          tabBarIcon: tabIcon({ ios: 'person.2', android: 'group' }),
+          tabBarBadge: socialBadge,
+          tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.onPrimary },
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

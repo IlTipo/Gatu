@@ -275,6 +275,13 @@ Per riceverli anche per email:
 Profilo → **Amici**: ognuno ha un codice di 8 caratteri e un link d'invito. Gli amici vedono solo
 quello che scegli (ricette cucinate, planner, diario calorie) e solo dopo che hai **accettato**.
 
+### 🌍 Social (dalla versione 1.0.1)
+
+- Al primo accesso si sceglie lo **@username**; nel Profilo: bio e profilo **pubblico/privato**.
+- Scheda **Social**: Novità di chi segui e dei tuoi amici, 🔍 cerca persone, ❤️ notifiche.
+- Seguire: subito se il profilo è pubblico, con richiesta da accettare se è privato. Gli **amici** restano per le cose private (diario, planner).
+- Sotto le ricette condivise: ❤️ mi piace, 💬 commenti (cancella il tuo o quelli sotto le tue ricette), 🚩 segnala (email a `FEEDBACK_EMAIL`).
+
 ## Per chi sviluppa
 
 ```bash

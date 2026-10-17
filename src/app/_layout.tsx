@@ -107,6 +107,11 @@ function RootNavigator() {
           <Stack.Screen name="friends" />
           <Stack.Screen name="friends-recipes" />
           <Stack.Screen name="stats" />
+          <Stack.Screen name="username" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="map" />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="notifications" />
+          <Stack.Screen name="u/[id]" />
           <Stack.Screen name="friend/[id]" />
           <Stack.Screen name="friend/recipe/[id]" />
         </Stack.Protected>

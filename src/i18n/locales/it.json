@@ -13,7 +13,8 @@
     "save": "Salva",
     "add": "Aggiungi",
     "remove": "Rimuovi",
-    "saving": "Salvataggio…"
+    "saving": "Salvataggio…",
+    "confirm": "Conferma"
   },
   "config": {
     "missingTitle": "Configurazione mancante",
@@ -53,7 +54,8 @@
     "shopping": "Spesa",
     "map": "Mappa",
     "profile": "Profilo",
-    "fridge": "Frigo"
+    "fridge": "Frigo",
+    "social": "Social"
   },
   "library": {
     "title": "Libreria",
@@ -94,7 +96,8 @@
     "visitedFilter": "✓ Ci sono stato",
     "topRated": "⭐ 4+",
     "writeRecipe": "✍️ Scrivi una ricetta",
-    "friendsRecipes": "👥 Ricette degli amici"
+    "friendsRecipes": "👥 Ricette degli amici",
+    "openMap": "🗺️ Mappa"
   },
   "planner": {
     "title": "Planner",
@@ -370,11 +373,11 @@
     "photoLabel": "Foto della ricetta",
     "addPhoto": "Aggiungi una foto del piatto",
     "changePhoto": "Cambia foto",
-    "shareWithFriends": "👥 Fai vedere ai miei amici",
-    "shareWithFriendsHint": "La vedono solo gli amici che hai accettato, e possono salvarla nella loro libreria.",
+    "shareWithFriends": "👥 Condividi sul tuo profilo",
+    "shareWithFriendsHint": "La vedono i tuoi amici e chi ti segue (tutti, se il profilo è pubblico). Possono mettere ❤️, commentare e salvarla.",
     "saveNew": "Salva la ricetta",
     "homemade": "✍️ Ricetta tua",
-    "sharedBadge": "👥 La vedono i tuoi amici",
+    "sharedBadge": "👥 Condivisa",
     "notShared": "🔒 Solo tu"
   },
   "place": {
@@ -405,7 +408,7 @@
   },
   "nearby": {
     "title": "Vicino a me",
-    "button": "📍 Cosa c'è vicino a me?",
+    "button": "📍 Vicino a me",
     "finding": "Cerco la tua posizione…",
     "radius": "Entro",
     "wishlist": "❤️ Voglio andarci",
@@ -822,5 +825,84 @@
   "avatar": {
     "open": "Apri la foto di {{name}}",
     "close": "Chiudi la foto"
+  },
+  "username": {
+    "title": "Scegli il tuo username",
+    "changeTitle": "Cambia username",
+    "hint": "È il tuo nome su Morso: gli altri ti trovano cercando @username. Puoi cambiarlo quando vuoi dal Profilo.",
+    "label": "Username",
+    "invalid": "Da 3 a 30 caratteri: lettere minuscole, numeri, punto o trattino basso (non all'inizio o alla fine).",
+    "taken": "❌ Già preso: provane un altro.",
+    "free": "✅ Libero!",
+    "checking": "Controllo…",
+    "rules": "Esempi: giulia.rossi, chef_marco, pasta4ever",
+    "save": "Continua"
+  },
+  "social": {
+    "title": "Social",
+    "notifications": "Notifiche",
+    "searchTitle": "Cerca persone",
+    "searchPlaceholder": "Cerca @username o nome",
+    "searchHint": "Scrivi almeno 2 lettere dello username o del nome.",
+    "noResults": "Nessuno trovato con questo nome.",
+    "myProfile": "Il tuo profilo",
+    "news": "✨ Novità",
+    "emptyTitle": "Ancora niente da vedere",
+    "emptyBody": "Segui qualcuno o aggiungi amici: qui trovi le ricette che condividono, dalla più nuova.",
+    "findPeople": "🔍 Cerca persone",
+    "requestsButton_one": "👤 {{count}} persona vuole seguirti",
+    "requestsButton_other": "👤 {{count}} persone vogliono seguirti",
+    "follow": "Segui",
+    "following": "✓ Segui già",
+    "requested": "⏳ Richiesta inviata",
+    "unfollowConfirm": "Smettere di seguire questa persona?",
+    "cancelRequestConfirm": "Annullare la richiesta?",
+    "friendBadge": "👥 amico",
+    "followsYou": "ti segue",
+    "publicProfile": "🌍 Profilo pubblico",
+    "privateProfile": "🔒 Profilo privato",
+    "publicHint": "Chiunque su Morso vede le ricette che condividi e può seguirti subito.",
+    "privateHint": "Solo amici e chi accetti vedono le ricette che condividi.",
+    "recipesCount": "ricette",
+    "followersCount": "follower",
+    "followingCount": "seguiti",
+    "editProfile": "Modifica profilo",
+    "addFriend": "👥 Aggiungi agli amici",
+    "noRecipes": "Non ha ancora condiviso ricette.",
+    "noRecipesMine": "Non hai ancora condiviso ricette: scrivine una (Libreria → ✍️) e attiva \"Condividi sul tuo profilo\".",
+    "privateTitle": "Profilo privato",
+    "privateBody": "Seguilo per vedere le sue ricette: dovrà accettare la richiesta.",
+    "privateRequested": "Richiesta inviata: vedrai le sue ricette quando accetta.",
+    "youArePrivate": "Il tuo profilo è privato: lo vedono solo amici e chi accetti (Profilo → interruttore).",
+    "personNotFound": "Profilo non trovato.",
+    "followRequests": "Vogliono seguirti",
+    "noNotifications": "Nessuna notifica",
+    "noNotificationsBody": "Qui arrivano mi piace, commenti, nuovi follower e richieste.",
+    "n": {
+      "like": "{{who}} ha messo ❤️ a {{recipe}}",
+      "comment": "{{who}} ha commentato {{recipe}}",
+      "follow": "{{who}} ha iniziato a seguirti",
+      "followRequest": "{{who}} vuole seguirti",
+      "followAccepted": "{{who}} ha accettato la tua richiesta",
+      "friendRequest": "{{who}} vuole essere tuo amico"
+    },
+    "commentsTitle_one": "💬 {{count}} commento",
+    "commentsTitle_other": "💬 {{count}} commenti",
+    "like": "Mi piace",
+    "unlike": "Non mi piace più",
+    "likesCount_one": "{{count}} mi piace",
+    "likesCount_other": "{{count}} mi piace",
+    "writeComment": "Scrivi un commento",
+    "commentPlaceholder": "Che buona! L'ho rifatta con…",
+    "sendComment": "Pubblica",
+    "deleteCommentConfirm": "Cancellare questo commento?",
+    "report": "Segnala",
+    "reported": "✓ Segnalato",
+    "reportConfirm": "Segnalare questo commento? Lo controlleremo noi.",
+    "changeUsername": "Cambia username",
+    "seeMyProfile": "👤 Il mio profilo",
+    "bio": "Bio",
+    "bioPlaceholder": "es. Amo la pasta fresca e i dolci della nonna 🍝",
+    "reportLimit": "Hai già fatto molte segnalazioni oggi: riprova domani."
   }
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Icon } from '@/components/Icon';
@@ -121,6 +122,7 @@ export default function MapScreen() {
 
   return (
     <Screen>
+      <BackButton />
       <AppText variant="title" style={styles.title}>
         {t('map.title')}
       </AppText>

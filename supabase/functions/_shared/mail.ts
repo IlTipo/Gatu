@@ -52,3 +52,22 @@ export function createResendMailer(apiKey: string, to: string, fetchFn: FetchLik
     }
   };
 }
+
+/** Email per un commento segnalato (solo testo). */
+export function reportMail(input: { body: string; author: string | null; reporter: string | null; reason: string }): Mail {
+  return {
+    subject: oneLine(`🚩 Morso: commento segnalato di @${input.author ?? '?'}`).slice(0, 120),
+    text: [
+      `Un commento è stato segnalato su Morso.`,
+      ``,
+      `Scritto da: @${input.author ?? '?'}`,
+      `Segnalato da: @${input.reporter ?? '?'}`,
+      `Motivo: ${input.reason || '—'}`,
+      ``,
+      `Commento:`,
+      input.body,
+      ``,
+      `Puoi cancellarlo da Supabase → Table editor → recipe_comments.`,
+    ].join('\n'),
+  };
+}

@@ -14,8 +14,13 @@ export type MyProfile = {
   share_cooking: boolean;
   share_planner: boolean;
   share_diary: boolean;
+  username: string | null;
+  bio: string | null;
+  is_public: boolean;
 };
-type ProfilePatch = Partial<Pick<MyProfile, 'display_name' | 'avatar_url' | 'share_cooking' | 'share_planner' | 'share_diary'>>;
+type ProfilePatch = Partial<
+  Pick<MyProfile, 'display_name' | 'avatar_url' | 'share_cooking' | 'share_planner' | 'share_diary' | 'username' | 'bio' | 'is_public'>
+>;
 
 export type Friend = {
   id: string; // id dell'amicizia
@@ -50,6 +55,11 @@ export type FriendRecipe = {
   kcal_per_serving: number | null;
   homemade?: boolean;
   author?: string | null;
+  author_id?: string;
+  author_username?: string | null;
+  author_avatar?: string | null;
+  is_mine?: boolean;
+  shared?: boolean;
   ingredients: { quantity: number | null; unit: string | null; name: string; note: string | null; aisle: string; estimated: boolean }[];
   steps: { text: string; timer_seconds: number | null }[];
 };
@@ -71,7 +81,7 @@ export function useMyProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url, friend_code, share_cooking, share_planner, share_diary')
+        .select('display_name, avatar_url, friend_code, share_cooking, share_planner, share_diary, username, bio, is_public')
         .eq('id', uid!)
         .single();
       if (error) throw error;
@@ -100,7 +110,10 @@ export function useUpdateMyProfile() {
     onError: (_e, _p, ctx) => {
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: key });
+      queryClient.invalidateQueries({ queryKey: ['person'] });
+    },
   });
 }
 
@@ -211,7 +224,8 @@ export function useCopyFriendRecipe() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (recipe: FriendRecipe) => {
-      const { kcal_per_serving: _k, homemade: _h, author: _a, ...rest } = recipe;
+      const { title, description, image_url, servings, prep_minutes, cook_minutes, total_minutes, tags, ingredients, steps } = recipe;
+      const rest = { title, description, image_url, servings, prep_minutes, cook_minutes, total_minutes, tags, ingredients, steps };
       const { data, error } = await supabase.rpc('create_recipe', { p_recipe: rest });
       if (error) throw error;
       return data as string;

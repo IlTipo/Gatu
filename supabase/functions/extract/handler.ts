@@ -14,6 +14,7 @@
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
 //   { action: 'send_feedback', message }  "Cosa aggiungeresti?": salva il consiglio e lo manda per email
+//   { action: 'report_comment', commentId, reason? }  segnala un commento (email a chi gestisce Morso)
 //   { action: 'ask_library', question }  "Chiedi all'AI": sceglie tra le ricette e i locali salvati
 // Risposta: { source, duplicate, needsText, analysis }  ·  per estimate_doses: { recipeId, status, changed, servings }
 
@@ -24,7 +25,7 @@ import { cleanInsights } from '../_shared/insights.ts';
 import { isVariantKind } from '../_shared/recipeTools.ts';
 import { MAX_QUESTION_LENGTH } from '../_shared/ask.ts';
 import { MAX_FOOD_TEXT } from '../_shared/food.ts';
-import { feedbackMail, type Mailer, MAX_FEEDBACK, MIN_FEEDBACK } from '../_shared/mail.ts';
+import { feedbackMail, type Mailer, MAX_FEEDBACK, MIN_FEEDBACK, reportMail } from '../_shared/mail.ts';
 import {
   askLibrary,
   estimateFood,
@@ -131,6 +132,8 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     imageBase64?: unknown;
     mimeType?: unknown;
     message?: unknown;
+    commentId?: unknown;
+    reason?: unknown;
   };
   try {
     body = await req.json();
@@ -158,6 +161,20 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const sent = deps.mailer
       ? await deps.mailer(feedbackMail({ message, name: profile?.display_name ?? null, email: user.email ?? null }))
       : false;
+    return json({ status: sent ? 'sent' : 'saved' });
+  }
+
+  // ---- Segnalazione di un commento: il database controlla che tu possa vederlo (max 10 al giorno)
+  if (body.action === 'report_comment') {
+    if (typeof body.commentId !== 'string') return errorResponse('invalid_body', 400);
+    const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 300) : '';
+    const { data, error: reportError } = await supabase.rpc('report_comment', { p_comment: body.commentId, p_reason: reason });
+    if (reportError) {
+      if (/too many reports/.test(reportError.message ?? '')) return errorResponse('report_limit', 429);
+      return errorResponse('not_found', 404);
+    }
+    const info = data as { body: string; author: string | null; reporter: string | null };
+    const sent = deps.mailer ? await deps.mailer(reportMail({ ...info, reason })) : false;
     return json({ status: sent ? 'sent' : 'saved' });
   }
 

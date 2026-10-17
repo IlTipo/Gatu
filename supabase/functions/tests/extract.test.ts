@@ -951,3 +951,24 @@ Deno.test('consigli: senza email configurata restano salvati; limiti rispettati'
   assertEquals(res.status, 429);
   assertEquals((await res.json()).error, 'feedback_limit');
 });
+
+Deno.test('segnalazione di un commento: controllata dal database e mandata per email', async () => {
+  const rpcCalls: unknown[] = [];
+  const client = {
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: USER, email: 'a@example.com' } }, error: null }) },
+    rpc: (name: string, args: unknown) => {
+      rpcCalls.push({ name, args });
+      return Promise.resolve({ data: { body: 'brutto commento\nBcc: x', author: 'carla', reporter: 'anna' }, error: null });
+    },
+  };
+  const d = deps(client as never);
+  const mails: { subject: string; text: string }[] = [];
+  d.mailer = (m) => (mails.push(m), Promise.resolve(true));
+  const res = await (await handleRequest(post({ action: 'report_comment', commentId: 'c1', reason: ' spam ' }), d)).json();
+  assertEquals(res, { status: 'sent' });
+  assertEquals(rpcCalls, [{ name: 'report_comment', args: { p_comment: 'c1', p_reason: 'spam' } }]);
+  assertEquals(mails[0].subject, '🚩 Morso: commento segnalato di @carla');
+  assertEquals((await handleRequest(post({ action: 'report_comment' }), d)).status, 400);
+  const denied = deps({ ...client, rpc: () => Promise.resolve({ data: null, error: { message: 'not found' } }) } as never);
+  assertEquals((await handleRequest(post({ action: 'report_comment', commentId: 'x' }), denied)).status, 404);
+});

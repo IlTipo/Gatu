@@ -1,14 +1,16 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/AppText';
+import { Avatar } from '@/components/Avatar';
 import { BackButton } from '@/components/BackButton';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { ErrorState, InlineError, LoadingState } from '@/components/StateViews';
+import { RecipeSocial } from '@/components/social/RecipeSocial';
 import { formatIngredient, formatMinutes } from '@/features/recipes/format';
 import { useCopyFriendRecipe, useFriendRecipe } from '@/features/social/api';
 import { errorMessage } from '@/lib/errors';
@@ -50,14 +52,20 @@ export default function FriendRecipeScreen() {
           </View>
         ) : null}
         <AppText variant="title">{r.title}</AppText>
-        {r.author ? (
-          <AppText tone="secondary">
-            {r.homemade ? t('friendsRecipes.byHomemade', { name: r.author }) : t('friendsRecipes.by', { name: r.author })}
-          </AppText>
+        {r.author_id ? (
+          <Pressable
+            onPress={() => router.push({ pathname: '/u/[id]', params: { id: r.author_id! } })}
+            accessibilityRole="button"
+            style={styles.author}>
+            <Avatar url={r.author_avatar} name={r.author ?? r.author_username} size={32} />
+            <AppText tone="secondary" style={styles.flex}>
+              {r.homemade ? t('friendsRecipes.byHomemade', { name: `@${r.author_username ?? r.author}` }) : t('friendsRecipes.by', { name: `@${r.author_username ?? r.author}` })}
+            </AppText>
+          </Pressable>
         ) : null}
         {facts.length ? <AppText tone="secondary">{facts.join(' · ')}</AppText> : null}
         {r.description ? <AppText>{r.description}</AppText> : null}
-        <Button label={t('friends.saveRecipe')} onPress={save} loading={copy.isPending} />
+        {r.is_mine ? null : <Button label={t('friends.saveRecipe')} onPress={save} loading={copy.isPending} />}
         <InlineError message={copy.isError ? errorMessage(copy.error, t) : null} />
         <Section title={t('recipe.ingredients')}>
           {r.ingredients.map((i, index) => (
@@ -71,6 +79,7 @@ export default function FriendRecipeScreen() {
             </AppText>
           ))}
         </Section>
+        {r.shared ? <RecipeSocial recipeId={id} /> : null}
       </View>
     </Screen>
   );
@@ -79,4 +88,6 @@ export default function FriendRecipeScreen() {
 const styles = StyleSheet.create({
   container: { gap: spacing.lg, paddingBottom: spacing.xl },
   image: { width: '100%', aspectRatio: 16 / 10, borderRadius: radius.lg, overflow: 'hidden' },
+  author: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  flex: { flex: 1 },
 });
