@@ -44,7 +44,7 @@ export function PullToRefresh() {
     const refresh = async () => {
       setRefreshing(true);
       try {
-        if (await checkForUpdate()) {
+        if ((await checkForUpdate()).kind !== 'none') {
           reloadApp();
           return;
         }

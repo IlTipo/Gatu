@@ -39,3 +39,10 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Versioni di Morso (regola del proprietario)
+
+- La versione 1.0.0 è la base. La versione sta in `app.json` (`expo.version`) e le novità di ogni versione in `src/changelog.json` (la più recente per prima).
+- **Prima di pubblicare ogni modifica chiedi sempre al proprietario**: "Versione nuova (es. 1.0.0 → 1.0.1) oppure aggiornamento semplice nell'app?"
+  - **Versione nuova**: aumenta l'ultimo numero (1.0.1, 1.0.2…; il secondo numero solo se lo chiede), aggiorna `app.json` e aggiungi in cima a `src/changelog.json` `{ "version", "date", "notes": [...] }` con le novità in italiano semplice. Gli utenti vedono "È disponibile Morso X" nel Profilo (con il pallino sulla scheda) e, dopo l'aggiornamento, le novità.
+  - **Aggiornamento semplice**: non toccare versione né changelog; l'app si aggiorna da sola in silenzio alla riapertura (o scorrendo in giù).

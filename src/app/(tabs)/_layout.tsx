@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
+import { useNews, useUpdateState } from '@/lib/updates';
 import { useTheme } from '@/theme';
 
 type IconName = ComponentProps<typeof Icon>['name'];
@@ -20,6 +21,10 @@ export default function TabsLayout() {
   // spazio per la barretta dell'iPhone (e un minimo anche dove non c'è), così le scritte non si tagliano
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 8);
+  // pallino sul Profilo: versione nuova disponibile o novità ancora da leggere
+  const update = useUpdateState();
+  const news = useNews();
+  const profileBadge = update.kind === 'version' || news ? '1' : undefined;
 
   return (
     <Tabs
@@ -56,7 +61,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="map" options={{ title: t('tabs.map'), tabBarIcon: tabIcon({ ios: 'map', android: 'map' }) }} />
       <Tabs.Screen
         name="profile"
-        options={{ title: t('tabs.profile'), tabBarIcon: tabIcon({ ios: 'person.crop.circle', android: 'person' }) }}
+        options={{
+          title: t('tabs.profile'),
+          tabBarIcon: tabIcon({ ios: 'person.crop.circle', android: 'person' }),
+          tabBarBadge: profileBadge,
+          tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.onPrimary },
+        }}
       />
     </Tabs>
   );

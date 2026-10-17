@@ -25,7 +25,12 @@ execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out]
   stdio: 'inherit',
   env: { ...process.env, EXPO_PUBLIC_BUILD_ID: buildId },
 });
-writeFileSync(join(out, 'version.json'), JSON.stringify({ build: buildId }));
+// versione e novità (da app.json e src/changelog.json): l'app avvisa gli utenti quando la versione cambia
+const appVersion = JSON.parse(readFileSync('app.json', 'utf8')).expo.version;
+const changelog = JSON.parse(readFileSync('src/changelog.json', 'utf8'));
+const latest = changelog.find((c) => c.version === appVersion);
+if (!latest) throw new Error(`Manca la versione ${appVersion} in src/changelog.json (aggiungi le novità in cima)`);
+writeFileSync(join(out, 'version.json'), JSON.stringify({ build: buildId, version: appVersion, notes: latest.notes }));
 
 // 1. Sostituisce %BASE_URL% nella pagina.
 const indexPath = join(out, 'index.html');

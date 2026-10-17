@@ -804,6 +804,12 @@
   },
   "refresh": {
     "release": "Rilascia per aggiornare",
-    "updateAvailable": "✨ Nuova versione di Morso: tocca per aggiornare"
+    "updateAvailable": "✨ È disponibile Morso {{version}}: tocca per aggiornare"
+  },
+  "updates": {
+    "available": "🎉 È disponibile Morso {{version}}",
+    "news": "✨ Novità di Morso {{version}}",
+    "updateNow": "Aggiorna ora",
+    "gotIt": "Ok, ho capito"
   }
 }

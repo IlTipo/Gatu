@@ -19,7 +19,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { takePendingInvite } from '@/features/social/invite';
 import { config } from '@/lib/env';
 import { registerServiceWorker, useOnline } from '@/lib/offline';
-import { reloadApp, useAppUpdates } from '@/lib/updates';
+import { reloadApp, useUpdateChecker, useUpdateState } from '@/lib/updates';
 import { queryClient } from '@/lib/queryClient';
 import { useTheme } from '@/theme';
 
@@ -130,16 +130,18 @@ function RootNavigator() {
 function UpdateBanner() {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const available = useAppUpdates();
+  useUpdateChecker();
+  const update = useUpdateState();
   const insets = useSafeAreaInsets();
-  if (!available) return null;
+  // solo per le versioni nuove: gli aggiornamenti semplici si applicano da soli
+  if (update.kind !== 'version') return null;
   return (
     <Pressable
       onPress={reloadApp}
       accessibilityRole="button"
       style={[styles.offline, { bottom: insets.bottom + 90, backgroundColor: colors.primary }]}>
       <AppText variant="caption" tone="onPrimary" style={{ fontWeight: '700' }}>
-        {t('refresh.updateAvailable')}
+        {t('refresh.updateAvailable', { version: update.version })}
       </AppText>
     </Pressable>
   );

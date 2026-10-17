@@ -9,7 +9,7 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Chip } from '@/components/Chip';
 import { Collapsible } from '@/components/Collapsible';
-import { PressableScale } from '@/components/Motion';
+import { FadeIn, PressableScale } from '@/components/Motion';
 import { PortionsCard } from '@/components/PortionsCard';
 import { Screen } from '@/components/Screen';
 import { InlineError } from '@/components/StateViews';
@@ -20,6 +20,7 @@ import { errorMessage } from '@/lib/errors';
 import { openExternalUrl } from '@/lib/openUrl';
 import { shareLink, siteUrl } from '@/lib/share';
 import { supabase } from '@/lib/supabase';
+import { CURRENT_VERSION, markNewsSeen, reloadApp, useNews, useUpdateState } from '@/lib/updates';
 import { radius, setThemePreference, spacing, type ThemePreference, useTheme, useThemePreference } from '@/theme';
 
 const THEMES: ThemePreference[] = ['system', 'light', 'dark'];
@@ -55,6 +56,7 @@ export default function ProfileScreen() {
     <Screen scroll>
       <View style={styles.container}>
         <AppText variant="title">{t('profile.title')}</AppText>
+        <UpdateCard />
         <ProfileHeader />
 
         <PressableScale
@@ -120,6 +122,35 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
     </Screen>
+  );
+}
+
+/** "È disponibile Morso 1.0.1" (con le novità) oppure, dopo l'aggiornamento, "Novità di Morso 1.0.1". */
+function UpdateCard() {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const update = useUpdateState();
+  const news = useNews();
+  if (update.kind !== 'version' && !news) return null;
+  const isAvailable = update.kind === 'version';
+  const title = isAvailable ? t('updates.available', { version: update.version }) : t('updates.news', { version: CURRENT_VERSION });
+  const notes = isAvailable ? update.notes : (news ?? []).flatMap((n) => n.notes);
+  return (
+    <FadeIn>
+      <View style={[styles.card, styles.updateCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+        <AppText variant="bodyStrong">{title}</AppText>
+        {notes.map((note, i) => (
+          <AppText key={i} tone="secondary">
+            • {note}
+          </AppText>
+        ))}
+        {isAvailable ? (
+          <Button label={t('updates.updateNow')} onPress={reloadApp} />
+        ) : (
+          <Button label={t('updates.gotIt')} variant="secondary" onPress={markNewsSeen} />
+        )}
+      </View>
+    </FadeIn>
   );
 }
 
@@ -243,6 +274,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, gap: 2 },
   badge: { width: 10, height: 10, borderRadius: 5 },
   version: { textAlign: 'center' },
+  updateCard: { gap: spacing.sm, borderWidth: 1.5 },
   madeBy: { alignSelf: 'center', marginTop: -spacing.md, padding: spacing.xs },
   link: { textDecorationLine: 'underline' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
