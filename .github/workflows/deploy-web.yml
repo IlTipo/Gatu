@@ -42,13 +42,32 @@ jobs:
           npm run lint:functions
           npm run test:functions
 
+      # Indirizzo del sito: https://<utente>.github.io/<repo>/ oppure, se c'è la variabile
+      # CUSTOM_DOMAIN (es. morso.app), https://morso.app/ alla radice del dominio.
+      - name: Indirizzo del sito
+        id: site
+        env:
+          CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          DOMAIN=$(echo "$CUSTOM_DOMAIN" | tr '[:upper:]' '[:lower:]' | sed -e 's#^https\?://##' -e 's#/.*$##')
+          if [ -n "$DOMAIN" ]; then
+            if ! echo "$DOMAIN" | grep -Eq '^[a-z0-9.-]+\.[a-z]{2,}$'; then
+              echo "::error::CUSTOM_DOMAIN non valido: $DOMAIN"; exit 1
+            fi
+            { echo "domain=$DOMAIN"; echo "base="; echo "url=https://$DOMAIN/"; } >> "$GITHUB_OUTPUT"
+          else
+            { echo "domain="; echo "base=/$REPO"; echo "url=https://$OWNER.github.io/$REPO/"; } >> "$GITHUB_OUTPUT"
+          fi
+
       # Prepara Supabase in automatico (solo se è stato impostato il secret SUPABASE_ACCESS_TOKEN)
       - name: Prepara Supabase (progetto, tabelle, accesso)
         id: supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-          SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          SITE_URL: ${{ steps.site.outputs.url }}
           # facoltativi: attivano "Accedi con Google"
           GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
@@ -79,7 +98,8 @@ jobs:
 
       - name: Costruisci il sito
         env:
-          EXPO_BASE_URL: /${{ github.event.repository.name }}
+          EXPO_BASE_URL: ${{ steps.site.outputs.base }}
+          CUSTOM_DOMAIN: ${{ steps.site.outputs.domain }}
           # Chiavi PUBBLICHE di Supabase: lette in automatico dal passo precedente
           # (oppure, in alternativa, dalle Variables SUPABASE_URL / SUPABASE_KEY del repository)
           EXPO_PUBLIC_SUPABASE_URL: ${{ steps.supabase.outputs.supabase_url || vars.SUPABASE_URL }}

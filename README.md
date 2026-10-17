@@ -54,6 +54,31 @@ Le pagine dei **siti di ricette** funzionano già senza AI: Morso legge la sched
 > Per sicurezza ogni utente può fare al massimo **40 analisi AI al giorno** (secret Supabase `DAILY_EXTRACTION_LIMIT`). Il modello usato è `gemini-flash-latest`; si può cambiare con il secret Supabase `GEMINI_MODEL` (e i modelli di riserva con `GEMINI_FALLBACK_MODELS`, separati da virgola).
 > Facoltativo: con un secret `GOOGLE_PLACES_API_KEY` gli indirizzi dei locali vengono verificati con Google Places invece che con OpenStreetMap (gratis).
 
+### 3c. Un indirizzo tutto tuo (es. morso.app) — facoltativo
+
+Al posto di `iltipo.github.io/Gatu` il sito può stare su un dominio tuo. Serve comprarlo (un `.app` costa circa 15–20 € l'anno, ad esempio su Cloudflare, Porkbun o Namecheap).
+
+1. **Compra il dominio** (es. `morso.app`).
+2. Nel pannello del dominio, sezione **DNS**, crea questi record (se usi Cloudflare: nuvola **grigia**, "Solo DNS"):
+
+   | Tipo | Nome | Valore |
+   |---|---|---|
+   | A | @ | 185.199.108.153 |
+   | A | @ | 185.199.109.153 |
+   | A | @ | 185.199.110.153 |
+   | A | @ | 185.199.111.153 |
+   | AAAA | @ | 2606:50c0:8000::153 |
+   | AAAA | @ | 2606:50c0:8001::153 |
+   | AAAA | @ | 2606:50c0:8002::153 |
+   | AAAA | @ | 2606:50c0:8003::153 |
+   | CNAME | www | iltipo.github.io |
+
+   (Sono gli indirizzi di GitHub Pages; aggiornarsi può richiedere da qualche minuto a qualche ora.)
+3. Su GitHub: **[Settings → Secrets and variables → Actions](https://github.com/IlTipo/Gatu/settings/variables/actions)** → scheda **Variables** → **New repository variable**: nome `CUSTOM_DOMAIN`, valore `morso.app` (senza https://).
+4. Rilancia **[Actions → Pubblica il sito → Run workflow](https://github.com/IlTipo/Gatu/actions/workflows/deploy-web.yml)**: il sito viene costruito per `morso.app` e Supabase accetta il nuovo indirizzo dopo l'accesso.
+5. In **[Settings → Pages](https://github.com/IlTipo/Gatu/settings/pages)** controlla che compaia `morso.app` e spunta **Enforce HTTPS** (il certificato può richiedere fino a 24 ore).
+6. Il vecchio indirizzo rimanda da solo a quello nuovo. Sul telefono: accedi di nuovo e, se l'avevi aggiunto alla schermata Home, aggiungilo di nuovo.
+
 ### 4. Aggiungilo alla schermata Home del telefono
 
 - **iPhone (Safari)**: apri il sito → pulsante **Condividi** → **Aggiungi alla schermata Home**

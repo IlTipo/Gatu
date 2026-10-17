@@ -3,6 +3,7 @@
 // Uso:  EXPO_BASE_URL=/Gatu node scripts/build-web.mjs
 //   EXPO_BASE_URL  percorso del sito (vuoto se sta alla radice del dominio)
 //   EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_KEY  chiavi pubbliche di Supabase
+//   CUSTOM_DOMAIN  facoltativo, es. morso.app: scrive il file CNAME per GitHub Pages
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,6 +11,10 @@ import { join } from 'node:path';
 const out = 'dist';
 const baseUrl = (process.env.EXPO_BASE_URL ?? '').replace(/\/+$/, '');
 if (baseUrl && !baseUrl.startsWith('/')) throw new Error('EXPO_BASE_URL deve iniziare con "/" (es. /Gatu)');
+const customDomain = (process.env.CUSTOM_DOMAIN ?? '').trim().toLowerCase();
+if (customDomain && !/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(customDomain)) {
+  throw new Error(`CUSTOM_DOMAIN non valido: "${customDomain}" (es. morso.app, senza https://)`);
+}
 
 rmSync(out, { recursive: true, force: true });
 execFileSync('npx', ['expo', 'export', '--platform', 'web', '--output-dir', out], { stdio: 'inherit' });
@@ -25,6 +30,10 @@ copyFileSync(indexPath, join(out, '404.html'));
 
 // 3. Senza questo file GitHub Pages ignorerebbe la cartella _expo (inizia con "_").
 writeFileSync(join(out, '.nojekyll'), '');
+
+// 3b. Dominio personale (es. morso.app): GitHub Pages lo legge dal file CNAME.
+//     Va ripubblicato ogni volta, altrimenti GitHub dimenticherebbe il dominio.
+if (customDomain) writeFileSync(join(out, 'CNAME'), `${customDomain}\n`);
 
 // 4. Manifest: rende il sito installabile sulla schermata Home del telefono.
 const manifest = {
@@ -52,4 +61,4 @@ const manifest = {
 };
 writeFileSync(join(out, 'manifest.webmanifest'), JSON.stringify(manifest, null, 2));
 
-console.log(`\n✔ Sito pronto in ${out}/ (percorso: "${baseUrl || '/'}")`);
+console.log(`\n✔ Sito pronto in ${out}/ (percorso: "${baseUrl || '/'}"${customDomain ? `, dominio: ${customDomain}` : ''})`);
