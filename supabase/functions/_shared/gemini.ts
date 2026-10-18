@@ -176,7 +176,10 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     });
 
   // quota finita (429) o modello non disponibile (404): si prova il modello successivo
-  type Attempt = JsonOutcome | { ok: false; reason: Failure['reason']; tryNext: true };
+  type Attempt =
+    | JsonOutcome
+    | { ok: false; reason: Failure['reason']; tryNext: true }
+    | { ok: false; reason: Failure['reason']; thinkingUnsupported: true };
 
   const generate = async (model: string, body: string): Promise<Attempt> => {
     let res: Response | null = null;
@@ -202,6 +205,9 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
       console.error('Gemini API error', model, res.status, errBody.error?.status, errBody.error?.message);
       if (res.status === 429) return { ok: false, reason: 'rate_limited', tryNext: true };
       if (res.status === 404) return { ok: false, reason: 'api_error', tryNext: true };
+      if (res.status === 400 && /thinking/i.test(`${errBody.error?.message}`)) {
+        return { ok: false, reason: 'api_error', thinkingUnsupported: true };
+      }
       if (res.status === 401 || res.status === 403) return { ok: false, reason: 'auth' };
       if (res.status === 400 && /api key|API_KEY/i.test(`${errBody.error?.message} ${errBody.error?.status}`)) {
         return { ok: false, reason: 'auth' };
@@ -240,7 +246,7 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     schema: unknown,
     media: GeminiMedia[] = [],
   ): Promise<JsonOutcome> => {
-    const body = JSON.stringify({
+    const request = {
       systemInstruction: { parts: [{ text: system }] },
       contents: [{
         role: 'user',
@@ -259,12 +265,21 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
         temperature: 0.2,
         maxOutputTokens: 16384,
       },
+    };
+    // I modelli Flash nuovi "ragionano" a lungo prima di rispondere (anche 30-60 secondi).
+    // Per leggere ricette e foto basta poco ragionamento: risposte molto più veloci.
+    const fast = JSON.stringify({
+      ...request,
+      generationConfig: { ...request.generationConfig, thinkingConfig: { thinkingLevel: 'low' } },
     });
+    const plain = JSON.stringify(request);
 
     // stesso sforzo su ogni modello, nell'ordine, finché uno risponde
     let reason: Failure['reason'] | null = null;
     for (const model of models) {
-      const r = await generate(model, body);
+      // i modelli più vecchi non conoscono thinkingLevel: si riprova senza
+      let r = await generate(model, fast);
+      if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, plain);
       if (r.ok || !('tryNext' in r)) return r.ok ? r : { ok: false, reason: r.reason };
       // "quota finita" conta più di "modello di riserva non trovato"
       if (reason !== 'rate_limited') reason = r.reason;

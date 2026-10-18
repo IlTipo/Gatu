@@ -349,3 +349,26 @@ Deno.test('video: anche se la risposta è un errore, il file viene cancellato', 
   assertEquals(res, { ok: false, reason: 'refusal' });
   assertEquals(fake.calls.at(-1), 'delete');
 });
+
+Deno.test('ragionamento breve (risposte veloci); i modelli che non lo conoscono rispondono lo stesso', async () => {
+  const { fetch, requests } = api(reply(JSON.stringify(extraction)));
+  const out = await createGeminiExtractor('key', { fetch, fallbackModels: [] })(input);
+  assert(out.ok);
+  assertEquals((requests[0].body.generationConfig as Record<string, unknown>).thinkingConfig, { thinkingLevel: 'low' });
+
+  let calls = 0;
+  const bodies: Record<string, unknown>[] = [];
+  const older = ((_url: string, init?: RequestInit) => {
+    calls++;
+    bodies.push(JSON.parse(String(init?.body)));
+    return Promise.resolve(
+      calls === 1
+        ? new Response(JSON.stringify({ error: { status: 'INVALID_ARGUMENT', message: 'Thinking level is not supported for this model.' } }), { status: 400 })
+        : new Response(JSON.stringify(reply(JSON.stringify(extraction))), { status: 200 }),
+    );
+  }) as typeof globalThis.fetch;
+  const again = await createGeminiExtractor('key', { fetch: older, fallbackModels: [] })(input);
+  assert(again.ok);
+  assertEquals(calls, 2);
+  assertEquals((bodies[1].generationConfig as Record<string, unknown>).thinkingConfig, undefined);
+});
