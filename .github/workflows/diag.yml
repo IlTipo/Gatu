@@ -15,15 +15,15 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           REF=ttwjohlyioluvcqywadi
-          START=$(date -u -d '-2 days' +%Y-%m-%dT%H:%M:%SZ)
+          START=$(date -u -d '-6 hours' +%Y-%m-%dT%H:%M:%SZ)
           END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           q() {
           curl -sS -G "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs.all" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             --data-urlencode "sql=$1" --data-urlencode "iso_timestamp_start=$START" --data-urlencode "iso_timestamp_end=$END" \
-            | python3 -c "import json,sys; d=json.load(sys.stdin); [print(r.get('timestamp'), str(r.get('event_message'))[:400]) for r in d.get('result') or []]; print(d.get('error') or '')"
+            | python3 -c "import json,sys; raw=sys.stdin.read(); print(raw[:300]); d=json.loads(raw); [print(r.get('timestamp'), str(r.get('event_message'))[:400]) for r in d.get('result') or []]"
           }
           echo "== messaggi delle funzioni =="
-          q "select timestamp, event_message from function_logs order by timestamp desc limit 60"
+          q "select timestamp, event_message from function_logs where event_message not like '%booted%' and event_message not like '%shutdown%' order by timestamp desc limit 80"
           echo "== richieste a extract (stato) =="
           q "select timestamp, event_message from function_edge_logs order by timestamp desc limit 30"
