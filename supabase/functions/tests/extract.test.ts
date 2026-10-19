@@ -492,6 +492,29 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  dietPlan: (files: { mimeType: string }[], text: string) => {
+    calls.push(`diet:${files.map((f) => f.mimeType).join(',')}|${text.slice(0, 10)}`);
+    return Promise.resolve({
+      ok: true as const,
+      plan: {
+        title: 'Piano di ottobre',
+        notes: ['2 litri di acqua'],
+        days: [{
+          label: 'Lunedì',
+          weekday: 1,
+          meals: [{
+            slot: 'pranzo',
+            options: [
+              { text: '80 g pasta con verdure', items: [{ name: 'Pasta', quantity: 80, unit: 'g' }] },
+              { text: '100 g riso', items: [{ name: 'riso', quantity: 100, unit: 'g' }] },
+            ],
+          }],
+        }],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
   fridgeRecipe: (request: { ingredients: string[]; avoid: string[] }) => {
     calls.push(`recipe:${request.ingredients.join(',')}|evita:${request.avoid.join(',')}`);
     return Promise.resolve({
@@ -887,6 +910,30 @@ Deno.test('spesa: lista dalla foto (pulita, senza doppioni, quantità sensate)',
   assertEquals(calls, ['shopping:image/png']);
   const bad = await handleRequest(post({ action: 'shopping_scan', imageBase64: btoa('x'), mimeType: 'text/html' }), d);
   assertEquals(bad.status, 400);
+});
+
+Deno.test('piano alimentare: da PDF/foto o testo, controlli sui file', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(
+    post({ action: 'diet_plan_read', files: [{ data: btoa('pdf'), mimeType: 'application/pdf' }, { data: btoa('img'), mimeType: 'image/jpeg' }] }),
+    d,
+  )).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.plan.days[0].meals[0].options.length, 2);
+  assertEquals(res.plan.days[0].meals[0].options[0].items[0], { name: 'pasta', quantity: 80, unit: 'g' });
+  assertEquals(calls, ['diet:application/pdf,image/jpeg|']);
+  const text = await handleRequest(post({ action: 'diet_plan_read', text: 'Colazione: yogurt e frutta. Pranzo: pasta 80 g' }), d);
+  assertEquals(text.status, 200);
+  for (const bad of [
+    { action: 'diet_plan_read' },
+    { action: 'diet_plan_read', text: 'corto' },
+    { action: 'diet_plan_read', files: [{ data: btoa('x'), mimeType: 'text/html' }] },
+    { action: 'diet_plan_read', files: Array.from({ length: 6 }, () => ({ data: btoa('x'), mimeType: 'image/png' })) },
+  ]) {
+    assertEquals((await handleRequest(post(bad), d)).status, 400);
+  }
 });
 
 Deno.test('frigo: ricetta nuova dagli ingredienti, etichette non ammesse tolte', async () => {

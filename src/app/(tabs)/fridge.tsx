@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -56,6 +56,17 @@ export default function FridgeScreen() {
     rememberPantry(clean);
     setItemsState(clean);
   };
+
+  // dal piano alimentare ("Inventa una ricetta"): arrivano gli alimenti di quel pasto
+  const { items: fromPlan } = useLocalSearchParams<{ items?: string }>();
+  const [handledPlan, setHandledPlan] = useState<string | undefined>(undefined);
+  if (fromPlan && fromPlan !== handledPlan) {
+    setHandledPlan(fromPlan);
+    const next = [...new Set(fromPlan.split('|').map((s) => s.trim()).filter(Boolean))].slice(0, 40);
+    rememberPantry(next);
+    setItemsState(next);
+    setIdea(null);
+  }
   const add = () => {
     const parts = splitPantryInput(draft);
     if (!parts.length) return;

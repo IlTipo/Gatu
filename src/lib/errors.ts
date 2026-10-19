@@ -28,6 +28,7 @@ const CODE_TO_KEY = {
   discover_busy: 'nearby.discoverBusy',
   discover_failed: 'nearby.discoverFailed',
   too_large: 'errors.tooLarge',
+  invalid_pdf: 'diet.invalidPdf',
   not_configured: 'errors.notConfigured',
 } as const;
 

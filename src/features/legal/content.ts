@@ -29,6 +29,7 @@ const privacy: Section[] = [
       'Profilo: nome, @username, foto profilo, bio, codice amico, scelte su cosa condividere, grammi per porzione e obiettivi del diario.',
       'Quello che salvi: link, ricette, locali, raccolte, planner, lista della spesa, voti, ricette cucinate, foto che carichi. I video caricati servono solo per la lettura con l\'AI e vengono cancellati subito dopo.',
       'Diario calorie: cosa mangi e le calorie stimate. Può dire qualcosa sulla tua salute, per questo resta privato finché non scegli tu di condividerlo con gli amici (con conferma esplicita).',
+      'Piano alimentare: se lo carichi (foto, PDF o testo), lo leggiamo con l\'AI per mostrartelo giorno per giorno. Come il diario può dire qualcosa sulla tua salute: resta solo tuo e non si condivide con nessuno. Puoi eliminarlo quando vuoi.',
       'Parte social: chi segui e chi ti segue, amici, mi piace, commenti, notifiche, persone bloccate, segnalazioni.',
       'Posizione: solo quando usi "Vicino a me" o "Scopri in zona", e solo dopo il permesso del telefono. Non la salviamo: serve per calcolare le distanze e cercare i locali vicini.',
       'Consigli che ci mandi da "Cosa aggiungeresti?" e i dati tecnici necessari a far funzionare il servizio (per esempio l\'indirizzo IP nei registri dei fornitori, per sicurezza).',
@@ -38,6 +39,7 @@ const privacy: Section[] = [
     title: 'Perché li usiamo (e su quale base)',
     body: [
       'Per darti il servizio che chiedi: salvare, leggere e organizzare ricette e locali, il planner, la spesa, il diario e la parte social (esecuzione del contratto, art. 6.1.b GDPR).',
+      'Per leggere e mostrarti il piano alimentare che carichi tu: con il tuo consenso esplicito, dato caricandolo (art. 9.2.a GDPR). Lo togli eliminandolo.',
       'Per mostrare il tuo diario agli amici: solo con il tuo consenso esplicito, che puoi togliere quando vuoi spegnendo l\'interruttore (art. 9.2.a GDPR).',
       'Per tenere Morso sicuro: limiti anti-spam, blocchi, segnalazioni, prevenzione degli abusi (legittimo interesse, art. 6.1.f GDPR).',
       'Non vendiamo i tuoi dati, non facciamo pubblicità e non usiamo strumenti di tracciamento o profilazione.',
@@ -48,7 +50,7 @@ const privacy: Section[] = [
     body: [
       'Solo i fornitori che fanno funzionare Morso, ciascuno per la sua parte e con contratti che proteggono i dati:',
       '• Supabase (database, accesso e file): server nell\'Unione Europea (Francoforte).',
-      '• Google (AI Gemini): riceve il testo del link, la foto o il video da leggere, la domanda o il pasto da stimare. Se è configurato, Google Maps aiuta a trovare l\'indirizzo dei locali.',
+      '• Google (AI Gemini): riceve il testo del link, la foto o il video da leggere, il piano alimentare da leggere, la domanda o il pasto da stimare. Se è configurato, Google Maps aiuta a trovare l\'indirizzo dei locali.',
       '• Cloudflare: ospita il sito di Morso.',
       '• Resend: manda al titolare le email dei consigli e delle segnalazioni.',
       '• OpenStreetMap (Nominatim e Overpass): riceve il nome o la zona da cercare per trovare i locali sulla mappa.',

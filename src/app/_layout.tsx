@@ -105,6 +105,8 @@ function RootNavigator() {
           <Stack.Screen name="pantry" />
           <Stack.Screen name="planner" />
           <Stack.Screen name="shopping" />
+          <Stack.Screen name="diet/index" />
+          <Stack.Screen name="diet/edit" />
           <Stack.Screen name="plan/add" options={{ presentation: 'modal' }} />
           <Stack.Screen name="friends" />
           <Stack.Screen name="friends-recipes" />

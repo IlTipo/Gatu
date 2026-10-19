@@ -290,6 +290,7 @@ export default function LibraryScreen() {
       <View style={styles.shortcuts}>
         <Shortcut emoji="📅" title={t('tabs.planner')} hint={t('library.plannerHint')} onPress={() => router.push('/planner')} />
         <Shortcut emoji="🛒" title={t('tabs.shopping')} hint={t('library.shoppingHint')} onPress={() => router.push('/shopping')} />
+        <Shortcut emoji="🥗" title={t('diet.shortTitle')} hint={t('library.dietHint')} onPress={() => router.push('/diet')} />
       </View>
       <TodayReminder />
       {libraryEmpty ? null : (
@@ -337,14 +338,12 @@ function Shortcut({ emoji, title, hint, onPress }: { emoji: string; title: strin
       accessibilityLabel={title}
       style={[styles.shortcut, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <AppText variant="heading">{emoji}</AppText>
-      <View style={styles.flex}>
-        <AppText variant="bodyStrong" numberOfLines={1}>
-          {title}
-        </AppText>
-        <AppText variant="caption" tone="secondary" numberOfLines={1}>
-          {hint}
-        </AppText>
-      </View>
+      <AppText variant="bodyStrong" numberOfLines={1}>
+        {title}
+      </AppText>
+      <AppText variant="caption" tone="secondary" numberOfLines={1}>
+        {hint}
+      </AppText>
     </PressableScale>
   );
 }
@@ -396,10 +395,10 @@ const styles = StyleSheet.create({
   shortcuts: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   shortcut: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: 2,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
   },

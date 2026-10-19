@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.0.3",
+    "date": "2026-10-19",
+    "notes": [
+      "🥗 Il tuo piano alimentare: caricalo da foto, PDF o testo (o scrivilo a mano) e vedi cosa mangiare oggi, con le alternative",
+      "Dal piano: \"L'ho mangiato\" lo segna nel diario calorie e \"Ricette adatte\" ti propone cosa cucinare",
+      "🔔 Notifiche push: mi piace, commenti, promemoria dei pasti e della spesa (scegli tu cosa e quando, dal Profilo)",
+      "🛒 Spesa più comoda: la tua lista, \"Già preso\" separato e la lista da foto di un foglietto",
+      "Planner, Spesa e Piano ora sono in cima alla Libreria"
+    ]
+  },
+  {
     "version": "1.0.2",
     "date": "2026-10-17",
     "notes": [

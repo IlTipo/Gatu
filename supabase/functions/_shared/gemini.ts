@@ -13,9 +13,10 @@ import {
   GEMINI_FRIDGE_RECIPE_SCHEMA,
   GEMINI_FRIDGE_SCAN_SCHEMA,
 } from './fridge.ts';
+import { DIET_PLAN_PROMPT, DietPlanSchema, GEMINI_DIET_PLAN_SCHEMA } from './dietPlan.ts';
 import { GEMINI_SHOPPING_SCAN_SCHEMA, SHOPPING_SCAN_PROMPT, ShoppingScanSchema } from './shoppingPhoto.ts';
 import { buildFoodMessage, FOOD_PROMPT, FoodSchema, GEMINI_FOOD_SCHEMA } from './food.ts';
-import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT } from './extraction.ts';
+import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT, tagSafe } from './extraction.ts';
 import { GEMINI_INSIGHTS_SCHEMA, INSIGHTS_SYSTEM_PROMPT, InsightsSchema } from './insights.ts';
 import {
   GEMINI_VARIANT_SCHEMA,
@@ -462,6 +463,16 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = ShoppingScanSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, scan: parsed.data, model: r.model, usage: r.usage };
+    },
+    async dietPlan(files, text) {
+      const message = text
+        ? `Ecco il piano alimentare (testo incollato dall'utente):\n<piano>${tagSafe(text.slice(0, 20000))}</piano>`
+        : 'Ecco il piano alimentare nei file allegati.';
+      const r = await generate(DIET_PLAN_PROMPT, message, GEMINI_DIET_PLAN_SCHEMA, files);
+      if (!r.ok) return r;
+      const parsed = DietPlanSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, plan: parsed.data, model: r.model, usage: r.usage };
     },
     async fridgeRecipe(request) {
       const r = await generate(FRIDGE_RECIPE_PROMPT, buildFridgeMessage(request), GEMINI_FRIDGE_RECIPE_SCHEMA);

@@ -11,6 +11,7 @@
 //   { action: 'refresh_place', placeId }  aggiorna indirizzo, telefono, sito e orari di un locale
 //   { action: 'recipe_video', recipeId, videoPath }  procedimento e dosi dal video caricato
 //   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
+//   { action: 'diet_plan_read', files?: [{ data, mimeType }], text? }  piano alimentare → giorni e pasti
 //   { action: 'shopping_scan', imageBase64, mimeType }  foto della lista della spesa → voci
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
@@ -33,12 +34,14 @@ import {
   fridgeRecipe,
   fridgeScan,
   shoppingScan,
+  readDietPlan,
   recipeFromVideo,
   recipeInsights,
   recipeVariant,
   refreshPlace,
 } from './actions.ts';
 import { parseFridgeRequest } from '../_shared/fridge.ts';
+import { parseDietFiles } from '../_shared/dietPlan.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
@@ -141,6 +144,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     commentId?: unknown;
     reason?: unknown;
     confirm?: unknown;
+    files?: unknown;
   };
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return errorResponse('too_large', 413);
   try {
@@ -232,6 +236,12 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const image = parsePhoto(body.imageBase64, body.mimeType);
     if (!image) return errorResponse('invalid_image', 400);
     return json(await fridgeScan(image, ctx));
+  }
+  if (body.action === 'diet_plan_read') {
+    const files = parseDietFiles((body as Record<string, unknown>).files);
+    const planText = typeof body.text === 'string' ? body.text.trim().slice(0, 20_000) : '';
+    if (!files || (!files.length && planText.length < 20)) return errorResponse('invalid_body', 400);
+    return json(await readDietPlan(files, planText, ctx));
   }
   if (body.action === 'shopping_scan') {
     const image = parsePhoto(body.imageBase64, body.mimeType);

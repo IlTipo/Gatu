@@ -542,5 +542,12 @@ await db.exec(`reset role; insert into public.notifications (user_id, actor_id, 
 due = (await pushDue()).rows[0].m.filter((m) => m.title === '❤️ Mi piace');
 ok(due.length === 1 && due[0].body.includes('e altre 2 persone'), 'i mi piace si raggruppano');
 
+// --- Piano alimentare ---
+await as(A, `insert into public.diet_plans (title, days) values ('Dieta di ottobre', '[{"label":"Lunedì","weekday":1,"meals":[]}]')`);
+ok((await as(B, `select * from public.diet_plans`)).rows.length === 0, 'Bruno NON vede il piano alimentare di Anna');
+await fails(() => as(B, `insert into public.diet_plans (user_id, title) values ('${A}', 'finto')`), 'Bruno NON può scrivere il piano di Anna');
+ok(((await as(B, `update public.diet_plans set title = 'x' where user_id = '${A}'`)).affectedRows ?? 0) === 0, 'Bruno NON può modificare il piano di Anna');
+await fails(() => as(A, `update public.diet_plans set days = '{"non":"lista"}'`), 'il piano deve essere una lista di giorni');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

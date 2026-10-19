@@ -24,6 +24,7 @@ import { type CleanInsights, cleanInsights } from '../_shared/insights.ts';
 import { cleanExtraction, type CleanIngredient, type ExtractionInput } from '../_shared/extraction.ts';
 import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } from '../_shared/recipeTools.ts';
 import { type CleanFood, cleanFood } from '../_shared/food.ts';
+import { type CleanDietPlan, cleanDietPlan } from '../_shared/dietPlan.ts';
 import { type CleanShoppingItem, cleanShoppingScan } from '../_shared/shoppingPhoto.ts';
 import { type CleanFridgeRecipe, cleanFridgeRecipe, cleanFridgeScan, type FridgeRequest } from '../_shared/fridge.ts';
 import { MAX_VIDEO_BYTES, mergeVideoRecipe, parseVideoPath, type SavedRecipe } from '../_shared/video.ts';
@@ -325,6 +326,20 @@ export async function shoppingScan(
   const outcome = await ctx.recipeTools.shoppingScan(image);
   if (!outcome.ok) return { status: 'error', reason: outcome.reason };
   return { status: 'done', items: cleanShoppingScan(outcome.scan) };
+}
+
+/** Piano alimentare da foto, PDF o testo → giorni, pasti e alternative (si salva solo dopo averlo visto). */
+export async function readDietPlan(
+  files: { mimeType: string; data: string }[],
+  text: string,
+  ctx: Ctx,
+): Promise<{ status: 'done'; plan: CleanDietPlan } | { status: 'not_plan' } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+  const outcome = await ctx.recipeTools.dietPlan(files, text);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  const plan = cleanDietPlan(outcome.plan);
+  return plan.days.length ? { status: 'done', plan } : { status: 'not_plan' };
 }
 
 /** Alimenti che hai → una ricetta nuova (da mostrare; si salva solo se piace). */
