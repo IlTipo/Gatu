@@ -17,8 +17,13 @@ jobs:
           REF=ttwjohlyioluvcqywadi
           START=$(date -u -d '-2 days' +%Y-%m-%dT%H:%M:%SZ)
           END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          SQL="select timestamp, event_message from function_logs where event_message like '%Gemini%' or event_message like '%failed%' or event_message like '%error%' order by timestamp desc limit 40"
+          q() {
           curl -sS -G "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs.all" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            --data-urlencode "sql=$SQL" --data-urlencode "iso_timestamp_start=$START" --data-urlencode "iso_timestamp_end=$END" \
+            --data-urlencode "sql=$1" --data-urlencode "iso_timestamp_start=$START" --data-urlencode "iso_timestamp_end=$END" \
             | python3 -c "import json,sys; d=json.load(sys.stdin); [print(r.get('timestamp'), str(r.get('event_message'))[:400]) for r in d.get('result') or []]; print(d.get('error') or '')"
+          }
+          echo "== messaggi delle funzioni =="
+          q "select timestamp, event_message from function_logs order by timestamp desc limit 60"
+          echo "== richieste a extract (stato) =="
+          q "select timestamp, event_message from function_edge_logs order by timestamp desc limit 30"
