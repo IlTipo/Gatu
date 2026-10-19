@@ -1,7 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import type { TFunction } from 'i18next';
-import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -21,6 +22,13 @@ import { addDays, startOfWeek, toISODate, weekLabel } from '@/features/planner/d
 import { AISLE_LABELS } from '@/features/recipes/constants';
 import { formatIngredient } from '@/features/recipes/format';
 import {
+  applyTemplate,
+  shoppingKeys,
+  useAddTemplateItems,
+  useCopyWeek,
+  useDeleteTemplate,
+  useSaveTemplate,
+  useShoppingTemplate,
   type NewItem,
   type ShoppingItem,
   useAddManualItems,
@@ -63,11 +71,32 @@ export default function ShoppingScreen() {
   const scan = useShoppingScan();
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<unknown>(null);
   // voci lette dalla foto, da confermare prima di metterle in lista
   const [found, setFound] = useState<(NewItem & { keep: boolean })[] | null>(null);
   // l'ordine dei reparti del tuo supermercato
   const { order: aisleOrder } = useAislePrefs();
+  const copy = useCopyWeek();
+  const template = useShoppingTemplate();
+  const queryClient = useQueryClient();
+  const hasTemplate = !!template.data?.length;
+
+  // lista fissa: alla prima apertura di ogni settimana (da questa in poi) si aggiunge da sola
+  useEffect(() => {
+    if (!hasTemplate) return;
+    let alive = true;
+    applyTemplate(monday)
+      .then((n) => {
+        if (!alive || !n) return;
+        queryClient.invalidateQueries({ queryKey: shoppingKeys.week(monday) });
+        setMessage(t('shopping.templateApplied', { count: n }));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [hasTemplate, monday, queryClient, t]);
 
   const titles = useMemo(() => new Map((recipes.data ?? []).map((r) => [r.id, r.title])), [recipes.data]);
   const items = useMemo(() => list.data ?? [], [list.data]);
@@ -86,6 +115,7 @@ export default function ShoppingScreen() {
 
   const goWeek = (delta: number) => {
     setMessage(null);
+    setCopyMessage(null);
     setFound(null);
     setMonday(addDays(monday, delta * 7));
   };
@@ -295,9 +325,31 @@ export default function ShoppingScreen() {
 
         {items.length ? <AisleOrderCard /> : null}
 
+        <TemplateCard monday={monday} hasItems={items.length > 0} />
+
         {items.length ? (
           <View style={styles.actions}>
             {left ? <Button label={t('shopping.share')} onPress={share} /> : null}
+            <Button
+              label={t('shopping.copyNext')}
+              variant="secondary"
+              loading={copy.isPending}
+              onPress={() => {
+                const next = addDays(monday, 7);
+                copy.mutate(
+                  { from: monday, to: next },
+                  { onSuccess: (n) => setCopyMessage(n ? t('shopping.copied_next', { count: n, week: weekLabel(next) }) : t('shopping.copiedNone')) },
+                );
+              }}
+            />
+            {copyMessage ? (
+              <View style={styles.takenHeader}>
+                <AppText tone="secondary" style={styles.flex}>
+                  {copyMessage}
+                </AppText>
+                <Chip label={t('shopping.goNext')} onPress={() => goWeek(1)} />
+              </View>
+            ) : null}
             {meals ? (
               <>
                 <Button
@@ -327,7 +379,9 @@ export default function ShoppingScreen() {
                     ? errorMessage(addItems.error, t)
                     : clearChecked.isError
                       ? errorMessage(clearChecked.error, t)
-                      : null
+                      : copy.isError
+                        ? errorMessage(copy.error, t)
+                        : null
           }
         />
       </View>
@@ -452,6 +506,78 @@ function ItemRow({ item, monday, titles }: { item: ShoppingItem; monday: string;
         </View>
       ) : null}
     </View>
+  );
+}
+
+/** ⭐ Lista fissa: le cose che compri sempre, aggiunte da sole a ogni settimana nuova. */
+function TemplateCard({ monday, hasItems }: { monday: string; hasItems: boolean }) {
+  const { t } = useTranslation();
+  const template = useShoppingTemplate();
+  const save = useSaveTemplate();
+  const add = useAddTemplateItems();
+  const remove = useDeleteTemplate();
+  const [draft, setDraft] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const list = template.data ?? [];
+  const addDraft = () => {
+    const names = splitPantryInput(draft).slice(0, 30);
+    if (!names.length) return;
+    add.mutate({ names, position: list.length + 1 }, { onSuccess: () => setDraft('') });
+  };
+  return (
+    <Collapsible
+      title={t('shopping.templateTitle')}
+      summary={list.length ? t('shopping.templateSummary', { count: list.length }) : t('shopping.templateSummaryNone')}>
+      <AppText tone="secondary">{t('shopping.templateHint')}</AppText>
+      {list.map((item) => (
+        <View key={item.id} style={styles.orderRow}>
+          <AppText style={styles.flex}>
+            {AISLE_EMOJI[item.aisle] ?? AISLE_EMOJI.altro} {formatItem(item)}
+          </AppText>
+          <Pressable onPress={() => remove.mutate(item.id)} accessibilityRole="button" accessibilityLabel={t('shopping.remove')} hitSlop={8}>
+            <AppText variant="bodyStrong" tone="secondary">
+              ✕
+            </AppText>
+          </Pressable>
+        </View>
+      ))}
+      <View style={styles.addRow}>
+        <View style={styles.flex}>
+          <TextField
+            label={t('shopping.templateAdd')}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t('shopping.addPlaceholder')}
+            returnKeyType="done"
+            onSubmitEditing={addDraft}
+            blurOnSubmit={false}
+          />
+        </View>
+        <View style={styles.addButton}>
+          <Button label={t('shopping.add')} variant="secondary" onPress={addDraft} disabled={!draft.trim()} loading={add.isPending} />
+        </View>
+      </View>
+      {hasItems ? (
+        <Button
+          label={list.length ? t('shopping.templateReplace') : t('shopping.templateSave')}
+          variant="secondary"
+          loading={save.isPending}
+          onPress={() => save.mutate(monday, { onSuccess: (n) => setMessage(t('shopping.templateSaved', { count: n })) })}
+        />
+      ) : null}
+      {list.length ? (
+        <Button
+          label={t('shopping.templateRemove')}
+          variant="ghost"
+          loading={remove.isPending && remove.variables === null}
+          onPress={() => remove.mutate(null, { onSuccess: () => setMessage(t('shopping.templateRemoved')) })}
+        />
+      ) : null}
+      {message ? <AppText tone="secondary">{message}</AppText> : null}
+      <InlineError
+        message={save.isError ? errorMessage(save.error, t) : add.isError ? errorMessage(add.error, t) : remove.isError ? errorMessage(remove.error, t) : null}
+      />
+    </Collapsible>
   );
 }
 

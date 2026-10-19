@@ -32,7 +32,7 @@ export function useAcceptTerms() {
 const MY_TABLES = [
   'profiles', 'sources', 'recipes', 'recipe_ingredients', 'recipe_steps', 'places', 'collections', 'collection_items',
   'meal_plan_entries', 'shopping_items', 'food_log', 'cook_log', 'feedback', 'friendships', 'follows', 'recipe_likes',
-  'recipe_comments', 'notifications', 'comment_reports', 'blocks', 'usage_counters', 'diet_plans', 'notification_settings',
+  'recipe_comments', 'notifications', 'comment_reports', 'blocks', 'usage_counters', 'diet_plans', 'notification_settings', 'shopping_template_items',
 ] as const;
 
 /** "Scarica i miei dati": tutto in un file JSON (portabilità, art. 20 GDPR). */

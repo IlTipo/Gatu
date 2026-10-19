@@ -202,3 +202,81 @@ export function useShoppingScan() {
       invokeExtract<ShoppingScanResult>({ action: 'shopping_scan', imageBase64: photo.base64, mimeType: photo.mimeType }),
   });
 }
+
+// ------------------------------------------------------------------ copia e lista fissa
+
+export type TemplateItem = { id: string; name: string; quantity: number | null; unit: string | null; aisle: string; position: number };
+const templateKey = ['shopping-template'] as const;
+
+/** Copia la lista di una settimana in un'altra (non spuntata, senza doppioni). */
+export function useCopyWeek() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ from, to }: { from: string; to: string }) => {
+      const { data, error } = await supabase.rpc('copy_shopping_week', { p_from: from, p_to: to });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (_n, { to }) => queryClient.invalidateQueries({ queryKey: shoppingKeys.week(to) }),
+  });
+}
+
+/** Le voci della lista fissa (si aggiungono da sole a ogni settimana nuova). */
+export function useShoppingTemplate() {
+  return useQuery({
+    queryKey: templateKey,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shopping_template_items')
+        .select('id, name, quantity, unit, aisle, position')
+        .order('position');
+      if (error) throw error;
+      return (data as TemplateItem[]).map((i) => ({ ...i, quantity: i.quantity === null ? null : Number(i.quantity) }));
+    },
+  });
+}
+
+/** Salva la lista della settimana come lista fissa (sostituisce quella di prima). */
+export function useSaveTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (monday: string) => {
+      const { data, error } = await supabase.rpc('save_shopping_template', { p_week: monday });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: templateKey }),
+  });
+}
+
+export function useAddTemplateItems() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ names, position }: { names: string[]; position: number }) => {
+      const rows = names.map((name, i) => ({ name: name.slice(0, 200), aisle: aisleFor(name, guessAisle(name)), position: Math.min(32000, position + i) }));
+      const { error } = await supabase.from('shopping_template_items').insert(rows);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: templateKey }),
+  });
+}
+
+/** Toglie una voce (id) o tutta la lista fissa (null). */
+export function useDeleteTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string | null) => {
+      const query = supabase.from('shopping_template_items').delete();
+      const { error } = id ? await query.eq('id', id) : await query.not('id', 'is', null);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: templateKey }),
+  });
+}
+
+/** Aggiunge la lista fissa alla settimana (una volta sola; dalla settimana corrente in poi). */
+export async function applyTemplate(monday: string): Promise<number> {
+  const { data, error } = await supabase.rpc('apply_shopping_template', { p_week: monday });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}

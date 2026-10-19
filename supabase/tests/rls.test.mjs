@@ -549,5 +549,22 @@ await fails(() => as(B, `insert into public.diet_plans (user_id, title) values (
 ok(((await as(B, `update public.diet_plans set title = 'x' where user_id = '${A}'`)).affectedRows ?? 0) === 0, 'Bruno NON può modificare il piano di Anna');
 await fails(() => as(A, `update public.diet_plans set days = '{"non":"lista"}'`), 'il piano deve essere una lista di giorni');
 
+// --- Spesa: copia e lista fissa ---
+const wk = (await db.query(`select date_trunc('week', current_date)::date::text as w, (date_trunc('week', current_date) + interval '7 days')::date::text as n`)).rows[0];
+await as(A, `delete from public.shopping_items`);
+await as(A, `insert into public.shopping_items (week_start, name, quantity, unit, is_manual, checked) values ('${wk.w}', 'Latte', 2, 'l', true, true), ('${wk.w}', 'pane', null, null, true, false)`);
+ok((await as(A, `select public.copy_shopping_week('${wk.w}', '${wk.n}') as n`)).rows[0].n === 2, 'lista copiata alla settimana dopo');
+ok((await as(A, `select public.copy_shopping_week('${wk.w}', '${wk.n}') as n`)).rows[0].n === 0, 'copiando di nuovo niente doppioni');
+ok((await as(A, `select bool_or(checked) as c from public.shopping_items where week_start = '${wk.n}'`)).rows[0].c === false, 'le voci copiate non sono spuntate');
+ok((await as(A, `select public.save_shopping_template('${wk.w}') as n`)).rows[0].n === 2, 'lista fissa salvata');
+ok((await as(B, `select * from public.shopping_template_items`)).rows.length === 0, 'Bruno NON vede la lista fissa di Anna');
+await as(A, `delete from public.shopping_items where week_start = '${wk.n}'`);
+ok((await as(A, `select public.apply_shopping_template('${wk.n}') as n`)).rows[0].n === 2, 'la lista fissa si aggiunge alla settimana nuova');
+await as(A, `delete from public.shopping_items where week_start = '${wk.n}' and name = 'pane'`);
+ok((await as(A, `select public.apply_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'una voce tolta non ritorna (una volta per settimana)');
+ok((await as(A, `select public.apply_shopping_template('${wk.w}') as n`)).rows[0].n === 0, 'nella settimana da cui è stata salvata non si duplica');
+ok((await as(B, `select public.apply_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'chi non ha una lista fissa non riceve niente');
+ok((await as(B, `select * from public.shopping_items where week_start = '${wk.n}'`)).rows.length === 0, 'la lista fissa di Anna non finisce a Bruno');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);
