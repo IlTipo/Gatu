@@ -1,4 +1,4 @@
-# Controllo temporaneo: legge gli ultimi errori delle funzioni del server (solo messaggi di errore, nessun dato utente).
+# Controllo temporaneo: prova con l'AI vera la lettura di una nota della spesa.
 name: Diagnostica funzioni
 on:
   push:
@@ -7,23 +7,16 @@ on:
 permissions:
   contents: read
 jobs:
-  logs:
+  ai:
     runs-on: ubuntu-latest
     steps:
-      - name: Ultimi errori di "extract"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Lista della spesa da foto (AI vera)
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          REF=ttwjohlyioluvcqywadi
-          START=$(date -u -d '-6 hours' +%Y-%m-%dT%H:%M:%SZ)
-          END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          q() {
-          curl -sS -G "https://api.supabase.com/v1/projects/$REF/analytics/endpoints/logs" \
-            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-            --data-urlencode "sql=$1" --data-urlencode "iso_timestamp_start=$START" --data-urlencode "iso_timestamp_end=$END" \
-            | python3 -c "import json,sys; raw=sys.stdin.read(); print(raw[:300]); d=json.loads(raw); [print(r.get('timestamp'), str(r.get('event_message'))[:400]) for r in d.get('result') or []]"
-          }
-          echo "== messaggi delle funzioni =="
-          q "select timestamp, event_message from logs where source_name = 'function_logs' and event_message not like '%booted%' and event_message not like '%shutdown%' and event_message not like '%Listening%' order by timestamp desc limit 80"
-          echo "== richieste a extract (stato) =="
-          q "select timestamp, event_message from logs where source_name = 'function_edge_logs' and event_message like '%extract%' order by timestamp desc limit 20"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: deno run --config supabase/functions/deno.json --allow-env --allow-net --allow-read supabase/functions/tests-live/shopping.live.ts
