@@ -3,6 +3,7 @@ import type { RawAnswer } from './ask.ts';
 import type { DoseEstimate, DoseInput } from './doses.ts';
 import type { RawFood } from './food.ts';
 import type { FridgeRequest, RawFridgeRecipe, RawFridgeScan } from './fridge.ts';
+import type { RawShoppingScan } from './shoppingPhoto.ts';
 import type { ExtractionInput, RawExtraction } from './extraction.ts';
 import type { RawInsights } from './insights.ts';
 import type { RawVariant, RecipeForAi, VariantKind } from './recipeTools.ts';
@@ -30,6 +31,7 @@ export type VariantOutcome = ({ ok: true; variant: RawVariant } & Usage) | Failu
 export type AskOutcome = ({ ok: true; answer: RawAnswer } & Usage) | Failure;
 export type FridgeScanOutcome = ({ ok: true; scan: RawFridgeScan } & Usage) | Failure;
 export type FridgeRecipeOutcome = ({ ok: true; recipe: RawFridgeRecipe } & Usage) | Failure;
+export type ShoppingScanOutcome = ({ ok: true; scan: RawShoppingScan } & Usage) | Failure;
 export type FoodOutcome = ({ ok: true; food: RawFood } & Usage) | Failure;
 
 /** Strumenti AI sulle cose salvate: valori/difficoltà/costo, varianti, domande sulla libreria. */
@@ -39,6 +41,8 @@ export type RecipeTools = {
   ask: (question: string, catalog: string) => Promise<AskOutcome>;
   /** foto del frigo → alimenti che si vedono */
   fridgeScan: (image: { mimeType: string; data: string }) => Promise<FridgeScanOutcome>;
+  /** foto di una lista della spesa → voci da comprare */
+  shoppingScan: (image: { mimeType: string; data: string }) => Promise<ShoppingScanOutcome>;
   /** alimenti che hai → ricetta nuova */
   fridgeRecipe: (request: FridgeRequest) => Promise<FridgeRecipeOutcome>;
   /** "cosa ho mangiato" (testo e/o foto del piatto) → calorie e macro */

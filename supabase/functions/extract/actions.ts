@@ -24,6 +24,7 @@ import { type CleanInsights, cleanInsights } from '../_shared/insights.ts';
 import { cleanExtraction, type CleanIngredient, type ExtractionInput } from '../_shared/extraction.ts';
 import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } from '../_shared/recipeTools.ts';
 import { type CleanFood, cleanFood } from '../_shared/food.ts';
+import { type CleanShoppingItem, cleanShoppingScan } from '../_shared/shoppingPhoto.ts';
 import { type CleanFridgeRecipe, cleanFridgeRecipe, cleanFridgeScan, type FridgeRequest } from '../_shared/fridge.ts';
 import { MAX_VIDEO_BYTES, mergeVideoRecipe, parseVideoPath, type SavedRecipe } from '../_shared/video.ts';
 
@@ -312,6 +313,18 @@ export async function fridgeScan(
   const outcome = await ctx.recipeTools.fridgeScan(image);
   if (!outcome.ok) return { status: 'error', reason: outcome.reason };
   return { status: 'done', ingredients: cleanFridgeScan(outcome.scan) };
+}
+
+/** Foto di una lista della spesa → voci da comprare (da confermare prima di aggiungerle). */
+export async function shoppingScan(
+  image: { mimeType: string; data: string },
+  ctx: Ctx,
+): Promise<{ status: 'done'; items: CleanShoppingItem[] } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+  const outcome = await ctx.recipeTools.shoppingScan(image);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  return { status: 'done', items: cleanShoppingScan(outcome.scan) };
 }
 
 /** Alimenti che hai → una ricetta nuova (da mostrare; si salva solo se piace). */

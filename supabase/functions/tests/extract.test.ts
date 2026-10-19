@@ -475,6 +475,23 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  shoppingScan: (image: { mimeType: string }) => {
+    calls.push(`shopping:${image.mimeType}`);
+    return Promise.resolve({
+      ok: true as const,
+      scan: {
+        items: [
+          { name: '- Latte.', quantity: 2, unit: 'L' },
+          { name: 'pane', quantity: null, unit: 'kg' },
+          { name: 'latte', quantity: 1, unit: null },
+          { name: '  ', quantity: null, unit: null },
+          { name: 'Pomodori', quantity: -3, unit: 'kg' },
+        ],
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
   fridgeRecipe: (request: { ingredients: string[]; avoid: string[] }) => {
     calls.push(`recipe:${request.ingredients.join(',')}|evita:${request.avoid.join(',')}`);
     return Promise.resolve({
@@ -851,6 +868,25 @@ Deno.test('frigo: dalla foto agli alimenti (puliti, senza doppioni)', async () =
     d,
   );
   assertEquals(notBase64.status, 400);
+});
+
+Deno.test('spesa: lista dalla foto (pulita, senza doppioni, quantità sensate)', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res =
+    await (await handleRequest(post({ action: 'shopping_scan', imageBase64: btoa('foto'), mimeType: 'image/png' }), d)).json();
+  assertEquals(res, {
+    status: 'done',
+    items: [
+      { name: 'latte', quantity: 2, unit: 'l' },
+      { name: 'pane', quantity: null, unit: null },
+      { name: 'pomodori', quantity: null, unit: null },
+    ],
+  });
+  assertEquals(calls, ['shopping:image/png']);
+  const bad = await handleRequest(post({ action: 'shopping_scan', imageBase64: btoa('x'), mimeType: 'text/html' }), d);
+  assertEquals(bad.status, 400);
 });
 
 Deno.test('frigo: ricetta nuova dagli ingredienti, etichette non ammesse tolte', async () => {

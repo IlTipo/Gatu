@@ -11,6 +11,7 @@
 //   { action: 'refresh_place', placeId }  aggiorna indirizzo, telefono, sito e orari di un locale
 //   { action: 'recipe_video', recipeId, videoPath }  procedimento e dosi dal video caricato
 //   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
+//   { action: 'shopping_scan', imageBase64, mimeType }  foto della lista della spesa → voci
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
 //   { action: 'send_feedback', message }  "Cosa aggiungeresti?": salva il consiglio e lo manda per email
@@ -31,6 +32,7 @@ import {
   estimateFood,
   fridgeRecipe,
   fridgeScan,
+  shoppingScan,
   recipeFromVideo,
   recipeInsights,
   recipeVariant,
@@ -230,6 +232,11 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const image = parsePhoto(body.imageBase64, body.mimeType);
     if (!image) return errorResponse('invalid_image', 400);
     return json(await fridgeScan(image, ctx));
+  }
+  if (body.action === 'shopping_scan') {
+    const image = parsePhoto(body.imageBase64, body.mimeType);
+    if (!image) return errorResponse('invalid_image', 400);
+    return json(await shoppingScan(image, ctx));
   }
   if (body.action === 'fridge_recipe') {
     const request = parseFridgeRequest(body as Record<string, unknown>);

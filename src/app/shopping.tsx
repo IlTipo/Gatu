@@ -1,5 +1,6 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
+import type { TFunction } from 'i18next';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -20,8 +21,10 @@ import { addDays, startOfWeek, toISODate, weekLabel } from '@/features/planner/d
 import { AISLE_LABELS } from '@/features/recipes/constants';
 import { formatIngredient } from '@/features/recipes/format';
 import {
+  type NewItem,
   type ShoppingItem,
   useAddManualItems,
+  useShoppingScan,
   useClearChecked,
   useDeleteItem,
   useGenerateList,
@@ -32,12 +35,19 @@ import {
 import { AISLE_EMOJI, AISLES, aisleRank, moveAisleInOrder, setAisleOrder, useAislePrefs } from '@/features/shopping/aisles';
 import { displayAmount, listAsText } from '@/features/shopping/build';
 import { errorMessage } from '@/lib/errors';
+import { pickRecipePhoto } from '@/lib/photo';
 import { radius, spacing, useTheme } from '@/theme';
 
 const aisleLabel = (aisle: string) => AISLE_LABELS[aisle] ?? AISLE_LABELS.altro;
 const aisleTitle = (aisle: string) => `${AISLE_EMOJI[aisle] ?? AISLE_EMOJI.altro} ${aisleLabel(aisle)}`;
 const formatItem = (i: Pick<ShoppingItem, 'name' | 'quantity' | 'unit'>) =>
   formatIngredient({ ...displayAmount(i.quantity, i.unit), name: i.name, note: null });
+
+/** Messaggio per una lettura AI non riuscita. */
+function aiProblem(res: { status: 'skipped' | 'error'; reason: string }, t: TFunction) {
+  if (res.status === 'skipped') return t(`recipe.aiSkipped.${res.reason as 'not_configured' | 'quota_exceeded'}`);
+  return res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError');
+}
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
@@ -50,27 +60,33 @@ export default function ShoppingScreen() {
   const generate = useGenerateList(monday);
   const addItems = useAddManualItems(monday);
   const clearChecked = useClearChecked(monday);
+  const scan = useShoppingScan();
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<unknown>(null);
+  // voci lette dalla foto, da confermare prima di metterle in lista
+  const [found, setFound] = useState<(NewItem & { keep: boolean })[] | null>(null);
   // l'ordine dei reparti del tuo supermercato
   const { order: aisleOrder } = useAislePrefs();
 
   const titles = useMemo(() => new Map((recipes.data ?? []).map((r) => [r.id, r.title])), [recipes.data]);
   const items = useMemo(() => list.data ?? [], [list.data]);
-  const groups = useMemo(() => {
+  // da comprare (per reparto) e già presi (in fondo, a parte)
+  const toBuy = useMemo(() => {
     const map = new Map<string, ShoppingItem[]>();
-    for (const i of items) map.set(i.aisle, [...(map.get(i.aisle) ?? []), i]);
-    return [...map.entries()]
-      .sort(([a], [b]) => aisleRank(a, aisleOrder) - aisleRank(b, aisleOrder))
-      .map(([aisle, list]) => [aisle, [...list].sort((x, y) => Number(x.checked) - Number(y.checked))] as const);
+    for (const i of items) if (!i.checked) map.set(i.aisle, [...(map.get(i.aisle) ?? []), i]);
+    return [...map.entries()].sort(([a], [b]) => aisleRank(a, aisleOrder) - aisleRank(b, aisleOrder));
   }, [items, aisleOrder]);
+  const taken = useMemo(() => items.filter((i) => i.checked), [items]);
 
-  const done = items.filter((i) => i.checked).length;
+  const done = taken.length;
+  const left = items.length - done;
   const meals = plan.data?.length ?? 0;
   const hasGenerated = items.some((i) => !i.is_manual);
 
   const goWeek = (delta: number) => {
     setMessage(null);
+    setFound(null);
     setMonday(addDays(monday, delta * 7));
   };
   const runGenerate = () => {
@@ -80,12 +96,46 @@ export default function ShoppingScreen() {
   const addManual = () => {
     const names = splitPantryInput(draft).slice(0, 30);
     if (!names.length) return;
-    addItems.mutate({ names, position: items.length + 1000 }, { onSuccess: () => setDraft('') });
+    addItems.mutate({ items: names.map((name) => ({ name })), position: items.length + 1000 }, { onSuccess: () => setDraft('') });
+  };
+  const fromPhoto = async () => {
+    setPhotoError(null);
+    setMessage(null);
+    setFound(null);
+    try {
+      const picked = await pickRecipePhoto();
+      if (!picked) return;
+      const res = await scan.mutateAsync({ base64: picked.base64, mimeType: picked.mimeType });
+      if (res.status !== 'done') {
+        setMessage(aiProblem(res, t));
+        return;
+      }
+      if (!res.items.length) {
+        setMessage(t('shopping.photoNone'));
+        return;
+      }
+      setFound(res.items.map((i) => ({ ...i, keep: true })));
+    } catch (e) {
+      setPhotoError(e);
+    }
+  };
+  const addFound = () => {
+    const chosen = (found ?? []).filter((i) => i.keep).map(({ keep: _keep, ...item }) => item);
+    if (!chosen.length) return setFound(null);
+    addItems.mutate(
+      { items: chosen, position: items.length + 1000 },
+      {
+        onSuccess: () => {
+          setFound(null);
+          setMessage(t('shopping.photoAdded', { count: chosen.length }));
+        },
+      },
+    );
   };
   const share = async () => {
     const text = listAsText(
       t('shopping.shareTitle', { week: weekLabel(monday) }),
-      [...items].sort((a, b) => aisleRank(a.aisle, aisleOrder) - aisleRank(b.aisle, aisleOrder)),
+      [...items].filter((i) => !i.checked).sort((a, b) => aisleRank(a.aisle, aisleOrder) - aisleRank(b.aisle, aisleOrder)),
       aisleTitle,
       formatItem,
     );
@@ -108,6 +158,72 @@ export default function ShoppingScreen() {
     }
   };
 
+  // in cima: scrivi cosa ti serve o fotografa una lista
+  const addCard = (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.addRow}>
+        <View style={styles.flex}>
+          <TextField
+            label={t('shopping.addLabel')}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t('shopping.addPlaceholder')}
+            returnKeyType="done"
+            onSubmitEditing={addManual}
+            blurOnSubmit={false}
+          />
+        </View>
+        <View style={styles.addButton}>
+          <Button label={t('shopping.add')} variant="secondary" onPress={addManual} disabled={!draft.trim()} loading={addItems.isPending && !found} />
+        </View>
+      </View>
+      <Button
+        label={scan.isPending ? t('shopping.photoReading') : t('shopping.photo')}
+        variant="secondary"
+        onPress={fromPhoto}
+        loading={scan.isPending}
+      />
+      {found ? (
+        <View style={styles.found}>
+          <AppText variant="bodyStrong">{t('shopping.photoFound', { count: found.length })}</AppText>
+          <AppText variant="caption" tone="secondary">
+            {t('shopping.photoHint')}
+          </AppText>
+          {found.map((item, index) => (
+            <Pressable
+              key={`${item.name}-${index}`}
+              onPress={() => setFound(found.map((f, i) => (i === index ? { ...f, keep: !f.keep } : f)))}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: item.keep }}
+              style={styles.foundRow}>
+              <View
+                style={[
+                  styles.box,
+                  { borderColor: item.keep ? colors.primary : colors.border, backgroundColor: item.keep ? colors.primary : 'transparent' },
+                ]}>
+                {item.keep ? (
+                  <AppText variant="caption" tone="onPrimary">
+                    ✓
+                  </AppText>
+                ) : null}
+              </View>
+              <AppText style={!item.keep ? { color: colors.textSecondary } : undefined}>
+                {formatItem({ name: item.name, quantity: item.quantity ?? null, unit: item.unit ?? null })}
+              </AppText>
+            </Pressable>
+          ))}
+          <Button
+            label={t('shopping.photoAdd', { count: found.filter((f) => f.keep).length })}
+            onPress={addFound}
+            disabled={!found.some((f) => f.keep)}
+            loading={addItems.isPending}
+          />
+          <Button label={t('common.cancel')} variant="ghost" onPress={() => setFound(null)} />
+        </View>
+      ) : null}
+    </View>
+  );
+
   let body;
   if (list.isPending || plan.isPending) body = <LoadingState />;
   else if (list.isError) body = <ErrorState message={errorMessage(list.error, t)} onRetry={() => list.refetch()} />;
@@ -115,16 +231,19 @@ export default function ShoppingScreen() {
   else {
     body = (
       <View style={styles.content}>
+        {addCard}
+        {message ? <AppText tone="secondary">{message}</AppText> : null}
+
         {!items.length ? (
           <EmptyState
             icon={<Icon name={{ ios: 'cart', android: 'shopping_cart' }} size={32} color={colors.primary} />}
             title={t('shopping.emptyTitle')}
-            body={meals ? t('shopping.emptyBody') : t('shopping.noMeals')}
+            body={meals ? t('shopping.emptyBody') : t('shopping.emptyFree')}
             action={
               meals ? (
-                <Button label={t('shopping.generate')} onPress={runGenerate} loading={generate.isPending} />
+                <Button label={t('shopping.generate')} variant="secondary" onPress={runGenerate} loading={generate.isPending} />
               ) : (
-                <Button label={t('shopping.openPlanner')} variant="secondary" onPress={() => router.push('/planner')} />
+                <Button label={t('shopping.openPlanner')} variant="ghost" onPress={() => router.push('/planner')} />
               )
             }
           />
@@ -132,13 +251,19 @@ export default function ShoppingScreen() {
           <>
             <View style={styles.progressRow}>
               <AppText variant="bodyStrong">
-                {done === items.length ? t('shopping.allDone') : t('shopping.progress', { done, total: items.length })}
+                {left === 0 ? t('shopping.allDone') : t('shopping.progress', { done, total: items.length })}
               </AppText>
             </View>
             <View style={[styles.bar, { backgroundColor: colors.surfaceMuted }]}>
               <View style={[styles.barFill, { backgroundColor: colors.primary, width: `${(done / items.length) * 100}%` }]} />
             </View>
-            {groups.map(([aisle, list]) => (
+
+            {left ? (
+              <AppText variant="heading">
+                {t('shopping.toBuy')} · {left}
+              </AppText>
+            ) : null}
+            {toBuy.map(([aisle, list]) => (
               <View key={aisle} style={styles.group}>
                 <AppText variant="caption" tone="secondary" style={styles.aisle}>
                   {aisleTitle(aisle)}
@@ -148,31 +273,31 @@ export default function ShoppingScreen() {
                 ))}
               </View>
             ))}
+
+            {taken.length ? (
+              <View style={styles.group}>
+                <View style={styles.takenHeader}>
+                  <AppText variant="heading" style={styles.flex}>
+                    ✓ {t('shopping.taken')} · {taken.length}
+                  </AppText>
+                  <Button label={t('shopping.clearChecked')} variant="ghost" onPress={() => clearChecked.mutate()} loading={clearChecked.isPending} />
+                </View>
+                <AppText variant="caption" tone="secondary">
+                  {t('shopping.takenHint')}
+                </AppText>
+                {taken.map((item) => (
+                  <ItemRow key={item.id} item={item} monday={monday} titles={titles} />
+                ))}
+              </View>
+            ) : null}
           </>
         )}
 
         {items.length ? <AisleOrderCard /> : null}
 
-        <View style={styles.addRow}>
-          <View style={styles.flex}>
-            <TextField
-              label={t('shopping.addLabel')}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={t('shopping.addPlaceholder')}
-              returnKeyType="done"
-              onSubmitEditing={addManual}
-              blurOnSubmit={false}
-            />
-          </View>
-          <View style={styles.addButton}>
-            <Button label={t('shopping.add')} variant="secondary" onPress={addManual} disabled={!draft.trim()} loading={addItems.isPending} />
-          </View>
-        </View>
-
         {items.length ? (
           <View style={styles.actions}>
-            <Button label={t('shopping.share')} onPress={share} />
+            {left ? <Button label={t('shopping.share')} onPress={share} /> : null}
             {meals ? (
               <>
                 <Button
@@ -188,21 +313,21 @@ export default function ShoppingScreen() {
                 ) : null}
               </>
             ) : null}
-            {done ? (
-              <Button label={t('shopping.clearChecked')} variant="ghost" onPress={() => clearChecked.mutate()} loading={clearChecked.isPending} />
-            ) : null}
           </View>
         ) : null}
-        {message ? <AppText tone="secondary">{message}</AppText> : null}
         <InlineError
           message={
-            generate.isError
-              ? errorMessage(generate.error, t)
-              : addItems.isError
-                ? errorMessage(addItems.error, t)
-                : clearChecked.isError
-                  ? errorMessage(clearChecked.error, t)
-                  : null
+            photoError
+              ? errorMessage(photoError, t)
+              : scan.isError
+                ? errorMessage(scan.error, t)
+                : generate.isError
+                  ? errorMessage(generate.error, t)
+                  : addItems.isError
+                    ? errorMessage(addItems.error, t)
+                    : clearChecked.isError
+                      ? errorMessage(clearChecked.error, t)
+                      : null
           }
         />
       </View>
@@ -373,6 +498,10 @@ const styles = StyleSheet.create({
   itemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 56 },
   box: { width: 26, height: 26, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   addRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  card: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
+  found: { gap: spacing.sm },
+  foundRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 4 },
+  takenHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   addButton: { marginTop: 22 },
   actions: { gap: spacing.sm },
   flex: { flex: 1, gap: 2 },

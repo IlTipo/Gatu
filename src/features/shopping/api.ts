@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays } from '@/features/planner/dates';
 import { usePortionPrefs } from '@/features/portions/api';
 import { personalize } from '@/features/portions/logic';
+import { invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
 import { aisleFor, rememberAisle } from './aisles';
@@ -121,15 +122,19 @@ export function useToggleItem(monday: string) {
   });
 }
 
-/** Aggiunge cose a mano: "latte, pane e uova" → tre voci. */
+export type NewItem = { name: string; quantity?: number | null; unit?: string | null };
+
+/** Aggiunge cose a mano ("latte, pane e uova" → tre voci) o lette da una foto (con le quantità). */
 export function useAddManualItems(monday: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ names, position }: { names: string[]; position: number }) => {
-      const rows = names.map((name, i) => ({
+    mutationFn: async ({ items, position }: { items: NewItem[]; position: number }) => {
+      const rows = items.map((item, i) => ({
         week_start: monday,
-        name: name.slice(0, 200),
-        aisle: aisleFor(name, guessAisle(name)),
+        name: item.name.slice(0, 200),
+        quantity: item.quantity ?? null,
+        unit: item.quantity ? (item.unit ?? null) : null,
+        aisle: aisleFor(item.name, guessAisle(item.name)),
         is_manual: true,
         position: Math.min(32000, position + i),
       }));
@@ -183,5 +188,17 @@ export function useMoveToAisle(monday: string) {
       if (ctx?.previous) queryClient.setQueryData(key, ctx.previous);
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+}
+
+type Skipped = { status: 'skipped'; reason: 'not_configured' | 'quota_exceeded' };
+type Failed = { status: 'error'; reason: string };
+export type ShoppingScanResult = { status: 'done'; items: { name: string; quantity: number | null; unit: string | null }[] } | Skipped | Failed;
+
+/** Foto di una lista della spesa (foglietto, nota del telefono…) → voci lette dall'AI, da confermare. */
+export function useShoppingScan() {
+  return useMutation({
+    mutationFn: (photo: { base64: string; mimeType: string }) =>
+      invokeExtract<ShoppingScanResult>({ action: 'shopping_scan', imageBase64: photo.base64, mimeType: photo.mimeType }),
   });
 }

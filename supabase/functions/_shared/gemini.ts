@@ -13,6 +13,7 @@ import {
   GEMINI_FRIDGE_RECIPE_SCHEMA,
   GEMINI_FRIDGE_SCAN_SCHEMA,
 } from './fridge.ts';
+import { GEMINI_SHOPPING_SCAN_SCHEMA, SHOPPING_SCAN_PROMPT, ShoppingScanSchema } from './shoppingPhoto.ts';
 import { buildFoodMessage, FOOD_PROMPT, FoodSchema, GEMINI_FOOD_SCHEMA } from './food.ts';
 import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT } from './extraction.ts';
 import { GEMINI_INSIGHTS_SCHEMA, INSIGHTS_SYSTEM_PROMPT, InsightsSchema } from './insights.ts';
@@ -452,6 +453,13 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       ]);
       if (!r.ok) return r;
       const parsed = FridgeScanSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, scan: parsed.data, model: r.model, usage: r.usage };
+    },
+    async shoppingScan(image) {
+      const r = await generate(SHOPPING_SCAN_PROMPT, 'Cosa c\'è da comprare in questa lista?', GEMINI_SHOPPING_SCAN_SCHEMA, [image]);
+      if (!r.ok) return r;
+      const parsed = ShoppingScanSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, scan: parsed.data, model: r.model, usage: r.usage };
     },
