@@ -24,6 +24,6 @@ jobs:
             | python3 -c "import json,sys; raw=sys.stdin.read(); print(raw[:300]); d=json.loads(raw); [print(r.get('timestamp'), str(r.get('event_message'))[:400]) for r in d.get('result') or []]"
           }
           echo "== messaggi delle funzioni =="
-          q "select timestamp, event_message from function_logs where event_message not like '%booted%' and event_message not like '%shutdown%' order by timestamp desc limit 80"
+          q "select timestamp, event_message from logs where source_name = 'function_logs' and event_message not like '%booted%' and event_message not like '%shutdown%' and event_message not like '%Listening%' order by timestamp desc limit 80"
           echo "== richieste a extract (stato) =="
-          q "select timestamp, event_message from function_edge_logs order by timestamp desc limit 30"
+          q "select timestamp, event_message from logs where source_name = 'function_edge_logs' and event_message like '%extract%' order by timestamp desc limit 20"
