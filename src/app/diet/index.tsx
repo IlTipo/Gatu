@@ -103,7 +103,7 @@ function LoadPlan({ onDone, onCancel }: { onDone: () => void; onCancel?: () => v
           if (res.status === 'done') setPreview(res.plan);
           else if (res.status === 'not_plan') setMessage(t('diet.notPlan'));
           else if (res.status === 'skipped') setMessage(t(`recipe.aiSkipped.${res.reason}`));
-          else setMessage(res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError'));
+          else setMessage(res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError'));
         },
       },
     );

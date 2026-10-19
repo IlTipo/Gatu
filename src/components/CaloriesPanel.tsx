@@ -228,7 +228,7 @@ function AddFood({ day }: { day: string }) {
           if (res.status === 'done') fill(res.food);
           else if (res.status === 'not_food') setMessage(t('diary.notFood'));
           else if (res.status === 'skipped') setMessage(t(`recipe.aiSkipped.${res.reason}`));
-          else setMessage(res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError'));
+          else setMessage(res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError'));
         },
       },
     );

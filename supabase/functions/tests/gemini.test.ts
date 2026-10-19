@@ -141,11 +141,11 @@ Deno.test("errori dell'API", async () => {
   });
 });
 
-Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo', async () => {
+Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo e il modello di riserva', async () => {
   let calls = 0;
   const failing = (() => (calls++, Promise.reject(new TypeError('network')))) as typeof fetch;
   assertEquals(await createGeminiExtractor('k', { fetch: failing })(input), { ok: false, reason: 'api_error' });
-  assertEquals(calls, 2);
+  assertEquals(calls, 4);
 });
 
 Deno.test('troppo lento → riprova una volta, poi "overloaded"', async () => {
@@ -155,11 +155,27 @@ Deno.test('troppo lento → riprova una volta, poi "overloaded"', async () => {
       calls++;
       init?.signal?.addEventListener('abort', () => reject(init.signal!.reason));
     })) as unknown as typeof fetch;
-  assertEquals(await createGeminiExtractor('k', { fetch: slow, timeoutMs: 20 })(input), {
+  assertEquals(await createGeminiExtractor('k', { fetch: slow, timeoutMs: 20, fallbackModels: [] })(input), {
     ok: false,
     reason: 'overloaded',
   });
   assertEquals(calls, 2);
+});
+
+Deno.test('modello principale sovraccarico (503 "high demand") → risponde quello di riserva', async () => {
+  const models: string[] = [];
+  const busy = ((url: string) => {
+    const model = decodeURIComponent(url.split('/models/')[1].split(':')[0]);
+    models.push(model);
+    return Promise.resolve(
+      model === DEFAULT_MODEL
+        ? new Response(JSON.stringify({ error: { status: 'UNAVAILABLE', message: 'high demand' } }), { status: 503 })
+        : new Response(JSON.stringify(reply(JSON.stringify(extraction))), { status: 200 }),
+    );
+  }) as unknown as typeof fetch;
+  const outcome = await createGeminiExtractor('k', { fetch: busy, retryDelayMs: 0 })(input);
+  assertEquals(outcome.ok, true);
+  assertEquals(models, [DEFAULT_MODEL, DEFAULT_MODEL, 'gemini-flash-lite-latest']);
 });
 
 Deno.test('errore momentaneo 503 → il secondo tentativo va a buon fine', async () => {
@@ -169,7 +185,7 @@ Deno.test('errore momentaneo 503 → il secondo tentativo va a buon fine', async
     const body = calls === 1 ? { error: { status: 'UNAVAILABLE' } } : reply(JSON.stringify(extraction));
     return Promise.resolve(new Response(JSON.stringify(body), { status: calls === 1 ? 503 : 200 }));
   }) as typeof fetch;
-  const outcome = await createGeminiExtractor('k', { fetch: flaky })(input);
+  const outcome = await createGeminiExtractor('k', { fetch: flaky, retryDelayMs: 0 })(input);
   assertEquals(outcome.ok, true);
   assertEquals(calls, 2);
 });

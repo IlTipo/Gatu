@@ -405,7 +405,8 @@
     "deleteConfirm": "Eliminare \"{{title}}\"? Sparisce anche dal planner e dalle collezioni. Non si può annullare.",
     "deleteConfirmShared": "Eliminare \"{{title}}\"? Sparisce anche dal planner, dalle collezioni e dal tuo profilo (con mi piace e commenti). Non si può annullare.",
     "shareOnProfile": "👥 Condividi sul tuo profilo",
-    "unshare": "🔒 Togli dal tuo profilo"
+    "unshare": "🔒 Togli dal tuo profilo",
+    "aiBusy": "L'AI di Google è molto occupata in questo momento: riprova tra un minuto."
   },
   "place": {
     "verified": "Indirizzo verificato",

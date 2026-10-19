@@ -46,7 +46,7 @@ const formatItem = (i: Pick<ShoppingItem, 'name' | 'quantity' | 'unit'>) =>
 /** Messaggio per una lettura AI non riuscita. */
 function aiProblem(res: { status: 'skipped' | 'error'; reason: string }, t: TFunction) {
   if (res.status === 'skipped') return t(`recipe.aiSkipped.${res.reason as 'not_configured' | 'quota_exceeded'}`);
-  return res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError');
+  return res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError');
 }
 
 export default function ShoppingScreen() {

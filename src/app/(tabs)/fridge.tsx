@@ -32,7 +32,7 @@ const TIMES = [15, 30, 60];
 /** Messaggio per un risultato AI non riuscito. */
 function aiProblem(res: { status: 'skipped' | 'error'; reason: string }, t: TFunction) {
   if (res.status === 'skipped') return t(`recipe.aiSkipped.${res.reason as 'not_configured' | 'quota_exceeded'}`);
-  return res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError');
+  return res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError');
 }
 
 export default function FridgeScreen() {

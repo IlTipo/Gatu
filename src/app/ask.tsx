@@ -39,7 +39,7 @@ export default function AskScreen() {
     else if (res.status === 'skipped') body = <EmptyState title={t(`recipe.aiSkipped.${res.reason}`)} />;
     else if (res.status === 'error') body = (
         <ErrorState
-          message={res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError')}
+          message={res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError')}
           onRetry={() => answer.refetch()}
         />
       );

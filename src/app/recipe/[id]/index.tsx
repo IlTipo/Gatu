@@ -324,7 +324,7 @@ function InsightsCard({
     setMessage(null);
     compute.mutate(undefined, {
       onSuccess: (res: InsightsResult) =>
-        setMessage(res.status === 'done' ? null : res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : t('recipe.aiError')),
+        setMessage(res.status === 'done' ? null : res.status === 'skipped' ? t(`recipe.aiSkipped.${res.reason}`) : res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError')),
     });
   }
 

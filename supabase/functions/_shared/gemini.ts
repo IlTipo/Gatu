@@ -157,6 +157,8 @@ type GeminiOptions = {
   fallbackModels?: string[];
   fetch?: typeof fetch;
   timeoutMs?: number;
+  /** pausa prima di riprovare dopo un sovraccarico (nei test 0) */
+  retryDelayMs?: number;
   /** solo test: attesa tra i controlli del video in elaborazione */
   pollMs?: number;
 };
@@ -192,15 +194,17 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
         if (res.status >= 500 && attempt === 1) {
           await res.body?.cancel();
           res = null;
+          await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 1500));
         }
       } catch (e) {
         console.error(`Gemini request failed (tentativo ${attempt})`, e instanceof Error ? e.name : e);
         if (attempt === 2) {
-          return { ok: false, reason: e instanceof Error && e.name === 'TimeoutError' ? 'overloaded' : 'api_error' };
+          // modello lento o irraggiungibile: si prova quello di riserva
+          return { ok: false, reason: e instanceof Error && e.name === 'TimeoutError' ? 'overloaded' : 'api_error', tryNext: true };
         }
       }
     }
-    if (!res) return { ok: false, reason: 'overloaded' };
+    if (!res) return { ok: false, reason: 'overloaded', tryNext: true };
 
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as GeminiResponse;
@@ -214,7 +218,8 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
       if (res.status === 400 && /api key|API_KEY/i.test(`${errBody.error?.message} ${errBody.error?.status}`)) {
         return { ok: false, reason: 'auth' };
       }
-      if (res.status >= 500) return { ok: false, reason: 'overloaded' };
+      // sovraccarico ("high demand", 503): il modello di riserva di solito risponde
+      if (res.status >= 500) return { ok: false, reason: 'overloaded', tryNext: true };
       return { ok: false, reason: 'api_error' };
     }
 

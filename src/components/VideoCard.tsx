@@ -81,6 +81,7 @@ function describe(res: VideoResult, t: TFunction): string {
   if (res.reason === 'no_recipe') return t('video.no_recipe');
   if (res.reason === 'invalid_video') return t('errors.invalidVideo');
   if (res.reason === 'rate_limited') return t('recipe.aiRateLimited');
+  if (res.reason === 'overloaded') return t('recipe.aiBusy');
   return t('recipe.aiError');
 }
 
