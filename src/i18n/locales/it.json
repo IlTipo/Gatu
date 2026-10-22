@@ -171,10 +171,10 @@
     "prevWeek": "Settimana precedente",
     "nextWeek": "Settimana successiva",
     "thisWeek": "Questa settimana",
-    "templateToWeek": "⬇️ Copia la lista fissa in questa settimana",
-    "templateToWeekDone_one": "Aggiunta {{count}} cosa della lista fissa.",
-    "templateToWeekDone_other": "Aggiunte {{count}} cose della lista fissa.",
-    "templateToWeekNone": "In questa settimana c'è già tutto della lista fissa."
+    "templateToWeek": "⬇️ Incolla la lista fissa in questa settimana",
+    "templateToWeekDone_one": "Lista fissa incollata: {{count}} cosa da comprare.",
+    "templateToWeekDone_other": "Lista fissa incollata: {{count}} cose da comprare.",
+    "templateToWeekNone": "La lista fissa è già tutta in questa settimana, da comprare."
   },
   "map": {
     "title": "Mappa",

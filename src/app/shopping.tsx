@@ -78,6 +78,7 @@ export default function ShoppingScreen() {
   const { order: aisleOrder } = useAislePrefs();
   const copy = useCopyWeek();
   const clearWeek = useClearWeek(monday);
+  const pasteTemplate = useAddTemplateToWeek(monday);
   const clearFuture = useClearFutureWeeks();
   const template = useShoppingTemplate();
   const queryClient = useQueryClient();
@@ -208,6 +209,18 @@ export default function ShoppingScreen() {
         onPress={fromPhoto}
         loading={scan.isPending}
       />
+      {hasTemplate ? (
+        <Button
+          label={t('shopping.templateToWeek')}
+          variant="secondary"
+          loading={pasteTemplate.isPending}
+          onPress={() =>
+            pasteTemplate.mutate(undefined, {
+              onSuccess: (n) => setMessage(n ? t('shopping.templateToWeekDone', { count: n }) : t('shopping.templateToWeekNone')),
+            })
+          }
+        />
+      ) : null}
       {found ? (
         <View style={styles.found}>
           <AppText variant="bodyStrong">{t('shopping.photoFound', { count: found.length })}</AppText>
@@ -367,7 +380,9 @@ export default function ShoppingScreen() {
         </View>
         <InlineError
           message={
-            clearWeek.isError
+            pasteTemplate.isError
+              ? errorMessage(pasteTemplate.error, t)
+              : clearWeek.isError
               ? errorMessage(clearWeek.error, t)
               : clearFuture.isError
                 ? errorMessage(clearFuture.error, t)
