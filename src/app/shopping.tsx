@@ -23,6 +23,7 @@ import {
   applyTemplate,
   shoppingKeys,
   useAddTemplateItems,
+  useAddTemplateToWeek,
   useClearFutureWeeks,
   useClearWeek,
   useCopyWeek,
@@ -515,6 +516,7 @@ function TemplateCard({ monday, hasItems }: { monday: string; hasItems: boolean 
   const save = useSaveTemplate();
   const add = useAddTemplateItems();
   const remove = useDeleteTemplate();
+  const addToWeek = useAddTemplateToWeek(monday);
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const list = template.data ?? [];
@@ -556,6 +558,17 @@ function TemplateCard({ monday, hasItems }: { monday: string; hasItems: boolean 
           <Button label={t('shopping.add')} variant="secondary" onPress={addDraft} disabled={!draft.trim()} loading={add.isPending} />
         </View>
       </View>
+      {list.length ? (
+        <Button
+          label={t('shopping.templateToWeek')}
+          loading={addToWeek.isPending}
+          onPress={() =>
+            addToWeek.mutate(undefined, {
+              onSuccess: (n) => setMessage(n ? t('shopping.templateToWeekDone', { count: n }) : t('shopping.templateToWeekNone')),
+            })
+          }
+        />
+      ) : null}
       {hasItems ? (
         <Button
           label={list.length ? t('shopping.templateReplace') : t('shopping.templateSave')}
@@ -574,7 +587,7 @@ function TemplateCard({ monday, hasItems }: { monday: string; hasItems: boolean 
       ) : null}
       {message ? <AppText tone="secondary">{message}</AppText> : null}
       <InlineError
-        message={save.isError ? errorMessage(save.error, t) : add.isError ? errorMessage(add.error, t) : remove.isError ? errorMessage(remove.error, t) : null}
+        message={addToWeek.isError ? errorMessage(addToWeek.error, t) : save.isError ? errorMessage(save.error, t) : add.isError ? errorMessage(add.error, t) : remove.isError ? errorMessage(remove.error, t) : null}
       />
     </Collapsible>
   );

@@ -568,5 +568,10 @@ ok((await as(A, `select public.apply_shopping_template('${wk.w}') as n`)).rows[0
 ok((await as(B, `select public.apply_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'chi non ha una lista fissa non riceve niente');
 ok((await as(B, `select * from public.shopping_items where week_start = '${wk.n}'`)).rows.length === 0, 'la lista fissa di Anna non finisce a Bruno');
 
+await as(A, `delete from public.shopping_items where week_start = '${wk.n}'`);
+ok((await as(A, `select public.add_shopping_template('${wk.n}') as n`)).rows[0].n === 2, 'lista fissa copiata a mano nella settimana (anche se era già stata aggiunta)');
+ok((await as(A, `select public.add_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'copiandola di nuovo niente doppioni');
+ok((await as(B, `select public.add_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'la lista fissa di Anna non si copia a Bruno');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

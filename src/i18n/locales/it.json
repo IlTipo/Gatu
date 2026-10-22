@@ -170,7 +170,11 @@
     "futureNothing": "Nelle prossime settimane non c'era niente.",
     "prevWeek": "Settimana precedente",
     "nextWeek": "Settimana successiva",
-    "thisWeek": "Questa settimana"
+    "thisWeek": "Questa settimana",
+    "templateToWeek": "⬇️ Copia la lista fissa in questa settimana",
+    "templateToWeekDone_one": "Aggiunta {{count}} cosa della lista fissa.",
+    "templateToWeekDone_other": "Aggiunte {{count}} cose della lista fissa.",
+    "templateToWeekNone": "In questa settimana c'è già tutto della lista fissa."
   },
   "map": {
     "title": "Mappa",

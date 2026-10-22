@@ -244,3 +244,16 @@ export function useClearFutureWeeks() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.all }),
   });
 }
+
+/** Copia adesso la lista fissa nella settimana scelta (senza doppioni). */
+export function useAddTemplateToWeek(monday: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc('add_shopping_template', { p_week: monday });
+      if (error) throw error;
+      return (data as number) ?? 0;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.week(monday) }),
+  });
+}
