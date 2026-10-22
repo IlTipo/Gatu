@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { addDays } from '@/features/planner/dates';
-import { usePortionPrefs } from '@/features/portions/api';
-import { personalize } from '@/features/portions/logic';
 import { invokeExtract } from '@/features/sources/api';
 import { supabase } from '@/lib/supabase';
 
 import { aisleFor, rememberAisle } from './aisles';
-import { buildShoppingList, guessAisle, ingredientKey, type PlannedMeal, type PlannedRecipe } from './build';
+import { guessAisle } from './build';
 
 export type ShoppingItem = {
   id: string;
@@ -39,64 +36,6 @@ export function useShoppingList(monday: string) {
       if (error) throw error;
       return (data as ShoppingItem[]).map((i) => ({ ...i, quantity: i.quantity === null ? null : Number(i.quantity) }));
     },
-  });
-}
-
-const lineKey = (name: string, unit: string | null) => `${ingredientKey(name)}|${unit ?? ''}`;
-
-/**
- * Crea (o aggiorna) la lista dai pasti della settimana.
- * Le spunte delle voci che restano uguali si conservano; le voci aggiunte a mano non si toccano.
- */
-export function useGenerateList(monday: string) {
-  const queryClient = useQueryClient();
-  const prefs = usePortionPrefs();
-  return useMutation({
-    mutationFn: async (current: ShoppingItem[]) => {
-      const { data: meals, error } = await supabase
-        .from('meal_plan_entries')
-        .select('recipe_id, servings')
-        .gte('date', monday)
-        .lte('date', addDays(monday, 6));
-      if (error) throw error;
-      const ids = [...new Set((meals as PlannedMeal[]).map((m) => m.recipe_id))];
-      let recipes: PlannedRecipe[] = [];
-      if (ids.length) {
-        const res = await supabase
-          .from('recipes')
-          .select('id, title, servings, recipe_ingredients(name, quantity, unit, aisle)')
-          .in('id', ids);
-        if (res.error) throw res.error;
-        recipes = (res.data as (Omit<PlannedRecipe, 'ingredients'> & { recipe_ingredients: PlannedRecipe['ingredients'] })[]).map(
-          (r) => ({
-            id: r.id,
-            title: r.title,
-            servings: r.servings,
-            // con le porzioni preferite del Profilo (es. pasta 100 g a persona)
-            ingredients: personalize(
-              r.recipe_ingredients.map((i) => ({ ...i, quantity: i.quantity === null ? null : Number(i.quantity) })),
-              r.servings,
-              prefs,
-            ).ingredients,
-          }),
-        );
-      }
-      const lines = buildShoppingList(meals as PlannedMeal[], recipes);
-      const checked = new Set(current.filter((i) => !i.is_manual && i.checked).map((i) => lineKey(i.name, i.unit)));
-      const items = lines.map((l) => ({
-        name: l.name,
-        quantity: l.quantity,
-        unit: l.unit,
-        // il reparto che hai scelto tu per questo ingrediente, se c'è
-        aisle: aisleFor(l.name, l.aisle),
-        recipe_ids: l.recipe_ids,
-        checked: checked.has(lineKey(l.name, l.unit)),
-      }));
-      const { error: saveError } = await supabase.rpc('replace_shopping_list', { p_week_start: monday, p_items: items });
-      if (saveError) throw saveError;
-      return { items: items.length, meals: (meals as PlannedMeal[]).length };
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.week(monday) }),
   });
 }
 

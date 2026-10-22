@@ -1,5 +1,4 @@
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -17,7 +16,6 @@ import { EmptyState, ErrorState, InlineError, LoadingState } from '@/components/
 import { TextField } from '@/components/TextField';
 import { useLibraryRecipes } from '@/features/library/api';
 import { splitPantryInput } from '@/features/library/pantry';
-import { useWeekPlan } from '@/features/planner/api';
 import { addDays, startOfWeek, toISODate, weekLabel } from '@/features/planner/dates';
 import { AISLE_LABELS } from '@/features/recipes/constants';
 import { formatIngredient } from '@/features/recipes/format';
@@ -37,7 +35,6 @@ import {
   useShoppingScan,
   useClearChecked,
   useDeleteItem,
-  useGenerateList,
   useShoppingList,
   useMoveToAisle,
   useToggleItem,
@@ -66,9 +63,7 @@ export default function ShoppingScreen() {
   const today = toISODate(new Date());
   const [monday, setMonday] = useState(() => startOfWeek(today));
   const list = useShoppingList(monday);
-  const plan = useWeekPlan(monday);
   const recipes = useLibraryRecipes();
-  const generate = useGenerateList(monday);
   const addItems = useAddManualItems(monday);
   const clearChecked = useClearChecked(monday);
   const scan = useShoppingScan();
@@ -115,18 +110,12 @@ export default function ShoppingScreen() {
 
   const done = taken.length;
   const left = items.length - done;
-  const meals = plan.data?.length ?? 0;
-  const hasGenerated = items.some((i) => !i.is_manual);
 
   const goWeek = (delta: number) => {
     setMessage(null);
     setCopyMessage(null);
     setFound(null);
     setMonday(addDays(monday, delta * 7));
-  };
-  const runGenerate = () => {
-    setMessage(null);
-    generate.mutate(items, { onSuccess: (r) => setMessage(t('shopping.generated', { count: r.items })) });
   };
   const addManual = () => {
     const names = splitPantryInput(draft).slice(0, 30);
@@ -260,9 +249,8 @@ export default function ShoppingScreen() {
   );
 
   let body;
-  if (list.isPending || plan.isPending) body = <LoadingState />;
+  if (list.isPending) body = <LoadingState />;
   else if (list.isError) body = <ErrorState message={errorMessage(list.error, t)} onRetry={() => list.refetch()} />;
-  else if (plan.isError) body = <ErrorState message={errorMessage(plan.error, t)} onRetry={() => plan.refetch()} />;
   else {
     body = (
       <View style={styles.content}>
@@ -273,14 +261,7 @@ export default function ShoppingScreen() {
           <EmptyState
             icon={<Icon name={{ ios: 'cart', android: 'shopping_cart' }} size={32} color={colors.primary} />}
             title={t('shopping.emptyTitle')}
-            body={meals ? t('shopping.emptyBody') : t('shopping.emptyFree')}
-            action={
-              meals ? (
-                <Button label={t('shopping.generate')} variant="secondary" onPress={runGenerate} loading={generate.isPending} />
-              ) : (
-                <Button label={t('shopping.openPlanner')} variant="ghost" onPress={() => router.push('/planner')} />
-              )
-            }
+            body={t('shopping.emptyFree')}
           />
         ) : (
           <>
@@ -355,21 +336,6 @@ export default function ShoppingScreen() {
                 <Chip label={t('shopping.goNext')} onPress={() => goWeek(1)} />
               </View>
             ) : null}
-            {meals ? (
-              <>
-                <Button
-                  label={hasGenerated ? t('shopping.regenerate') : t('shopping.generate')}
-                  variant="secondary"
-                  onPress={runGenerate}
-                  loading={generate.isPending}
-                />
-                {hasGenerated ? (
-                  <AppText variant="caption" tone="secondary">
-                    {t('shopping.regenerateHint')}
-                  </AppText>
-                ) : null}
-              </>
-            ) : null}
           </View>
         ) : null}
         <View style={styles.actions}>
@@ -408,9 +374,7 @@ export default function ShoppingScreen() {
               ? errorMessage(photoError, t)
               : scan.isError
                 ? errorMessage(scan.error, t)
-                : generate.isError
-                  ? errorMessage(generate.error, t)
-                  : addItems.isError
+                : addItems.isError
                     ? errorMessage(addItems.error, t)
                     : clearChecked.isError
                       ? errorMessage(clearChecked.error, t)
@@ -428,18 +392,18 @@ export default function ShoppingScreen() {
       <BackButton />
       <AppText variant="title">{t('shopping.title')}</AppText>
       <View style={styles.weekNav}>
-        <Arrow label={t('planner.prevWeek')} symbol="‹" onPress={() => goWeek(-1)} />
+        <Arrow label={t('shopping.prevWeek')} symbol="‹" onPress={() => goWeek(-1)} />
         <View style={styles.weekCenter}>
           <AppText variant="bodyStrong">{weekLabel(monday)}</AppText>
           {monday !== startOfWeek(today) ? (
             <Pressable onPress={() => setMonday(startOfWeek(today))} accessibilityRole="button">
               <AppText variant="caption" tone="primary">
-                {t('planner.thisWeek')}
+                {t('shopping.thisWeek')}
               </AppText>
             </Pressable>
           ) : null}
         </View>
-        <Arrow label={t('planner.nextWeek')} symbol="›" onPress={() => goWeek(1)} />
+        <Arrow label={t('shopping.nextWeek')} symbol="›" onPress={() => goWeek(1)} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {body}

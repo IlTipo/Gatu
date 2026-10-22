@@ -9,7 +9,6 @@ import { Chip } from '@/components/Chip';
 import { DiceModal } from '@/components/DiceModal';
 import { Icon } from '@/components/Icon';
 import { FadeIn, PressableScale } from '@/components/Motion';
-import { TodayReminder } from '@/components/TodayReminder';
 import { PlaceCard } from '@/components/PlaceCard';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Screen } from '@/components/Screen';
@@ -288,11 +287,10 @@ export default function LibraryScreen() {
         />
       </View>
       <View style={styles.shortcuts}>
-        <Shortcut emoji="📅" title={t('tabs.planner')} hint={t('library.plannerHint')} onPress={() => router.push('/planner')} />
+        <Shortcut emoji="🔥" title={t('library.diaryTitle')} hint={t('library.diaryHint')} onPress={() => router.push('/diary')} />
         <Shortcut emoji="🛒" title={t('tabs.shopping')} hint={t('library.shoppingHint')} onPress={() => router.push('/shopping')} />
         <Shortcut emoji="🥗" title={t('diet.shortTitle')} hint={t('library.dietHint')} onPress={() => router.push('/diet')} />
       </View>
-      <TodayReminder />
       {libraryEmpty ? null : (
         <View style={styles.controls}>
           <SearchBar

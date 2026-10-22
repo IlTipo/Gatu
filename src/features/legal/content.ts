@@ -27,7 +27,7 @@ const privacy: Section[] = [
     body: [
       'Account: email e password (la password è salvata solo in forma cifrata, nessuno può leggerla). Se accedi con Google: email e nome del tuo account Google.',
       'Profilo: nome, @username, foto profilo, bio, codice amico, scelte su cosa condividere, grammi per porzione e obiettivi del diario.',
-      'Quello che salvi: link, ricette, locali, raccolte, planner, lista della spesa, voti, ricette cucinate, foto che carichi. I video caricati servono solo per la lettura con l\'AI e vengono cancellati subito dopo.',
+      'Quello che salvi: link, ricette, locali, raccolte, lista della spesa, voti, ricette cucinate, foto che carichi. I video caricati servono solo per la lettura con l\'AI e vengono cancellati subito dopo.',
       'Diario calorie: cosa mangi e le calorie stimate. Può dire qualcosa sulla tua salute, per questo resta privato finché non scegli tu di condividerlo con gli amici (con conferma esplicita).',
       'Piano alimentare: se lo carichi (foto, PDF o testo), lo leggiamo con l\'AI per mostrartelo giorno per giorno. Come il diario può dire qualcosa sulla tua salute: resta solo tuo e non si condivide con nessuno. Puoi eliminarlo quando vuoi.',
       'Parte social: chi segui e chi ti segue, amici, mi piace, commenti, notifiche, persone bloccate, segnalazioni.',
@@ -38,7 +38,7 @@ const privacy: Section[] = [
   {
     title: 'Perché li usiamo (e su quale base)',
     body: [
-      'Per darti il servizio che chiedi: salvare, leggere e organizzare ricette e locali, il planner, la spesa, il diario e la parte social (esecuzione del contratto, art. 6.1.b GDPR).',
+      'Per darti il servizio che chiedi: salvare, leggere e organizzare ricette e locali, la spesa, il piano alimentare, il diario e la parte social (esecuzione del contratto, art. 6.1.b GDPR).',
       'Per leggere e mostrarti il piano alimentare che carichi tu: con il tuo consenso esplicito, dato caricandolo (art. 9.2.a GDPR). Lo togli eliminandolo.',
       'Per mostrare il tuo diario agli amici: solo con il tuo consenso esplicito, che puoi togliere quando vuoi spegnendo l\'interruttore (art. 9.2.a GDPR).',
       'Per tenere Morso sicuro: limiti anti-spam, blocchi, segnalazioni, prevenzione degli abusi (legittimo interesse, art. 6.1.f GDPR).',
@@ -56,7 +56,7 @@ const privacy: Section[] = [
       '• OpenStreetMap (Nominatim e Overpass): riceve il nome o la zona da cercare per trovare i locali sulla mappa.',
       '• Quando salvi un link, il server apre la pagina pubblica (Instagram, TikTok, YouTube, siti di ricette…) per leggerne il contenuto.',
       'Alcuni fornitori hanno sede fuori dall\'UE (per esempio negli Stati Uniti): i trasferimenti sono protetti dalle Clausole Contrattuali Standard della Commissione Europea o dal Data Privacy Framework UE-USA.',
-      'Gli altri utenti vedono solo quello che scegli di mostrare: @username, nome, foto e bio; le ricette che condividi; e, solo agli amici, ciò che attivi tu (ricette cucinate, planner, diario).',
+      'Gli altri utenti vedono solo quello che scegli di mostrare: @username, nome, foto e bio; le ricette che condividi; e, solo agli amici, ciò che attivi tu (ricette cucinate, diario).',
     ],
   },
   {

@@ -511,13 +511,15 @@ await fails(() => as(B, `select * from public.app_releases`), 'le versioni si sc
 await as(B, `insert into public.notification_settings (timezone, quiet_enabled, lunch_time) values ('Pianeta/Marte', false, ((now() at time zone 'Europe/Rome')::time - interval '1 minute'))`);
 ok((await as(B, `select timezone from public.notification_settings`)).rows[0].timezone === 'Europe/Rome', 'fuso orario sconosciuto → Italia');
 ok((await as(A, `select * from public.notification_settings`)).rows.length === 0, 'Anna NON vede le scelte di Bruno');
-const bLunch = (await as(B, `insert into public.recipes (title) values ('Risotto') returning id`)).rows[0].id;
-await as(B, `insert into public.meal_plan_entries (date, slot, recipe_id) values ((now() at time zone 'Europe/Rome')::date, 'lunch', '${bLunch}')`);
+await as(B, `insert into public.diet_plans (days) values ('[{"label":"Tutti i giorni","weekday":null,"meals":[{"slot":"pranzo","options":[{"text":"Risotto","items":[]},{"text":"Farro","items":[]}]}]}]')`);
+await as(B, `insert into public.shopping_items (week_start, name) values (date_trunc('week', now() at time zone 'Europe/Rome')::date, 'latte')`);
+await as(B, `update public.notification_settings set shopping_time = ((now() at time zone 'Europe/Rome')::time - interval '1 minute')`);
 await as(A, `select public.toggle_like('${bPost}')`);
 await db.exec(`reset role; insert into public.app_releases (version, notes) values ('9.9.9', '{"Novità di prova"}')`);
 let due = (await pushDue()).rows[0].m;
 ok(due.some((m) => m.user_id === B && m.title === '❤️ Mi piace' && m.body.includes('Pizza di Bruno pubblica')), 'push: mi piace a Bruno');
-ok(due.some((m) => m.user_id === B && m.title === '🍝 Oggi a pranzo' && m.body === 'Risotto'), 'push: promemoria del pranzo con il piatto del planner');
+ok(due.some((m) => m.user_id === B && m.title === '🍝 Oggi a pranzo' && m.body === 'Risotto (oppure 1 alternativa)'), 'push: promemoria del pranzo dal piano alimentare');
+ok(due.some((m) => m.user_id === B && m.title === '🛒 Lista della spesa' && m.body.includes('1 cosa')), 'push: promemoria della spesa con quello che resta da comprare');
 ok(due.some((m) => m.user_id === B && m.title === '🎉 È disponibile Morso 9.9.9'), 'push: versione nuova');
 ok(!due.some((m) => m.user_id === A), 'chi non ha dispositivi non riceve push');
 due = (await pushDue()).rows[0].m;
@@ -544,7 +546,7 @@ ok(due.length === 1 && due[0].body.includes('e altre 2 persone'), 'i mi piace si
 
 // --- Piano alimentare ---
 await as(A, `insert into public.diet_plans (title, days) values ('Dieta di ottobre', '[{"label":"Lunedì","weekday":1,"meals":[]}]')`);
-ok((await as(B, `select * from public.diet_plans`)).rows.length === 0, 'Bruno NON vede il piano alimentare di Anna');
+ok((await as(B, `select * from public.diet_plans where user_id = '${A}'`)).rows.length === 0, 'Bruno NON vede il piano alimentare di Anna');
 await fails(() => as(B, `insert into public.diet_plans (user_id, title) values ('${A}', 'finto')`), 'Bruno NON può scrivere il piano di Anna');
 ok(((await as(B, `update public.diet_plans set title = 'x' where user_id = '${A}'`)).affectedRows ?? 0) === 0, 'Bruno NON può modificare il piano di Anna');
 await fails(() => as(A, `update public.diet_plans set days = '{"non":"lista"}'`), 'il piano deve essere una lista di giorni');

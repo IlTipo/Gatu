@@ -13,7 +13,7 @@ const PREFIX = 'morso.cache.';
 const MAX_AGE_MS = 7 * 86_400_000;
 const MAX_BYTES = 3_000_000;
 // cosa si porta offline: libreria e ricette, posti, planner, spesa, collezioni, porzioni e diario
-const KEEP = new Set(['recipes', 'places', 'meal-plan', 'shopping', 'collections', 'profile-settings', 'food-log', 'my-profile']);
+const KEEP = new Set(['recipes', 'places', 'shopping', 'collections', 'profile-settings', 'food-log', 'my-profile']);
 
 export function shouldPersist(queryKey: readonly unknown[], status: string): boolean {
   return status === 'success' && typeof queryKey[0] === 'string' && KEEP.has(queryKey[0]);

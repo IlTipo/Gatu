@@ -139,11 +139,6 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             variant="secondary"
             onPress={() => router.push({ pathname: '/recipe/[id]/edit', params: { id: r.id } })}
           />
-          <Button
-            label={t('planner.addToPlanner')}
-            variant="secondary"
-            onPress={() => router.push({ pathname: '/plan/add', params: { recipeId: r.id } })}
-          />
           <CollectionButton target={{ recipeId: r.id }} />
           <Button
             label={r.shared_with_friends ? t('recipe.unshare') : t('recipe.shareOnProfile')}

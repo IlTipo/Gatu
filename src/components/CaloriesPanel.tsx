@@ -2,11 +2,9 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { type FoodEstimate, useAddFood, useDayLog, useDeleteFood, useEstimateFood, useLogRecipe } from '@/features/diary/api';
+import { type FoodEstimate, useAddFood, useDayLog, useDeleteFood, useEstimateFood } from '@/features/diary/api';
 import { dayTotals, groupByMealTime, MEAL_TIMES, type MealTime, mealTimeFor, parseAmount, progress } from '@/features/diary/logic';
-import { useLibraryRecipes } from '@/features/library/api';
-import { useWeekPlan } from '@/features/planner/api';
-import { addDays, dayLabel, startOfWeek, toISODate } from '@/features/planner/dates';
+import { addDays, dayLabel, toISODate } from '@/features/planner/dates';
 import { useProfileSettings, useUpdateProfileSettings } from '@/features/portions/api';
 import { errorMessage } from '@/lib/errors';
 import { pickRecipePhoto } from '@/lib/photo';
@@ -15,12 +13,11 @@ import { radius, spacing, useTheme } from '@/theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Chip } from './Chip';
-import { Collapsible } from './Collapsible';
 import { FadeIn } from './Motion';
 import { InlineError } from './StateViews';
 import { TextField } from './TextField';
 
-/** Planner → "🔥 Calorie": diario del giorno con obiettivi, pasti del planner, stima AI o inserimento a mano. */
+/** 🔥 Calorie: diario del giorno con obiettivi, stima AI (anche da foto) o inserimento a mano. */
 export function CaloriesPanel() {
   const { t } = useTranslation();
   const today = toISODate(new Date());
@@ -35,7 +32,8 @@ export function CaloriesPanel() {
     : t('diary.summary', { kcal: totals.kcal });
 
   return (
-    <Collapsible title={t('diary.title')} summary={day === today ? summary : `${dayLabel(day)} · ${summary}`}>
+    <View style={styles.panel}>
+      <AppText tone="secondary">{day === today ? summary : `${dayLabel(day)} · ${summary}`}</AppText>
       <View style={styles.dayNav}>
         <Pressable onPress={() => setDay(addDays(day, -1))} accessibilityRole="button" accessibilityLabel={t('diary.prevDay')} hitSlop={8}>
           <AppText variant="heading" tone="primary">
@@ -65,13 +63,12 @@ export function CaloriesPanel() {
       </View>
 
       <Entries day={day} />
-      <FromPlanner day={day} />
       <AddFood day={day} />
       <Goals />
       <AppText variant="caption" tone="secondary">
         {t('diary.disclaimer')}
       </AppText>
-    </Collapsible>
+    </View>
   );
 }
 
@@ -152,44 +149,6 @@ function Entries({ day }: { day: string }) {
         </View>
       ))}
       <InlineError message={remove.isError ? errorMessage(remove.error, t) : null} />
-    </View>
-  );
-}
-
-/** I pasti messi nel planner per quel giorno: un tocco e finiscono nel diario (1 porzione). */
-function FromPlanner({ day }: { day: string }) {
-  const { t } = useTranslation();
-  const plan = useWeekPlan(startOfWeek(day));
-  const recipes = useLibraryRecipes();
-  const logRecipe = useLogRecipe();
-  const [done, setDone] = useState<Set<string>>(new Set());
-  const titles = useMemo(() => new Map((recipes.data ?? []).map((r) => [r.id, r.title])), [recipes.data]);
-  const meals = (plan.data ?? []).filter((m) => m.date === day);
-  if (!meals.length) return null;
-  return (
-    <View style={styles.group}>
-      <AppText variant="caption" tone="secondary" style={styles.groupTitle}>
-        {t('diary.fromPlanner')}
-      </AppText>
-      <View style={styles.chips}>
-        {meals.map((m) => (
-          <Chip
-            key={m.id}
-            label={`${done.has(m.id) ? '✓' : '+'} ${titles.get(m.recipe_id) ?? t('planner.missingRecipe')}`}
-            selected={done.has(m.id)}
-            onPress={
-              done.has(m.id) || logRecipe.isPending
-                ? undefined
-                : () =>
-                    logRecipe.mutate(
-                      { recipeId: m.recipe_id, date: day, slot: m.slot },
-                      { onSuccess: () => setDone((s) => new Set(s).add(m.id)) },
-                    )
-            }
-          />
-        ))}
-      </View>
-      <InlineError message={logRecipe.isError ? errorMessage(logRecipe.error, t) : null} />
     </View>
   );
 }
@@ -404,6 +363,7 @@ function Goals() {
 }
 
 const styles = StyleSheet.create({
+  panel: { gap: spacing.md },
   dayNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   dayCenter: { flex: 1, alignItems: 'center' },
   macros: { flexDirection: 'row', gap: spacing.md },

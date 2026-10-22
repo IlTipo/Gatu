@@ -210,7 +210,6 @@ function PrivacyCard() {
   const update = useUpdateMyProfile();
   const items = [
     { key: 'share_cooking', label: t('friends.shareCooking') },
-    { key: 'share_planner', label: t('friends.sharePlanner') },
     { key: 'share_diary', label: t('friends.shareDiary') },
   ] as const;
   return (

@@ -20,7 +20,7 @@ import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { radius, spacing, useTheme } from '@/theme';
 
-/** Cosa condivide un amico: ricette cucinate, planner dei prossimi giorni e (se vuole) cosa ha mangiato oggi. */
+/** Cosa condivide un amico: ricette cucinate e (se vuole) cosa ha mangiato oggi. */
 export default function FriendScreen() {
   const { t } = useTranslation();
   const { id, friendship } = useLocalSearchParams<{ id: string; friendship?: string }>();
@@ -62,7 +62,6 @@ function FeedBody({ feed }: { feed: FriendFeed }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const open = (recipeId: string) => router.push({ pathname: '/friend/recipe/[id]', params: { id: recipeId } });
-  const days = [...new Set((feed.planner ?? []).map((m) => m.date))];
   const totals = dayTotals((feed.diary ?? []).map((d) => ({ kcal: d.kcal, protein_g: d.protein_g, carbs_g: null, fat_g: null })));
 
   return (
@@ -115,41 +114,6 @@ function FeedBody({ feed }: { feed: FriendFeed }) {
           ))
         ) : (
           <AppText tone="secondary">{t('friends.nothingCooked')}</AppText>
-        )}
-      </Section>
-
-      <Section title={t('friends.planner')}>
-        {feed.planner === null ? (
-          <AppText tone="secondary">{t('friends.notShared')}</AppText>
-        ) : days.length ? (
-          days.map((date) => (
-            <View key={date} style={styles.day}>
-              <AppText variant="caption" tone="secondary" style={styles.dayTitle}>
-                {dayLabel(date)}
-              </AppText>
-              {feed.planner!
-                .filter((m) => m.date === date)
-                .map((m) => (
-                  <PressableScale
-                    key={`${m.date}-${m.slot}-${m.recipe_id}`}
-                    onPress={() => open(m.recipe_id)}
-                    accessibilityRole="button"
-                    style={[styles.item, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <Thumb url={m.image_url} />
-                    <View style={styles.flex}>
-                      <AppText variant="caption" tone="secondary">
-                        {t(`planner.${m.slot}`)}
-                      </AppText>
-                      <AppText variant="bodyStrong" numberOfLines={2}>
-                        {m.title}
-                      </AppText>
-                    </View>
-                  </PressableScale>
-                ))}
-            </View>
-          ))
-        ) : (
-          <AppText tone="secondary">{t('friends.nothingPlanned')}</AppText>
         )}
       </Section>
 
