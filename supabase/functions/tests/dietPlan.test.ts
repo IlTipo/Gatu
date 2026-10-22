@@ -21,6 +21,6 @@ Deno.test('piano alimentare: pulito e nei limiti', () => {
   assertEquals(plan, {
     title: 'Piano',
     notes: ['acqua'],
-    days: [{ label: 'Martedì', weekday: 2, meals: [{ slot: 'altro', options: [{ text: '2 uova', items: [{ name: 'uova', quantity: 2, unit: null }] }] }] }],
+    days: [{ label: 'Martedì', weekday: 2, meals: [{ slot: 'altro', options: [{ text: '2 uova', items: [{ name: 'uova', quantity: 2, unit: null }], kcal: null }] }] }],
   });
 });

@@ -492,6 +492,10 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  mealKcal: (texts: string[]) => {
+    calls.push(`kcal:${texts.length}`);
+    return Promise.resolve({ ok: true as const, kcal: [520.4, 5, null], model: 'gemini', usage: { input: 1, output: 1 } });
+  },
   dietPlan: (files: { mimeType: string }[], text: string) => {
     calls.push(`diet:${files.map((f) => f.mimeType).join(',')}|${text.slice(0, 10)}`);
     return Promise.resolve({
@@ -933,6 +937,18 @@ Deno.test('piano alimentare: da PDF/foto o testo, controlli sui file', async () 
     { action: 'diet_plan_read', files: Array.from({ length: 6 }, () => ({ data: btoa('x'), mimeType: 'image/png' })) },
   ]) {
     assertEquals((await handleRequest(post(bad), d)).status, 400);
+  }
+});
+
+Deno.test('calorie dei pasti: stesso ordine, valori strani tolti, controlli sulla richiesta', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const res = await (await handleRequest(post({ action: 'estimate_meals', texts: ['80 g pasta', 'un caffè', 'yogurt'] }), d)).json();
+  assertEquals(res, { status: 'done', kcal: [520, null, null] });
+  assertEquals(calls, ['kcal:3']);
+  for (const texts of [[], ['ok', ''], 'testo', Array.from({ length: 61 }, () => 'x')]) {
+    assertEquals((await handleRequest(post({ action: 'estimate_meals', texts }), d)).status, 400);
   }
 });
 

@@ -3,7 +3,8 @@
 export const DIET_SLOTS = ['colazione', 'spuntino', 'pranzo', 'merenda', 'cena', 'altro'] as const;
 export type DietSlot = (typeof DIET_SLOTS)[number];
 export type DietItem = { name: string; quantity: number | null; unit: string | null };
-export type DietOption = { text: string; items: DietItem[] };
+/** kcal: calorie stimate per una persona (null o assente: non ancora calcolate) */
+export type DietOption = { text: string; items: DietItem[]; kcal?: number | null };
 export type DietMeal = { slot: DietSlot; options: DietOption[] };
 export type DietDay = { label: string; weekday: number | null; meals: DietMeal[] };
 export type DietPlan = { title: string | null; notes: string[]; days: DietDay[] };

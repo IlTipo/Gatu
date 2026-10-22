@@ -280,3 +280,28 @@ export async function applyTemplate(monday: string): Promise<number> {
   if (error) throw error;
   return (data as number) ?? 0;
 }
+
+/** Svuota tutta la lista di una settimana. */
+export function useClearWeek(monday: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('shopping_items').delete().eq('week_start', monday);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.week(monday) }),
+  });
+}
+
+/** Cancella le liste di tutte le settimane dopo "monday" (es. quelle copiate o della lista fissa). */
+export function useClearFutureWeeks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (monday: string) => {
+      const { data, error } = await supabase.from('shopping_items').delete().gt('week_start', monday).select('id');
+      if (error) throw error;
+      return data?.length ?? 0;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: shoppingKeys.all }),
+  });
+}

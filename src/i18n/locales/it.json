@@ -144,7 +144,11 @@
     "weekKcal_one": "🥗 In media ~{{kcal}} kcal a testa al giorno (su {{days}} giorno con pasti).",
     "weekKcal_other": "🥗 In media ~{{kcal}} kcal a testa al giorno (su {{days}} giorni con pasti).",
     "weekKcalMissing_one": "{{count}} pasto senza calorie: aprilo e tocca \"Calcola\".",
-    "weekKcalMissing_other": "{{count}} pasti senza calorie: aprili e tocca \"Calcola\"."
+    "weekKcalMissing_other": "{{count}} pasti senza calorie: aprili e tocca \"Calcola\".",
+    "mealKcal": "🔥 ~{{kcal}} kcal a persona",
+    "kcalCalculate": "🔥 Calcola le calorie",
+    "kcalCalculating": "Calcolo…",
+    "kcalRetry": "🔥 Non riuscito: riprova"
   },
   "shopping": {
     "title": "Spesa",
@@ -206,7 +210,16 @@
     "templateRemoved": "Lista fissa tolta: le settimane nuove partono vuote.",
     "templateApplied_one": "⭐ Aggiunta {{count}} cosa della tua lista fissa.",
     "templateApplied_other": "⭐ Aggiunte {{count}} cose della tua lista fissa.",
-    "goNext": "Vai ›"
+    "goNext": "Vai ›",
+    "clearWeek": "🗑 Svuota la lista di questa settimana",
+    "clearWeekConfirm": "Svuotare tutta la lista di questa settimana?",
+    "clearWeekOk": "Elimina",
+    "weekCleared": "Lista svuotata.",
+    "clearFuture": "🗑 Elimina le liste delle prossime settimane",
+    "clearFutureConfirm": "Eliminare tutte le liste della spesa dopo la settimana {{week}}? La lista fissa resta (le settimane già preparate non la riaggiungono).",
+    "futureCleared_one": "Eliminata {{count}} voce delle prossime settimane.",
+    "futureCleared_other": "Eliminate {{count}} voci delle prossime settimane.",
+    "futureNothing": "Nelle prossime settimane non c'era niente."
   },
   "map": {
     "title": "Mappa",
@@ -1091,6 +1104,8 @@
     "removeDay": "Togli questo giorno",
     "notesLabel": "Indicazioni generali (una per riga)",
     "emptyPlan": "Scrivi almeno un pasto.",
-    "saved": "Piano salvato."
+    "saved": "Piano salvato.",
+    "kcalCalculate": "🔥 Calcola le calorie di ogni pasto",
+    "kcalCalculating": "Calcolo le calorie…"
   }
 }

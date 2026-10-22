@@ -69,6 +69,38 @@ export function useReadDietPlan() {
   });
 }
 
+/** Calorie stimate per le alternative che non le hanno ancora; il piano si salva con le calorie. */
+export function useEstimatePlanKcal() {
+  const save = useSaveDietPlan();
+  return useMutation({
+    mutationFn: async (plan: DietPlan) => {
+      const missing = plan.days.flatMap((d) => d.meals.flatMap((m) => m.options.filter((o) => o.kcal == null)));
+      const texts = [...new Set(missing.map((o) => o.text))];
+      const found = new Map<string, number | null>();
+      for (let i = 0; i < texts.length; i += 60) {
+        const chunk = texts.slice(i, i + 60);
+        const res = await invokeExtract<
+          { status: 'done'; kcal: (number | null)[] } | { status: 'skipped'; reason: string } | { status: 'error'; reason: string }
+        >({ action: 'estimate_meals', texts: chunk });
+        if (res.status !== 'done') return res;
+        chunk.forEach((t, k) => found.set(t, res.kcal[k] ?? null));
+      }
+      const next: DietPlan = {
+        ...plan,
+        days: plan.days.map((d) => ({
+          ...d,
+          meals: d.meals.map((m) => ({
+            ...m,
+            options: m.options.map((o) => (o.kcal == null && found.has(o.text) ? { ...o, kcal: found.get(o.text) } : o)),
+          })),
+        })),
+      };
+      await save.mutateAsync(next);
+      return { status: 'done' as const };
+    },
+  });
+}
+
 export const MAX_PDF_BYTES = 6 * 1024 * 1024;
 
 /** Sceglie un PDF dal telefono o dal computer (sul sito). null se annullato. */

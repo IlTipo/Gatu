@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { useAddFood, useEstimateFood } from '@/features/diary/api';
+import { useEstimatePlanKcal } from '@/features/diet/api';
 import { type DietOption, type DietPlan, type DietSlot, dayIndexFor, diarySlot, optionIngredients, SLOT_EMOJI } from '@/features/diet/types';
 import { toISODate } from '@/features/planner/dates';
 import { useLibraryRecipes } from '@/features/library/api';
@@ -33,6 +34,7 @@ export function DietPlanView({ plan, preview = false }: { plan: DietPlan; previe
           ))}
         </View>
       ) : null}
+      {!preview ? <KcalBanner plan={plan} /> : null}
       {current?.meals.map((meal, mi) => (
         <View key={`${meal.slot}-${mi}`} style={[styles.meal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <AppText variant="heading">
@@ -45,7 +47,14 @@ export function DietPlanView({ plan, preview = false }: { plan: DietPlan; previe
                   {t('diet.or')}
                 </AppText>
               ) : null}
-              <AppText>{option.text}</AppText>
+              <AppText>
+                {option.text}
+                {option.kcal ? (
+                  <AppText variant="caption" tone="secondary">
+                    {'  '}🔥 ~{option.kcal} kcal
+                  </AppText>
+                ) : null}
+              </AppText>
               {preview ? null : <OptionActions option={option} slot={meal.slot} />}
             </View>
           ))}
@@ -61,6 +70,35 @@ export function DietPlanView({ plan, preview = false }: { plan: DietPlan; previe
           ))}
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** Se mancano le calorie di qualche pasto: un tocco e l'AI le stima tutte. */
+function KcalBanner({ plan }: { plan: DietPlan }) {
+  const { t } = useTranslation();
+  const estimate = useEstimatePlanKcal();
+  const [message, setMessage] = useState<string | null>(null);
+  const missing = plan.days.some((d) => d.meals.some((m) => m.options.some((o) => o.kcal == null)));
+  if (!missing) return null;
+  return (
+    <View style={styles.option}>
+      <Button
+        label={estimate.isPending ? t('diet.kcalCalculating') : t('diet.kcalCalculate')}
+        variant="secondary"
+        loading={estimate.isPending}
+        onPress={() =>
+          estimate.mutate(plan, {
+            onSuccess: (res) => {
+              if (res.status === 'skipped') setMessage(t(`recipe.aiSkipped.${res.reason as 'not_configured' | 'quota_exceeded'}`));
+              else if (res.status === 'error')
+                setMessage(res.reason === 'rate_limited' ? t('recipe.aiRateLimited') : res.reason === 'overloaded' ? t('recipe.aiBusy') : t('recipe.aiError'));
+            },
+            onError: (e) => setMessage(errorMessage(e, t)),
+          })
+        }
+      />
+      {message ? <AppText variant="caption" tone="secondary">{message}</AppText> : null}
     </View>
   );
 }

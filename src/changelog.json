@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.0.4",
+    "date": "2026-10-22",
+    "notes": [
+      "🔥 Calorie per ogni pasto: nel Planner su ogni piatto e nel Piano alimentare per ogni alternativa",
+      "📅 Spesa: copia la lista alla settimana dopo con un tocco",
+      "⭐ Lista fissa: le cose che compri sempre si aggiungono da sole ogni settimana",
+      "🗑 Svuota la lista della settimana o elimina quelle delle prossime settimane",
+      "L'AI risponde più spesso: se è occupata passa da sola al modello di riserva"
+    ]
+  },
+  {
     "version": "1.0.3",
     "date": "2026-10-19",
     "notes": [

@@ -34,6 +34,7 @@ export type FridgeScanOutcome = ({ ok: true; scan: RawFridgeScan } & Usage) | Fa
 export type FridgeRecipeOutcome = ({ ok: true; recipe: RawFridgeRecipe } & Usage) | Failure;
 export type ShoppingScanOutcome = ({ ok: true; scan: RawShoppingScan } & Usage) | Failure;
 export type DietPlanOutcome = ({ ok: true; plan: RawDietPlan } & Usage) | Failure;
+export type MealKcalOutcome = ({ ok: true; kcal: (number | null)[] } & Usage) | Failure;
 export type FoodOutcome = ({ ok: true; food: RawFood } & Usage) | Failure;
 
 /** Strumenti AI sulle cose salvate: valori/difficoltà/costo, varianti, domande sulla libreria. */
@@ -47,6 +48,8 @@ export type RecipeTools = {
   shoppingScan: (image: { mimeType: string; data: string }) => Promise<ShoppingScanOutcome>;
   /** piano alimentare (foto, PDF e/o testo) → giorni, pasti e alternative */
   dietPlan: (files: { mimeType: string; data: string }[], text: string) => Promise<DietPlanOutcome>;
+  /** pasti scritti a parole → calorie stimate (stesso ordine) */
+  mealKcal: (texts: string[]) => Promise<MealKcalOutcome>;
   /** alimenti che hai → ricetta nuova */
   fridgeRecipe: (request: FridgeRequest) => Promise<FridgeRecipeOutcome>;
   /** "cosa ho mangiato" (testo e/o foto del piatto) → calorie e macro */

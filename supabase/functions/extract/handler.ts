@@ -35,13 +35,14 @@ import {
   fridgeScan,
   shoppingScan,
   readDietPlan,
+  estimateMeals,
   recipeFromVideo,
   recipeInsights,
   recipeVariant,
   refreshPlace,
 } from './actions.ts';
 import { parseFridgeRequest } from '../_shared/fridge.ts';
-import { parseDietFiles } from '../_shared/dietPlan.ts';
+import { parseDietFiles, parseMealTexts } from '../_shared/dietPlan.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
   type CleanExtraction,
@@ -145,6 +146,7 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     reason?: unknown;
     confirm?: unknown;
     files?: unknown;
+    texts?: unknown;
   };
   if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return errorResponse('too_large', 413);
   try {
@@ -236,6 +238,11 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const image = parsePhoto(body.imageBase64, body.mimeType);
     if (!image) return errorResponse('invalid_image', 400);
     return json(await fridgeScan(image, ctx));
+  }
+  if (body.action === 'estimate_meals') {
+    const texts = parseMealTexts((body as Record<string, unknown>).texts);
+    if (!texts) return errorResponse('invalid_body', 400);
+    return json(await estimateMeals(texts, ctx));
   }
   if (body.action === 'diet_plan_read') {
     const files = parseDietFiles((body as Record<string, unknown>).files);

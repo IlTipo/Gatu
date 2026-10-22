@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
@@ -23,6 +24,7 @@ import {
 import { addDays, dayLabel, SLOTS, startOfWeek, toISODate, weekDays, weekLabel } from '@/features/planner/dates';
 import { groupWeek, mealServings } from '@/features/planner/helpers';
 import type { MealEntry } from '@/features/planner/types';
+import { recipeKeys, useRecipeInsights } from '@/features/recipes/api';
 import { formatMinutes } from '@/features/recipes/format';
 import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
@@ -233,11 +235,17 @@ function MealRow({ entry, recipe }: { entry: MealEntry; recipe: LibraryRecipe | 
           <AppText variant="bodyStrong" numberOfLines={2}>
             {recipe?.title ?? t('planner.missingRecipe')}
           </AppText>
-          {recipe?.total_minutes ? (
+          {recipe?.total_minutes || recipe?.kcal_per_serving ? (
             <AppText variant="caption" tone="secondary">
-              ⏱ {formatMinutes(recipe.total_minutes)}
+              {[
+                recipe.total_minutes ? `⏱ ${formatMinutes(recipe.total_minutes)}` : null,
+                recipe.kcal_per_serving ? t('planner.mealKcal', { kcal: Math.round(recipe.kcal_per_serving) }) : null,
+              ]
+                .filter(Boolean)
+                .join('  ·  ')}
             </AppText>
           ) : null}
+          {recipe && !recipe.kcal_per_serving ? <KcalButton recipeId={recipe.id} /> : null}
         </View>
       </Pressable>
       <View style={styles.mealActions}>
@@ -257,6 +265,25 @@ function MealRow({ entry, recipe }: { entry: MealEntry; recipe: LibraryRecipe | 
         message={update.isError ? errorMessage(update.error, t) : remove.isError ? errorMessage(remove.error, t) : null}
       />
     </View>
+  );
+}
+
+/** Calorie mancanti: l'AI le stima per quella ricetta (valori, difficoltà e costo). */
+function KcalButton({ recipeId }: { recipeId: string }) {
+  const { t } = useTranslation();
+  const insights = useRecipeInsights(recipeId);
+  const queryClient = useQueryClient();
+  const failed = insights.isError || (insights.data && insights.data.status !== 'done');
+  return (
+    <Pressable
+      onPress={() => insights.mutate(undefined, { onSuccess: () => queryClient.invalidateQueries({ queryKey: recipeKeys.all }) })}
+      disabled={insights.isPending}
+      accessibilityRole="button"
+      hitSlop={6}>
+      <AppText variant="caption" tone="primary">
+        {insights.isPending ? t('planner.kcalCalculating') : failed ? t('planner.kcalRetry') : t('planner.kcalCalculate')}
+      </AppText>
+    </Pressable>
   );
 }
 

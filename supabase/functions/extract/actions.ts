@@ -24,7 +24,7 @@ import { type CleanInsights, cleanInsights } from '../_shared/insights.ts';
 import { cleanExtraction, type CleanIngredient, type ExtractionInput } from '../_shared/extraction.ts';
 import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } from '../_shared/recipeTools.ts';
 import { type CleanFood, cleanFood } from '../_shared/food.ts';
-import { type CleanDietPlan, cleanDietPlan } from '../_shared/dietPlan.ts';
+import { type CleanDietPlan, cleanDietPlan, cleanKcal } from '../_shared/dietPlan.ts';
 import { type CleanShoppingItem, cleanShoppingScan } from '../_shared/shoppingPhoto.ts';
 import { type CleanFridgeRecipe, cleanFridgeRecipe, cleanFridgeScan, type FridgeRequest } from '../_shared/fridge.ts';
 import { MAX_VIDEO_BYTES, mergeVideoRecipe, parseVideoPath, type SavedRecipe } from '../_shared/video.ts';
@@ -340,6 +340,18 @@ export async function readDietPlan(
   if (!outcome.ok) return { status: 'error', reason: outcome.reason };
   const plan = cleanDietPlan(outcome.plan);
   return plan.days.length ? { status: 'done', plan } : { status: 'not_plan' };
+}
+
+/** Pasti scritti a parole (es. del piano alimentare) → calorie stimate, nello stesso ordine. */
+export async function estimateMeals(
+  texts: string[],
+  ctx: Ctx,
+): Promise<{ status: 'done'; kcal: (number | null)[] } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+  const outcome = await ctx.recipeTools.mealKcal(texts);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  return { status: 'done', kcal: texts.map((_, i) => cleanKcal(outcome.kcal[i])) };
 }
 
 /** Alimenti che hai → una ricetta nuova (da mostrare; si salva solo se piace). */

@@ -25,6 +25,8 @@ import {
   applyTemplate,
   shoppingKeys,
   useAddTemplateItems,
+  useClearFutureWeeks,
+  useClearWeek,
   useCopyWeek,
   useDeleteTemplate,
   useSaveTemplate,
@@ -42,6 +44,7 @@ import {
 } from '@/features/shopping/api';
 import { AISLE_EMOJI, AISLES, aisleRank, moveAisleInOrder, setAisleOrder, useAislePrefs } from '@/features/shopping/aisles';
 import { displayAmount, listAsText } from '@/features/shopping/build';
+import { confirm } from '@/lib/confirm';
 import { errorMessage } from '@/lib/errors';
 import { pickRecipePhoto } from '@/lib/photo';
 import { radius, spacing, useTheme } from '@/theme';
@@ -78,6 +81,8 @@ export default function ShoppingScreen() {
   // l'ordine dei reparti del tuo supermercato
   const { order: aisleOrder } = useAislePrefs();
   const copy = useCopyWeek();
+  const clearWeek = useClearWeek(monday);
+  const clearFuture = useClearFutureWeeks();
   const template = useShoppingTemplate();
   const queryClient = useQueryClient();
   const hasTemplate = !!template.data?.length;
@@ -367,9 +372,39 @@ export default function ShoppingScreen() {
             ) : null}
           </View>
         ) : null}
+        <View style={styles.actions}>
+          {items.length ? (
+            <Button
+              label={t('shopping.clearWeek')}
+              variant="ghost"
+              loading={clearWeek.isPending}
+              onPress={async () => {
+                if (await confirm(t('shopping.clearWeekConfirm'), { ok: t('shopping.clearWeekOk'), cancel: t('common.cancel') })) {
+                  clearWeek.mutate(undefined, { onSuccess: () => setMessage(t('shopping.weekCleared')) });
+                }
+              }}
+            />
+          ) : null}
+          <Button
+            label={t('shopping.clearFuture')}
+            variant="ghost"
+            loading={clearFuture.isPending}
+            onPress={async () => {
+              if (await confirm(t('shopping.clearFutureConfirm', { week: weekLabel(monday) }), { ok: t('shopping.clearWeekOk'), cancel: t('common.cancel') })) {
+                clearFuture.mutate(monday, {
+                  onSuccess: (n) => setMessage(n ? t('shopping.futureCleared', { count: n }) : t('shopping.futureNothing')),
+                });
+              }
+            }}
+          />
+        </View>
         <InlineError
           message={
-            photoError
+            clearWeek.isError
+              ? errorMessage(clearWeek.error, t)
+              : clearFuture.isError
+                ? errorMessage(clearFuture.error, t)
+                : photoError
               ? errorMessage(photoError, t)
               : scan.isError
                 ? errorMessage(scan.error, t)

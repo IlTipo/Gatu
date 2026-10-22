@@ -13,7 +13,14 @@ import {
   GEMINI_FRIDGE_RECIPE_SCHEMA,
   GEMINI_FRIDGE_SCAN_SCHEMA,
 } from './fridge.ts';
-import { DIET_PLAN_PROMPT, DietPlanSchema, GEMINI_DIET_PLAN_SCHEMA } from './dietPlan.ts';
+import {
+  DIET_PLAN_PROMPT,
+  DietPlanSchema,
+  GEMINI_DIET_PLAN_SCHEMA,
+  GEMINI_MEAL_KCAL_SCHEMA,
+  MEAL_KCAL_PROMPT,
+  MealKcalSchema,
+} from './dietPlan.ts';
 import { GEMINI_SHOPPING_SCAN_SCHEMA, SHOPPING_SCAN_PROMPT, ShoppingScanSchema } from './shoppingPhoto.ts';
 import { buildFoodMessage, FOOD_PROMPT, FoodSchema, GEMINI_FOOD_SCHEMA } from './food.ts';
 import { AISLES, buildUserMessage, ExtractionSchema, RECIPE_TAGS, SYSTEM_PROMPT, tagSafe } from './extraction.ts';
@@ -468,6 +475,14 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = ShoppingScanSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, scan: parsed.data, model: r.model, usage: r.usage };
+    },
+    async mealKcal(texts) {
+      const list = texts.map((t, i) => `${i + 1}. ${tagSafe(t)}`).join('\n');
+      const r = await generate(MEAL_KCAL_PROMPT, `<pasti>\n${list}\n</pasti>`, GEMINI_MEAL_KCAL_SCHEMA);
+      if (!r.ok) return r;
+      const parsed = MealKcalSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, kcal: parsed.data.kcal, model: r.model, usage: r.usage };
     },
     async dietPlan(files, text) {
       const message = text
