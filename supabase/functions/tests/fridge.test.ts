@@ -48,3 +48,17 @@ Deno.test('ricetta senza passaggi o ingredienti → scartata', () => {
   assertEquals(cleanFridgeRecipe({ ...base, ingredients: [] }, req), null);
   assertEquals(cleanFridgeRecipe(base, req)!.servings, 3); // persone chieste, se l'AI non le dice
 });
+
+Deno.test('ricetta dal frigo/spesa: strumenti ammessi e preferenze nel messaggio', () => {
+  const r = parseFridgeRequest({
+    ingredients: ['pollo', 'patate'],
+    tools: ['friggitrice ad aria', 'microonde', 'friggitrice ad aria'],
+    prefs: [' leggera ', '', 'senza <glutine>', 42],
+  })!;
+  assertEquals(r.tools, ['friggitrice ad aria']);
+  assertEquals(r.prefs, ['leggera', 'senza <glutine>']);
+  const msg = buildFridgeMessage(r);
+  assertEquals(msg.includes('<strumenti>friggitrice ad aria</strumenti>'), true);
+  assertEquals(msg.includes('<preferenze>leggera | senza  glutine </preferenze>'), true);
+  assertEquals(buildFridgeMessage(parseFridgeRequest({ ingredients: ['uova'] })!).includes('strumenti'), false);
+});

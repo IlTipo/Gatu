@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.0.5",
+    "date": "2026-11-03",
+    "notes": [
+      "🍳 Crea una ricetta con quello che hai nella spesa (dalla Spesa o dal Frigo)",
+      "Scegli con cosa cucini: forno, friggitrice ad aria, padella o pentola",
+      "Preferenze per la ricetta: vegetariana, leggera, proteica, senza glutine… o scrivi tu cosa vuoi",
+      "⭐ Incolla la lista fissa nella settimana quando vuoi",
+      "Il Planner non c'è più: 🔥 Calorie è in cima alla Libreria e i promemoria arrivano dal Piano alimentare"
+    ]
+  },
+  {
     "version": "1.0.4",
     "date": "2026-10-22",
     "notes": [

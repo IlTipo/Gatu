@@ -174,7 +174,9 @@
     "templateToWeek": "⬇️ Incolla la lista fissa in questa settimana",
     "templateToWeekDone_one": "Lista fissa incollata: {{count}} cosa da comprare.",
     "templateToWeekDone_other": "Lista fissa incollata: {{count}} cose da comprare.",
-    "templateToWeekNone": "La lista fissa è già tutta in questa settimana, da comprare."
+    "templateToWeekNone": "La lista fissa è già tutta in questa settimana, da comprare.",
+    "makeRecipe": "🍳 Crea una ricetta con la spesa",
+    "makeRecipeHint": "Usa le cose già prese (o tutta la lista) e scegli forno, friggitrice ad aria, padella o pentola."
   },
   "map": {
     "title": "Mappa",
@@ -633,7 +635,19 @@
     "missing": "Ti manca: {{list}}",
     "nothingMissing": "✅ Hai tutto (più sale, olio e pepe)",
     "fromLibrary": "Dalle tue ricette",
-    "noLibraryMatch": "Nessuna delle tue ricette usa questi ingredienti: prova a crearne una nuova qui sopra."
+    "noLibraryMatch": "Nessuna delle tue ricette usa questi ingredienti: prova a crearne una nuova qui sopra.",
+    "tools": "Con cosa cucini?",
+    "toolNames": {
+      "forno": "Forno",
+      "airfryer": "Friggitrice ad aria",
+      "padella": "Padella",
+      "pentola": "Pentola"
+    },
+    "toolsOnly": "La ricetta userà solo quello che hai scelto.",
+    "toolsAny": "Nessuna scelta: va bene qualsiasi cottura.",
+    "prefs": "Preferenze",
+    "prefsLabel": "Altro da chiedere (facoltativo)",
+    "prefsPlaceholder": "Es. senza cipolla, poco sale, stile giapponese"
   },
   "install": {
     "title": "Aggiungimi alla schermata Home e rendimi app!",

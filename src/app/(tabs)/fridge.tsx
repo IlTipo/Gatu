@@ -22,6 +22,7 @@ import { useLibraryRecipes } from '@/features/library/api';
 import { matchPantry, splitPantryInput } from '@/features/library/pantry';
 import { useCreateRecipe } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes } from '@/features/recipes/format';
+import { COOK_TOOLS, type CookTool, loadRecipePrefs, QUICK_PREFS, saveRecipePrefs, splitPrefs, TOOL_EMOJI } from '@/features/fridge/prefs';
 import { errorMessage } from '@/lib/errors';
 import { pickRecipePhoto } from '@/lib/photo';
 import { radius, spacing, useTheme } from '@/theme';
@@ -45,6 +46,23 @@ export default function FridgeScreen() {
   const [draft, setDraft] = useState('');
   const [people, setPeople] = useState(2);
   const [maxMinutes, setMaxMinutes] = useState<number | null>(null);
+  // con cosa cucinare e preferenze (ricordate su questo telefono)
+  const [saved] = useState(loadRecipePrefs);
+  const [tools, setToolsState] = useState<CookTool[]>(saved.tools);
+  const [quickPrefs, setQuickPrefs] = useState<string[]>(saved.prefs.filter((p) => (QUICK_PREFS as readonly string[]).includes(p)));
+  const [prefsText, setPrefsText] = useState(saved.prefs.filter((p) => !(QUICK_PREFS as readonly string[]).includes(p)).join(', '));
+  const allPrefs = [...quickPrefs, ...splitPrefs(prefsText)].slice(0, 8);
+  const remember = (nextTools: CookTool[], nextPrefs: string[]) => saveRecipePrefs({ tools: nextTools, prefs: nextPrefs });
+  const toggleTool = (tool: CookTool) => {
+    const next = tools.includes(tool) ? tools.filter((x) => x !== tool) : [...tools, tool];
+    setToolsState(next);
+    remember(next, allPrefs);
+  };
+  const togglePref = (pref: string) => {
+    const next = quickPrefs.includes(pref) ? quickPrefs.filter((x) => x !== pref) : [...quickPrefs, pref];
+    setQuickPrefs(next);
+    remember(tools, [...next, ...splitPrefs(prefsText)]);
+  };
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<unknown>(null);
   const [idea, setIdea] = useState<FridgeRecipe | null>(null);
@@ -95,7 +113,7 @@ export default function FridgeScreen() {
   function invent() {
     setIdeaMessage(null);
     create.mutate(
-      { ingredients: items, servings: people, maxMinutes, avoid: seen },
+      { ingredients: items, servings: people, maxMinutes, avoid: seen, tools, prefs: allPrefs },
       {
         onSuccess: (res) => {
           if (res.status !== 'done') {
@@ -179,6 +197,39 @@ export default function FridgeScreen() {
                   <Chip key={m} label={`≤ ${m} min`} selected={maxMinutes === m} onPress={() => setMaxMinutes(m)} />
                 ))}
               </View>
+            </View>
+            <View style={styles.block}>
+              <AppText variant="caption" tone="secondary">
+                {t('fridge.tools')}
+              </AppText>
+              <View style={styles.chips}>
+                {COOK_TOOLS.map((tool) => (
+                  <Chip key={tool} label={`${TOOL_EMOJI[tool]} ${t(`fridge.toolNames.${tool === 'friggitrice ad aria' ? 'airfryer' : tool}`)}`} selected={tools.includes(tool)} onPress={() => toggleTool(tool)} />
+                ))}
+              </View>
+              <AppText variant="caption" tone="secondary">
+                {tools.length ? t('fridge.toolsOnly') : t('fridge.toolsAny')}
+              </AppText>
+            </View>
+            <View style={styles.block}>
+              <AppText variant="caption" tone="secondary">
+                {t('fridge.prefs')}
+              </AppText>
+              <View style={styles.chips}>
+                {QUICK_PREFS.map((pref) => (
+                  <Chip key={pref} label={pref} selected={quickPrefs.includes(pref)} onPress={() => togglePref(pref)} />
+                ))}
+              </View>
+              <TextField
+                label={t('fridge.prefsLabel')}
+                value={prefsText}
+                onChangeText={(v) => {
+                  setPrefsText(v);
+                  remember(tools, [...quickPrefs, ...splitPrefs(v)]);
+                }}
+                placeholder={t('fridge.prefsPlaceholder')}
+                maxLength={300}
+              />
             </View>
             <Button
               label={create.isPending ? t('fridge.creating') : idea ? t('fridge.another') : t('fridge.create')}

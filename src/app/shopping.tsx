@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import type { TFunction } from 'i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -329,7 +330,19 @@ export default function ShoppingScreen() {
 
         {items.length ? (
           <View style={styles.actions}>
-            {left ? <Button label={t('shopping.share')} onPress={share} /> : null}
+            <Button
+              label={t('shopping.makeRecipe')}
+              onPress={() => {
+                // prima le cose già prese (le hai in casa), altrimenti tutta la lista
+                const source = taken.length ? taken : items;
+                const names = [...new Set(source.map((i) => i.name.trim().toLowerCase()).filter(Boolean))].slice(0, 40);
+                router.push({ pathname: '/fridge', params: { items: names.join('|') } });
+              }}
+            />
+            <AppText variant="caption" tone="secondary">
+              {t('shopping.makeRecipeHint')}
+            </AppText>
+            {left ? <Button label={t('shopping.share')} variant="secondary" onPress={share} /> : null}
             <Button
               label={t('shopping.copyNext')}
               variant="secondary"

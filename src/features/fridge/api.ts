@@ -33,7 +33,14 @@ export function useFridgeScan() {
 /** Alimenti → ricetta nuova inventata dall'AI (non salvata finché non lo chiedi). */
 export function useFridgeRecipe() {
   return useMutation({
-    mutationFn: (request: { ingredients: string[]; servings: number | null; maxMinutes: number | null; avoid: string[] }) =>
+    mutationFn: (request: {
+      ingredients: string[];
+      servings: number | null;
+      maxMinutes: number | null;
+      avoid: string[];
+      tools?: string[];
+      prefs?: string[];
+    }) =>
       invokeExtract<FridgeRecipeResult>({ action: 'fridge_recipe', ...request }),
   });
 }
