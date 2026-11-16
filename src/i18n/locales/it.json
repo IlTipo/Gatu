@@ -401,7 +401,13 @@
     "linkCopied": "Link copiato: incollalo dove vuoi.",
     "linkShareFailed": "Non sono riuscito a condividere il link.",
     "unshareLink": "Disattiva il link",
-    "linkDisabled": "Link disattivato: non funziona più."
+    "linkDisabled": "Link disattivato: non funziona più.",
+    "aiEditHint": "Chiedi cosa cambiare (anche più volte): vedi l'anteprima e poi scegli se aggiornare questa ricetta o salvarne una nuova.",
+    "aiEditPreview": "Anteprima della ricetta modificata",
+    "aiEditSaveHere": "✅ Aggiorna questa ricetta",
+    "aiEditSaveNew": "➕ Salva come nuova ricetta",
+    "aiEditDiscard": "Lascia com'era",
+    "aiEditUpdated": "Ricetta aggiornata."
   },
   "place": {
     "verified": "Indirizzo verificato",

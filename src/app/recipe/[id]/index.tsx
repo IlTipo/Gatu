@@ -22,6 +22,7 @@ import { toISODate } from '@/features/planner/dates';
 import { usePortionPrefs } from '@/features/portions/api';
 import { type Nutrition, personalRecipe } from '@/features/portions/logic';
 import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useDeleteRecipe, useRecipeInsights, useSetShared } from '@/features/recipes/api';
+import { AiEditCard } from '@/components/AiEditCard';
 import { useShareRecipeLink, useUnshareRecipeLink } from '@/features/recipes/publicLink';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
 import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
@@ -252,6 +253,8 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
 
         {/* le tue ricette condivise: mi piace e commenti di chi le vede */}
         {r.shared_with_friends ? <RecipeSocial recipeId={r.id} /> : null}
+
+        <AiEditCard recipe={r} />
 
         <Section title={t('recipe.variants')}>
           <AppText tone="secondary">{t('recipe.variantsHint')}</AppText>
