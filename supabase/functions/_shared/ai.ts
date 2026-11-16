@@ -2,7 +2,7 @@
 import type { RawAnswer } from './ask.ts';
 import type { DoseEstimate, DoseInput } from './doses.ts';
 import type { RawFood } from './food.ts';
-import type { FridgeRequest, RawFridgeRecipe, RawFridgeScan } from './fridge.ts';
+import type { FridgeRefine, FridgeRequest, RawFridgeRecipe, RawFridgeRefine, RawFridgeScan } from './fridge.ts';
 import type { RawShoppingScan } from './shoppingPhoto.ts';
 import type { RawDietPlan } from './dietPlan.ts';
 import type { ExtractionInput, RawExtraction } from './extraction.ts';
@@ -35,6 +35,7 @@ export type FridgeRecipeOutcome = ({ ok: true; recipe: RawFridgeRecipe } & Usage
 export type ShoppingScanOutcome = ({ ok: true; scan: RawShoppingScan } & Usage) | Failure;
 export type DietPlanOutcome = ({ ok: true; plan: RawDietPlan } & Usage) | Failure;
 export type MealKcalOutcome = ({ ok: true; kcal: (number | null)[] } & Usage) | Failure;
+export type FridgeRefineOutcome = ({ ok: true; recipe: RawFridgeRefine } & Usage) | Failure;
 export type FoodOutcome = ({ ok: true; food: RawFood } & Usage) | Failure;
 
 /** Strumenti AI sulle cose salvate: valori/difficoltà/costo, varianti, domande sulla libreria. */
@@ -50,6 +51,8 @@ export type RecipeTools = {
   dietPlan: (files: { mimeType: string; data: string }[], text: string) => Promise<DietPlanOutcome>;
   /** pasti scritti a parole → calorie stimate (stesso ordine) */
   mealKcal: (texts: string[]) => Promise<MealKcalOutcome>;
+  /** ricetta proposta + richiesta ("più leggera") → ricetta riscritta */
+  fridgeRefine: (refine: FridgeRefine) => Promise<FridgeRefineOutcome>;
   /** alimenti che hai → ricetta nuova */
   fridgeRecipe: (request: FridgeRequest) => Promise<FridgeRecipeOutcome>;
   /** "cosa ho mangiato" (testo e/o foto del piatto) → calorie e macro */

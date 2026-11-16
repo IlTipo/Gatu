@@ -12,6 +12,10 @@ import {
   FridgeScanSchema,
   GEMINI_FRIDGE_RECIPE_SCHEMA,
   GEMINI_FRIDGE_SCAN_SCHEMA,
+  buildRefineMessage,
+  FRIDGE_REFINE_PROMPT,
+  FridgeRefineSchema,
+  GEMINI_FRIDGE_REFINE_SCHEMA,
 } from './fridge.ts';
 import {
   DIET_PLAN_PROMPT,
@@ -493,6 +497,13 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       const parsed = DietPlanSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, plan: parsed.data, model: r.model, usage: r.usage };
+    },
+    async fridgeRefine(refine) {
+      const r = await generate(FRIDGE_REFINE_PROMPT, buildRefineMessage(refine), GEMINI_FRIDGE_REFINE_SCHEMA);
+      if (!r.ok) return r;
+      const parsed = FridgeRefineSchema.safeParse(r.json);
+      if (!parsed.success) return { ok: false, reason: 'invalid_output' };
+      return { ok: true, recipe: parsed.data, model: r.model, usage: r.usage };
     },
     async fridgeRecipe(request) {
       const r = await generate(FRIDGE_RECIPE_PROMPT, buildFridgeMessage(request), GEMINI_FRIDGE_RECIPE_SCHEMA);

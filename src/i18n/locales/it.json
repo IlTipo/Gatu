@@ -395,7 +395,13 @@
     "deleteConfirmShared": "Eliminare \"{{title}}\"? Sparisce anche dalle collezioni e dal tuo profilo (con mi piace e commenti). Non si può annullare.",
     "shareOnProfile": "👥 Condividi sul tuo profilo",
     "unshare": "🔒 Togli dal tuo profilo",
-    "aiBusy": "L'AI di Google è molto occupata in questo momento: riprova tra un minuto."
+    "aiBusy": "L'AI di Google è molto occupata in questo momento: riprova tra un minuto.",
+    "shareLink": "🔗 Condividi il link della ricetta",
+    "shareLinkHint": "Chi lo apre vede la ricetta anche senza Morso.",
+    "linkCopied": "Link copiato: incollalo dove vuoi.",
+    "linkShareFailed": "Non sono riuscito a condividere il link.",
+    "unshareLink": "Disattiva il link",
+    "linkDisabled": "Link disattivato: non funziona più."
   },
   "place": {
     "verified": "Indirizzo verificato",
@@ -647,7 +653,25 @@
     "toolsAny": "Nessuna scelta: va bene qualsiasi cottura.",
     "prefs": "Preferenze",
     "prefsLabel": "Altro da chiedere (facoltativo)",
-    "prefsPlaceholder": "Es. senza cipolla, poco sale, stile giapponese"
+    "prefsPlaceholder": "Es. senza cipolla, poco sale, stile giapponese",
+    "refineTitle": "✏️ Modifica con l'AI",
+    "refineHint": "Non ti convince? Chiedi cosa cambiare e Morso la riscrive.",
+    "refineDone": "Già chiesto: {{list}}",
+    "refineChips": {
+      "lighter": "più leggera",
+      "faster": "più veloce",
+      "veggie": "vegetariana",
+      "moreProtein": "più proteine",
+      "morePeople": "per 4 persone",
+      "simpler": "più semplice"
+    },
+    "refineLabel": "Cosa vuoi cambiare?",
+    "refinePlaceholder": "Es. senza forno, togli la cipolla, più croccante",
+    "refine": "Modifica la ricetta",
+    "refining": "Riscrivo la ricetta…",
+    "refined": "Fatto: ecco la ricetta aggiornata.",
+    "saveShare": "🔗 Salva e condividi il link",
+    "sharedSaved": "Salvata nella Libreria e link condiviso."
   },
   "install": {
     "title": "Aggiungimi alla schermata Home e rendimi app!",
@@ -1074,5 +1098,13 @@
     "saved": "Piano salvato.",
     "kcalCalculate": "🔥 Calcola le calorie di ogni pasto",
     "kcalCalculating": "Calcolo le calorie…"
+  },
+  "publicRecipe": {
+    "ctaBody": "Salva ricette e ristoranti dai social, crea la lista della spesa e ricette con quello che hai in casa.",
+    "discover": "Scopri Morso",
+    "openMorso": "Apri Morso",
+    "notFound": "Ricetta non disponibile",
+    "notFoundBody": "Il link non funziona più: chi l'ha condiviso potrebbe averlo tolto.",
+    "source": "📱 Da {{platform}}{{author}} · apri l'originale"
   }
 }

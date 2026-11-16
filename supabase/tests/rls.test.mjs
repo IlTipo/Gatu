@@ -576,5 +576,24 @@ ok((await as(A, `select public.add_shopping_template('${wk.n}') as n`)).rows[0].
 ok((await as(A, `select count(*)::int as n from public.shopping_items where week_start = '${wk.n}' and not checked`)).rows[0].n === 2, 'nessun doppione, tutto da comprare');
 ok((await as(B, `select public.add_shopping_template('${wk.n}') as n`)).rows[0].n === 0, 'la lista fissa di Anna non si copia a Bruno');
 
+// --- Link pubblico di una ricetta ---
+const pub = (await as(A, `insert into public.recipes (title, description) values ('Torta di mele', 'buona') returning id`)).rows[0].id;
+await as(A, `insert into public.recipe_ingredients (recipe_id, position, name, quantity, unit) values ('${pub}', 0, 'mele', 3, null)`);
+await as(A, `insert into public.recipe_steps (recipe_id, position, text) values ('${pub}', 0, 'Inforna.')`);
+await fails(() => as(B, `select public.share_recipe_link('${pub}')`), 'Bruno NON può creare il link della ricetta di Anna');
+const token = (await as(A, `select public.share_recipe_link('${pub}') as t`)).rows[0].t;
+ok(/^[a-f0-9]{32}$/.test(token), 'link creato con un codice casuale');
+ok((await as(A, `select public.share_recipe_link('${pub}') as t`)).rows[0].t === token, 'richiedendolo di nuovo resta lo stesso link');
+await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;`);
+let shared = (await db.query(`select public.public_recipe('${token}') as r`)).rows[0].r;
+ok(shared?.title === 'Torta di mele' && shared.ingredients[0].name === 'mele' && shared.steps.length === 1, 'chi apre il link (anche senza account) vede la ricetta');
+ok(shared.user_id === undefined && shared.notes === undefined, 'il link non mostra chi è il proprietario né le note private');
+ok((await db.query(`select public.public_recipe('${'0'.repeat(32)}') as r`)).rows[0].r === null, 'codice sbagliato: niente');
+await fails(() => db.query(`select public.share_recipe_link('${pub}')`), 'senza account NON si creano link');
+ok((await db.query(`select * from public.recipes`)).rows.length === 0, 'senza account NON si leggono le ricette direttamente');
+await as(A, `select public.unshare_recipe_link('${pub}')`);
+await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false); set role anon;`);
+ok((await db.query(`select public.public_recipe('${token}') as r`)).rows[0].r === null, 'link disattivato: non funziona più');
+
 console.log(failures ? `\n${failures} controlli FALLITI` : '\nTutti i controlli superati');
 process.exit(failures ? 1 : 0);

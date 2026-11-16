@@ -56,7 +56,7 @@ const privacy: Section[] = [
       '• OpenStreetMap (Nominatim e Overpass): riceve il nome o la zona da cercare per trovare i locali sulla mappa.',
       '• Quando salvi un link, il server apre la pagina pubblica (Instagram, TikTok, YouTube, siti di ricette…) per leggerne il contenuto.',
       'Alcuni fornitori hanno sede fuori dall\'UE (per esempio negli Stati Uniti): i trasferimenti sono protetti dalle Clausole Contrattuali Standard della Commissione Europea o dal Data Privacy Framework UE-USA.',
-      'Gli altri utenti vedono solo quello che scegli di mostrare: @username, nome, foto e bio; le ricette che condividi; e, solo agli amici, ciò che attivi tu (ricette cucinate, diario).',
+      'Gli altri utenti vedono solo quello che scegli di mostrare: @username, nome, foto e bio; le ricette che condividi; chi riceve il link pubblico di una tua ricetta (lo crei e lo disattivi tu) vede solo quella ricetta, senza il tuo nome; e, solo agli amici, ciò che attivi tu (ricette cucinate, diario).',
     ],
   },
   {

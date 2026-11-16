@@ -17,17 +17,20 @@ import {
   rememberPantry,
   useFridgeRecipe,
   useFridgeScan,
+  useRefineRecipe,
 } from '@/features/fridge/api';
 import { useLibraryRecipes } from '@/features/library/api';
 import { matchPantry, splitPantryInput } from '@/features/library/pantry';
 import { useCreateRecipe } from '@/features/recipes/api';
 import { formatIngredient, formatMinutes } from '@/features/recipes/format';
+import { shareRecipeLink } from '@/features/recipes/publicLink';
 import { COOK_TOOLS, type CookTool, loadRecipePrefs, QUICK_PREFS, saveRecipePrefs, splitPrefs, TOOL_EMOJI } from '@/features/fridge/prefs';
 import { errorMessage } from '@/lib/errors';
 import { pickRecipePhoto } from '@/lib/photo';
 import { radius, spacing, useTheme } from '@/theme';
 
 const PEOPLE = [1, 2, 3, 4, 5, 6];
+const REFINE_CHIPS = ['lighter', 'faster', 'veggie', 'moreProtein', 'morePeople', 'simpler'] as const;
 const TIMES = [15, 30, 60];
 
 /** Messaggio per un risultato AI non riuscito. */
@@ -66,6 +69,8 @@ export default function FridgeScreen() {
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<unknown>(null);
   const [idea, setIdea] = useState<FridgeRecipe | null>(null);
+  // richieste di modifica fatte all'AI su questa idea (si azzerano con un'idea nuova)
+  const [changes, setChanges] = useState<string[]>([]);
   const [seen, setSeen] = useState<string[]>([]);
   const [ideaMessage, setIdeaMessage] = useState<string | null>(null);
 
@@ -121,6 +126,7 @@ export default function FridgeScreen() {
             return;
           }
           setIdea(res.recipe);
+          setChanges([]);
           setSeen((s) => [...s, res.recipe.title].slice(-10));
         },
       },
@@ -239,7 +245,17 @@ export default function FridgeScreen() {
             />
             {ideaMessage ? <AppText tone="secondary">{ideaMessage}</AppText> : null}
             <InlineError message={create.isError ? errorMessage(create.error, t) : null} />
-            {idea ? <IdeaPreview key={idea.title} idea={idea} /> : null}
+            {idea ? (
+              <IdeaPreview
+                idea={idea}
+                changes={changes}
+                context={{ ingredients: items, servings: people, tools, prefs: allPrefs }}
+                onRefined={(next, instruction) => {
+                  setIdea(next);
+                  setChanges((c) => [...c, instruction].slice(-6));
+                }}
+              />
+            ) : null}
           </View>
         ) : null}
 
@@ -283,10 +299,75 @@ export default function FridgeScreen() {
 }
 
 /** La ricetta inventata: anteprima e "Salva nella Libreria". */
-function IdeaPreview({ idea }: { idea: FridgeRecipe }) {
+type IdeaContext = { ingredients: string[]; servings: number | null; tools: string[]; prefs: string[] };
+
+function IdeaPreview({
+  idea,
+  changes,
+  context,
+  onRefined,
+}: {
+  idea: FridgeRecipe;
+  changes: string[];
+  context: IdeaContext;
+  onRefined: (next: FridgeRecipe, instruction: string) => void;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const save = useCreateRecipe();
+  const refine = useRefineRecipe();
+  const [ask, setAsk] = useState('');
+  const [reply, setReply] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const askAi = (instruction: string) => {
+    const text = instruction.trim();
+    if (text.length < 2 || refine.isPending) return;
+    setReply(null);
+    refine.mutate(
+      { recipe: idea, instruction: text, history: changes, ...context },
+      {
+        onSuccess: (res) => {
+          if (res.status !== 'done') return setReply(aiProblem(res, t));
+          setAsk('');
+          setSavedId(null);
+          onRefined(res.recipe, text);
+          setReply(res.reply ?? t('fridge.refined'));
+        },
+      },
+    );
+  };
+
+  const draft = {
+    title: idea.title,
+    description: idea.description,
+    image_url: null,
+    servings: idea.servings,
+    prep_minutes: idea.prep_minutes,
+    cook_minutes: idea.cook_minutes,
+    total_minutes: idea.total_minutes,
+    tags: idea.tags,
+    ingredients: idea.ingredients,
+    steps: idea.steps,
+  };
+  // salva una volta sola (anche se poi condividi): l'id resta finché non cambi la ricetta
+  const ensureSaved = async (): Promise<string> => {
+    if (savedId) return savedId;
+    const id = await save.mutateAsync(draft);
+    setSavedId(id);
+    return id;
+  };
+  const shareIt = async () => {
+    setShareMessage(null);
+    try {
+      const id = await ensureSaved();
+      const { result } = await shareRecipeLink(id, idea.title);
+      setShareMessage(result === 'copied' ? t('recipe.linkCopied') : result === 'failed' ? t('recipe.linkShareFailed') : t('fridge.sharedSaved'));
+    } catch (e) {
+      setShareMessage(errorMessage(e, t));
+    }
+  };
 
   const saveIt = () =>
     save.mutate(
@@ -302,7 +383,7 @@ function IdeaPreview({ idea }: { idea: FridgeRecipe }) {
         ingredients: idea.ingredients,
         steps: idea.steps,
       },
-      { onSuccess: (id) => router.push({ pathname: '/recipe/[id]', params: { id } }) },
+      { onSuccess: (id) => (setSavedId(id), router.push({ pathname: '/recipe/[id]', params: { id } })) },
     );
 
   const facts = [
@@ -330,7 +411,50 @@ function IdeaPreview({ idea }: { idea: FridgeRecipe }) {
           {n + 1}. {s.text}
         </AppText>
       ))}
-      <Button label={save.isSuccess ? t('fridge.saved') : t('fridge.save')} onPress={saveIt} loading={save.isPending} disabled={save.isSuccess} />
+
+      <View style={[styles.refine, { backgroundColor: colors.surfaceMuted }]}>
+        <AppText variant="bodyStrong">{t('fridge.refineTitle')}</AppText>
+        {changes.length ? (
+          <AppText variant="caption" tone="secondary">
+            {t('fridge.refineDone', { list: changes.join(' · ') })}
+          </AppText>
+        ) : (
+          <AppText variant="caption" tone="secondary">
+            {t('fridge.refineHint')}
+          </AppText>
+        )}
+        <View style={styles.chips}>
+          {REFINE_CHIPS.map((key) => (
+            <Chip key={key} label={t(`fridge.refineChips.${key}`)} onPress={refine.isPending ? undefined : () => askAi(t(`fridge.refineChips.${key}`))} />
+          ))}
+        </View>
+        <TextField
+          label={t('fridge.refineLabel')}
+          value={ask}
+          onChangeText={setAsk}
+          placeholder={t('fridge.refinePlaceholder')}
+          returnKeyType="send"
+          onSubmitEditing={() => askAi(ask)}
+          maxLength={300}
+        />
+        <Button
+          label={refine.isPending ? t('fridge.refining') : t('fridge.refine')}
+          variant="secondary"
+          onPress={() => askAi(ask)}
+          loading={refine.isPending}
+          disabled={ask.trim().length < 2}
+        />
+        {reply ? <AppText>🤖 {reply}</AppText> : null}
+        <InlineError message={refine.isError ? errorMessage(refine.error, t) : null} />
+      </View>
+
+      <Button label={savedId ? t('fridge.saved') : t('fridge.save')} onPress={saveIt} loading={save.isPending} disabled={!!savedId} />
+      <Button label={t('fridge.saveShare')} variant="secondary" onPress={shareIt} />
+      {shareMessage ? (
+        <AppText variant="caption" tone="secondary">
+          {shareMessage}
+        </AppText>
+      ) : null}
       <InlineError message={save.isError ? errorMessage(save.error, t) : null} />
     </View>
   );
@@ -343,6 +467,7 @@ const styles = StyleSheet.create({
   addButton: { marginTop: 22 },
   flex: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  refine: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.md },
   card: { gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
   idea: { gap: spacing.sm, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
   row: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.md, borderWidth: 1 },

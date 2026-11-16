@@ -128,6 +128,7 @@ function RootNavigator() {
         <Stack.Screen name="auth/callback" />
         <Stack.Screen name="invite/[code]" />
         <Stack.Screen name="legal/[doc]" />
+        <Stack.Screen name="r/[token]" />
       </Stack>
       {signedIn ? <TimersPill /> : null}
       {signedIn ? <PendingInvite /> : null}

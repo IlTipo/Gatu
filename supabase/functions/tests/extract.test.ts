@@ -492,6 +492,27 @@ const tools = (calls: string[]) => ({
       usage: { input: 1, output: 1 },
     });
   },
+  fridgeRefine: (refine: { instruction: string; history: string[]; request: { tools?: string[] } }) => {
+    calls.push(`refine:${refine.instruction}|prima:${refine.history.join(',')}|${(refine.request.tools ?? []).join(',')}`);
+    return Promise.resolve({
+      ok: true as const,
+      recipe: {
+        title: 'Frittata leggera di zucchine',
+        description: null,
+        servings: 4,
+        prep_minutes: 5,
+        cook_minutes: 10,
+        tags: ['secondo'],
+        uses: ['uova'],
+        missing: [],
+        ingredients: [{ quantity: 6, unit: null, name: 'uova', note: null, aisle: 'latticini' }],
+        steps: [{ text: 'Cuoci in padella.', timer_seconds: 600 }],
+        reply: '  Ho tolto il formaggio  e messo 4 porzioni. ',
+      },
+      model: 'gemini',
+      usage: { input: 1, output: 1 },
+    });
+  },
   mealKcal: (texts: string[]) => {
     calls.push(`kcal:${texts.length}`);
     return Promise.resolve({ ok: true as const, kcal: [520.4, 5, null], model: 'gemini', usage: { input: 1, output: 1 } });
@@ -949,6 +970,36 @@ Deno.test('calorie dei pasti: stesso ordine, valori strani tolti, controlli sull
   assertEquals(calls, ['kcal:3']);
   for (const texts of [[], ['ok', ''], 'testo', Array.from({ length: 61 }, () => 'x')]) {
     assertEquals((await handleRequest(post({ action: 'estimate_meals', texts }), d)).status, 400);
+  }
+});
+
+Deno.test('frigo: modifica della ricetta con l\'AI (richiesta, storico, strumenti)', async () => {
+  const calls: string[] = [];
+  const d = deps(actionFake({}).client);
+  d.recipeTools = tools(calls);
+  const recipe = {
+    title: 'Frittata di zucchine',
+    servings: 2,
+    tags: [],
+    uses: ['uova'],
+    missing: [],
+    ingredients: [{ quantity: 3, unit: null, name: 'uova', note: null, aisle: 'latticini', estimated: false }],
+    steps: [{ text: 'Cuoci.', timer_seconds: null }],
+  };
+  const res = await (await handleRequest(
+    post({ action: 'fridge_refine', recipe, instruction: ' per 4 persone ', history: ['più leggera'], tools: ['padella'] }),
+    d,
+  )).json();
+  assertEquals(res.status, 'done');
+  assertEquals(res.recipe.servings, 4);
+  assertEquals(res.reply, 'Ho tolto il formaggio e messo 4 porzioni.');
+  assertEquals(calls, ['refine:per 4 persone|prima:più leggera|padella']);
+  for (const bad of [
+    { action: 'fridge_refine', recipe, instruction: 'x' },
+    { action: 'fridge_refine', recipe: { title: 'senza ingredienti' }, instruction: 'più leggera' },
+    { action: 'fridge_refine', instruction: 'più leggera' },
+  ]) {
+    assertEquals((await handleRequest(post(bad), d)).status, 400);
   }
 });
 

@@ -22,6 +22,7 @@ import { toISODate } from '@/features/planner/dates';
 import { usePortionPrefs } from '@/features/portions/api';
 import { type Nutrition, personalRecipe } from '@/features/portions/logic';
 import { type DoseResult, type InsightsResult, useEstimateDoses, useRecipe, useDeleteRecipe, useRecipeInsights, useSetShared } from '@/features/recipes/api';
+import { useShareRecipeLink, useUnshareRecipeLink } from '@/features/recipes/publicLink';
 import { formatIngredient, formatMinutes, hasMissingDoses, scaleQuantity } from '@/features/recipes/format';
 import type { RecipeWithDetails, VariantKind } from '@/features/recipes/types';
 import { confirm } from '@/lib/confirm';
@@ -146,6 +147,7 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
             onPress={() => setShared.mutate(!r.shared_with_friends)}
             loading={setShared.isPending}
           />
+          <PublicLinkButtons recipe={r} />
           {r.sources?.url ? (
             <Button label={t('recipe.openSource')} variant="ghost" onPress={() => openExternalUrl(r.sources!.url)} />
           ) : null}
@@ -271,6 +273,47 @@ function RecipeDetails({ recipe: r }: { recipe: RecipeWithDetails }) {
 }
 
 /** 🗑️ Elimina la ricetta (con conferma): poi si torna alla Libreria. */
+/** "🔗 Condividi il link": la ricetta si apre anche fuori da Morso; si può disattivare. */
+function PublicLinkButtons({ recipe: r }: { recipe: RecipeWithDetails }) {
+  const { t } = useTranslation();
+  const share = useShareRecipeLink(r.id, r.title);
+  const unshare = useUnshareRecipeLink(r.id);
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <>
+      <Button
+        label={t('recipe.shareLink')}
+        variant="secondary"
+        loading={share.isPending}
+        onPress={() =>
+          share.mutate(undefined, {
+            onSuccess: ({ result }) =>
+              setMessage(result === 'copied' ? t('recipe.linkCopied') : result === 'failed' ? t('recipe.linkShareFailed') : null),
+          })
+        }
+      />
+      {message ? (
+        <AppText variant="caption" tone="secondary">
+          {message}
+        </AppText>
+      ) : (
+        <AppText variant="caption" tone="secondary">
+          {t('recipe.shareLinkHint')}
+        </AppText>
+      )}
+      {r.public_token ? (
+        <Button
+          label={t('recipe.unshareLink')}
+          variant="ghost"
+          loading={unshare.isPending}
+          onPress={() => unshare.mutate(undefined, { onSuccess: () => setMessage(t('recipe.linkDisabled')) })}
+        />
+      ) : null}
+      <InlineError message={share.isError ? errorMessage(share.error, t) : unshare.isError ? errorMessage(unshare.error, t) : null} />
+    </>
+  );
+}
+
 function DeleteRecipe({ recipe: r }: { recipe: RecipeWithDetails }) {
   const { t } = useTranslation();
   const remove = useDeleteRecipe(r.id);

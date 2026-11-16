@@ -48,6 +48,8 @@ export type Recipe = {
   homemade: boolean;
   /** visibile ai miei amici */
   shared_with_friends: boolean;
+  /** codice del link pubblico (…/r/codice); null se non c'è */
+  public_token?: string | null;
 };
 
 export type VariantKind = 'vegana' | 'vegetariana' | 'senza_glutine' | 'senza_lattosio' | 'light' | 'veloce';

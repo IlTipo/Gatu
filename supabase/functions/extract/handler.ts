@@ -13,6 +13,7 @@
 //   { action: 'fridge_scan', imageBase64, mimeType }  foto del frigo → alimenti
 //   { action: 'diet_plan_read', files?: [{ data, mimeType }], text? }  piano alimentare → giorni e pasti
 //   { action: 'shopping_scan', imageBase64, mimeType }  foto della lista della spesa → voci
+//   { action: 'fridge_refine', recipe, instruction, history?, ingredients?, tools?, prefs? }  modifica con l'AI
 //   { action: 'fridge_recipe', ingredients, servings?, maxMinutes?, avoid? }  ricetta nuova
 //   { action: 'estimate_food', text?, imageBase64?, mimeType? }  diario: calorie e macro di quello che hai mangiato
 //   { action: 'send_feedback', message }  "Cosa aggiungeresti?": salva il consiglio e lo manda per email
@@ -33,6 +34,7 @@ import {
   estimateFood,
   fridgeRecipe,
   fridgeScan,
+  fridgeRefine,
   shoppingScan,
   readDietPlan,
   estimateMeals,
@@ -41,7 +43,7 @@ import {
   recipeVariant,
   refreshPlace,
 } from './actions.ts';
-import { parseFridgeRequest } from '../_shared/fridge.ts';
+import { parseFridgeRequest, parseRefineRequest } from '../_shared/fridge.ts';
 import { parseDietFiles, parseMealTexts } from '../_shared/dietPlan.ts';
 import { applyDoseEstimate, type DoseInput, needsDoseEstimate } from '../_shared/doses.ts';
 import {
@@ -254,6 +256,11 @@ export async function handleRequest(req: Request, deps: Deps): Promise<Response>
     const image = parsePhoto(body.imageBase64, body.mimeType);
     if (!image) return errorResponse('invalid_image', 400);
     return json(await shoppingScan(image, ctx));
+  }
+  if (body.action === 'fridge_refine') {
+    const refine = parseRefineRequest(body as Record<string, unknown>);
+    if (!refine) return errorResponse('invalid_body', 400);
+    return json(await fridgeRefine(refine, ctx));
   }
   if (body.action === 'fridge_recipe') {
     const request = parseFridgeRequest(body as Record<string, unknown>);

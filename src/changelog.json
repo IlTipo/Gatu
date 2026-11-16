@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.0.6",
+    "date": "2026-11-16",
+    "notes": [
+      "✏️ Modifica con l'AI: dopo che Morso ti propone una ricetta, chiedi cosa cambiare (più leggera, senza forno, per 4…) e la riscrive",
+      "🔗 Link della ricetta da condividere fuori dall'app: chi lo apre la vede anche senza Morso",
+      "Puoi disattivare il link quando vuoi dalla pagina della ricetta"
+    ]
+  },
+  {
     "version": "1.0.5",
     "date": "2026-11-03",
     "notes": [

@@ -51,3 +51,20 @@ export const rememberedPantry = () => remembered;
 export const rememberPantry = (items: string[]) => {
   remembered = items;
 };
+
+export type FridgeRefineResult = { status: 'done'; recipe: FridgeRecipe; reply: string | null } | Skipped | Failed;
+
+/** Ricetta proposta + "più leggera", "senza forno", "per 4 persone"… → l'AI la riscrive. */
+export function useRefineRecipe() {
+  return useMutation({
+    mutationFn: (request: {
+      recipe: FridgeRecipe;
+      instruction: string;
+      history: string[];
+      ingredients: string[];
+      servings: number | null;
+      tools?: string[];
+      prefs?: string[];
+    }) => invokeExtract<FridgeRefineResult>({ action: 'fridge_refine', ...request }),
+  });
+}

@@ -26,7 +26,13 @@ import { type CleanVariant, cleanVariant, type RecipeForAi, type VariantKind } f
 import { type CleanFood, cleanFood } from '../_shared/food.ts';
 import { type CleanDietPlan, cleanDietPlan, cleanKcal } from '../_shared/dietPlan.ts';
 import { type CleanShoppingItem, cleanShoppingScan } from '../_shared/shoppingPhoto.ts';
-import { type CleanFridgeRecipe, cleanFridgeRecipe, cleanFridgeScan, type FridgeRequest } from '../_shared/fridge.ts';
+import {
+  type CleanFridgeRecipe,
+  cleanFridgeRecipe,
+  cleanFridgeScan,
+  type FridgeRefine,
+  type FridgeRequest,
+} from '../_shared/fridge.ts';
 import { MAX_VIDEO_BYTES, mergeVideoRecipe, parseVideoPath, type SavedRecipe } from '../_shared/video.ts';
 
 type Ctx = {
@@ -352,6 +358,21 @@ export async function estimateMeals(
   const outcome = await ctx.recipeTools.mealKcal(texts);
   if (!outcome.ok) return { status: 'error', reason: outcome.reason };
   return { status: 'done', kcal: texts.map((_, i) => cleanKcal(outcome.kcal[i])) };
+}
+
+/** Ricetta proposta + richiesta della persona → ricetta riscritta, con una frase su cosa è cambiato. */
+export async function fridgeRefine(
+  refine: FridgeRefine,
+  ctx: Ctx,
+): Promise<{ status: 'done'; recipe: CleanFridgeRecipe; reply: string | null } | Skipped | Failed> {
+  if (!ctx.recipeTools) return { status: 'skipped', reason: 'not_configured' };
+  if (!(await consumeQuota(ctx))) return { status: 'skipped', reason: 'quota_exceeded' };
+  const outcome = await ctx.recipeTools.fridgeRefine(refine);
+  if (!outcome.ok) return { status: 'error', reason: outcome.reason };
+  const recipe = cleanFridgeRecipe(outcome.recipe, refine.request);
+  if (!recipe) return { status: 'error', reason: 'invalid_output' };
+  const reply = outcome.recipe.reply?.replace(/\s+/g, ' ').trim().slice(0, 300) || null;
+  return { status: 'done', recipe, reply };
 }
 
 /** Alimenti che hai → una ricetta nuova (da mostrare; si salva solo se piace). */
