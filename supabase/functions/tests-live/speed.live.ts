@@ -19,7 +19,9 @@ const configs: [string, string, Record<string, unknown>][] = [
 for (const [label, model, extra] of configs) {
   for (let i = 0; i < 2; i++) {
     const t0 = Date.now();
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    let res: Response;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -27,7 +29,12 @@ for (const [label, model, extra] of configs) {
         contents: [{ role: 'user', parts: [{ text: user }] }],
         generationConfig: { responseMimeType: 'application/json', responseSchema: GEMINI_FRIDGE_RECIPE_SCHEMA, maxOutputTokens: 8192, ...extra },
       }),
+      signal: AbortSignal.timeout(60_000),
     });
+    } catch (e) {
+      console.log(`${label} #${i + 1}: nessuna risposta (${(e as Error).name}) dopo ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+      continue;
+    }
     const s = ((Date.now() - t0) / 1000).toFixed(1);
     const data = await res.json();
     if (!res.ok) {
