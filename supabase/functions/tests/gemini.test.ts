@@ -145,8 +145,8 @@ Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo 
   let calls = 0;
   const failing = (() => (calls++, Promise.reject(new TypeError('network')))) as typeof fetch;
   assertEquals(await createGeminiExtractor('k', { fetch: failing })(input), { ok: false, reason: 'api_error' });
-  // 2 tentativi per ognuno dei 3 modelli gratuiti
-  assertEquals(calls, 6);
+  // 2 tentativi per ognuno dei 2 modelli gratuiti
+  assertEquals(calls, 4);
 });
 
 Deno.test('troppo lento → non si riaspetta lo stesso modello: "overloaded" (o il modello di riserva)', async () => {

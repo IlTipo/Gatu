@@ -44,7 +44,7 @@ export const DEFAULT_MODEL = 'gemini-flash-latest';
  * Quando finisce, si passa da solo al modello "lite", che ha una quota separata.
  */
 // gratuiti, con code separate: se uno è sovraccarico spesso un altro risponde
-export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
+export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest'];
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 const FILES_API = 'https://generativelanguage.googleapis.com/v1beta';
 const UPLOAD_API = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
