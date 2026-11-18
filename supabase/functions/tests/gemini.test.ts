@@ -148,7 +148,7 @@ Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo 
   assertEquals(calls, 4);
 });
 
-Deno.test('troppo lento → riprova una volta, poi "overloaded"', async () => {
+Deno.test('troppo lento → non si riaspetta lo stesso modello: "overloaded" (o il modello di riserva)', async () => {
   let calls = 0;
   const slow = ((_url: string, init?: RequestInit) =>
     new Promise((_, reject) => {
@@ -159,7 +159,39 @@ Deno.test('troppo lento → riprova una volta, poi "overloaded"', async () => {
     ok: false,
     reason: 'overloaded',
   });
-  assertEquals(calls, 2);
+  assertEquals(calls, 1);
+});
+
+Deno.test('ricette inventate: prima il modello veloce, con più fantasia e ragionamento minimo', async () => {
+  const seen: { model: string; config: Record<string, unknown> }[] = [];
+  const recipe = {
+    title: 'Pollo croccante',
+    description: null,
+    servings: 2,
+    prep_minutes: 5,
+    cook_minutes: 15,
+    tags: [],
+    uses: ['pollo'],
+    missing: [],
+    ingredients: [{ quantity: 300, unit: 'g', name: 'pollo', note: null, aisle: 'carne' }],
+    steps: [{ text: 'Cuoci a 200 °C.', timer_seconds: 900 }],
+  };
+  const fetchImpl = ((url: string, init?: RequestInit) => {
+    const model = decodeURIComponent(url.split('/models/')[1].split(':')[0]);
+    seen.push({ model, config: JSON.parse(String(init?.body)).generationConfig });
+    return Promise.resolve(new Response(JSON.stringify(reply(JSON.stringify(recipe))), { status: 200 }));
+  }) as unknown as typeof fetch;
+  const tools = createGeminiRecipeTools('k', { fetch: fetchImpl });
+  const out = await tools.fridgeRecipe({ ingredients: ['pollo'], servings: 2, maxMinutes: null, avoid: [] });
+  assert(out.ok);
+  assertEquals(seen[0].model, 'gemini-flash-lite-latest');
+  assertEquals(seen[0].config.temperature, 0.9);
+  assertEquals(seen[0].config.thinkingConfig, { thinkingLevel: 'minimal' });
+  // le altre richieste restano sul modello principale, precise
+  seen.length = 0;
+  await createGeminiExtractor('k', { fetch: fetchImpl })(input);
+  assertEquals(seen[0].model, DEFAULT_MODEL);
+  assertEquals(seen[0].config.temperature, 0.2);
 });
 
 Deno.test('modello principale sovraccarico (503 "high demand") → risponde quello di riserva', async () => {

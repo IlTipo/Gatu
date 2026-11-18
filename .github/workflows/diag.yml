@@ -1,4 +1,4 @@
-# Controllo temporaneo: velocità dell'AI vera con impostazioni diverse (con tempo massimo).
+# Controllo temporaneo: velocità di Morso con l'AI vera (ricetta e modifica).
 name: Diagnostica funzioni
 on:
   push:

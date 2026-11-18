@@ -182,10 +182,10 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
   const doFetch = opts.fetch ?? fetch;
 
   // Una richiesta con tempo massimo; il piano gratuito a volte è lento: in quel caso si riprova una volta.
-  const call = (model: string, body: string) =>
+  const call = (model: string, body: string, timeoutMs: number) =>
     doFetch(`${API}/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
-      signal: AbortSignal.timeout(opts.timeoutMs ?? 55_000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
       body,
     });
@@ -196,11 +196,11 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     | { ok: false; reason: Failure['reason']; tryNext: true }
     | { ok: false; reason: Failure['reason']; thinkingUnsupported: true };
 
-  const generate = async (model: string, body: string): Promise<Attempt> => {
+  const generate = async (model: string, body: string, timeoutMs: number): Promise<Attempt> => {
     let res: Response | null = null;
     for (let attempt = 1; attempt <= 2 && !res; attempt++) {
       try {
-        res = await call(model, body);
+        res = await call(model, body, timeoutMs);
         // sovraccarico momentaneo: un secondo tentativo spesso va
         if (res.status >= 500 && attempt === 1) {
           await res.body?.cancel();
@@ -209,6 +209,8 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
         }
       } catch (e) {
         console.error(`Gemini request failed (tentativo ${attempt})`, e instanceof Error ? e.name : e);
+        // troppo lento: non si riaspetta lo stesso modello, si passa subito a quello di riserva
+        if (e instanceof Error && e.name === 'TimeoutError') return { ok: false, reason: 'overloaded', tryNext: true };
         if (attempt === 2) {
           // modello lento o irraggiungibile: si prova quello di riserva
           return { ok: false, reason: e instanceof Error && e.name === 'TimeoutError' ? 'overloaded' : 'api_error', tryNext: true };
@@ -263,41 +265,44 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     user: string,
     schema: unknown,
     media: GeminiMedia[] = [],
+    call?: { creative?: boolean },
   ): Promise<JsonOutcome> => {
-    const request = {
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{
-        role: 'user',
-        parts: [
-          ...media.map((m) =>
-            'fileUri' in m
-              ? { fileData: { mimeType: m.mimeType, fileUri: m.fileUri } }
-              : { inlineData: { mimeType: m.mimeType, data: m.data } }
-          ),
-          { text: user },
-        ],
-      }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseSchema: schema,
-        temperature: 0.2,
-        maxOutputTokens: 16384,
-      },
-    };
-    // I modelli Flash nuovi "ragionano" a lungo prima di rispondere (anche 30-60 secondi).
-    // Per leggere ricette e foto basta poco ragionamento: risposte molto più veloci.
-    const fast = JSON.stringify({
-      ...request,
-      generationConfig: { ...request.generationConfig, thinkingConfig: { thinkingLevel: 'low' } },
-    });
-    const plain = JSON.stringify(request);
+    // Ricette inventate: prima il modello veloce (Flash-Lite, 5-10 s) con più fantasia,
+    // poi gli altri; le altre richieste partono dal modello principale.
+    const creative = !!call?.creative;
+    const order = creative ? [...models.slice(1), models[0]] : models;
+    const timeoutMs = opts.timeoutMs ?? (creative ? 30_000 : 45_000);
+    const body = (model: string, thinking: boolean) =>
+      JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{
+          role: 'user',
+          parts: [
+            ...media.map((m) =>
+              'fileUri' in m
+                ? { fileData: { mimeType: m.mimeType, fileUri: m.fileUri } }
+                : { inlineData: { mimeType: m.mimeType, data: m.data } }
+            ),
+            { text: user },
+          ],
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: schema,
+          temperature: creative ? 0.9 : 0.2,
+          maxOutputTokens: 16384,
+          // I modelli Flash nuovi "ragionano" a lungo prima di rispondere (anche 30-60 secondi):
+          // per leggere e scrivere ricette basta poco (Flash-Lite: il minimo).
+          ...(thinking ? { thinkingConfig: { thinkingLevel: /lite/.test(model) ? 'minimal' : 'low' } } : {}),
+        },
+      });
 
     // stesso sforzo su ogni modello, nell'ordine, finché uno risponde
     let reason: Failure['reason'] | null = null;
-    for (const model of models) {
+    for (const model of order) {
       // i modelli più vecchi non conoscono thinkingLevel: si riprova senza
-      let r = await generate(model, fast);
-      if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, plain);
+      let r = await generate(model, body(model, true), timeoutMs);
+      if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, body(model, false), timeoutMs);
       if (r.ok || !('tryNext' in r)) return r.ok ? r : { ok: false, reason: r.reason };
       // "quota finita" conta più di "modello di riserva non trovato"
       if (reason !== 'rate_limited') reason = r.reason;
@@ -499,14 +504,14 @@ export function createGeminiRecipeTools(apiKey: string, opts: GeminiOptions = {}
       return { ok: true, plan: parsed.data, model: r.model, usage: r.usage };
     },
     async fridgeRefine(refine) {
-      const r = await generate(FRIDGE_REFINE_PROMPT, buildRefineMessage(refine), GEMINI_FRIDGE_REFINE_SCHEMA);
+      const r = await generate(FRIDGE_REFINE_PROMPT, buildRefineMessage(refine), GEMINI_FRIDGE_REFINE_SCHEMA, [], { creative: true });
       if (!r.ok) return r;
       const parsed = FridgeRefineSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
       return { ok: true, recipe: parsed.data, model: r.model, usage: r.usage };
     },
     async fridgeRecipe(request) {
-      const r = await generate(FRIDGE_RECIPE_PROMPT, buildFridgeMessage(request), GEMINI_FRIDGE_RECIPE_SCHEMA);
+      const r = await generate(FRIDGE_RECIPE_PROMPT, buildFridgeMessage(request), GEMINI_FRIDGE_RECIPE_SCHEMA, [], { creative: true });
       if (!r.ok) return r;
       const parsed = FridgeRecipeSchema.safeParse(r.json);
       if (!parsed.success) return { ok: false, reason: 'invalid_output' };
