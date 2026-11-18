@@ -22,3 +22,11 @@ for (let i = 1; i <= 3; i++) {
     console.log(refined.ok ? `modifica: ${s2}s · ${refined.model} · "${refined.recipe.title}" · ${refined.recipe.reply}` : `modifica: ${s2}s · errore ${refined.reason}`);
   }
 }
+
+// ogni modello di riserva risponde davvero?
+for (const model of ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite']) {
+  const one = createGeminiRecipeTools(Deno.env.get('GEMINI_API_KEY')!, { model, fallbackModels: [] });
+  const t0 = Date.now();
+  const out = await one.fridgeRecipe(request);
+  console.log(`${model}: ${((Date.now() - t0) / 1000).toFixed(1)}s · ${out.ok ? `${out.model} · "${out.recipe.title}"` : `errore ${out.reason}`}`);
+}

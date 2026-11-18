@@ -43,7 +43,8 @@ export const DEFAULT_MODEL = 'gemini-flash-latest';
  * Ogni modello ha la sua quota gratuita giornaliera (per Flash sono poche richieste al giorno).
  * Quando finisce, si passa da solo al modello "lite", che ha una quota separata.
  */
-export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest'];
+// gratuiti, con code separate: se uno è sovraccarico spesso un altro risponde
+export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 const FILES_API = 'https://generativelanguage.googleapis.com/v1beta';
 const UPLOAD_API = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
@@ -196,13 +197,14 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     | { ok: false; reason: Failure['reason']; tryNext: true }
     | { ok: false; reason: Failure['reason']; thinkingUnsupported: true };
 
-  const generate = async (model: string, body: string, timeoutMs: number): Promise<Attempt> => {
+  const generate = async (model: string, body: string, timeoutMs: number, retryBusy: boolean): Promise<Attempt> => {
     let res: Response | null = null;
     for (let attempt = 1; attempt <= 2 && !res; attempt++) {
       try {
         res = await call(model, body, timeoutMs);
-        // sovraccarico momentaneo: un secondo tentativo spesso va
-        if (res.status >= 500 && attempt === 1) {
+        // sovraccarico momentaneo: se c'è un altro modello si prova subito quello,
+        // altrimenti (ultimo modello) si riprova una volta dopo una pausa
+        if (res.status >= 500 && attempt === 1 && retryBusy) {
           await res.body?.cancel();
           res = null;
           await new Promise((r) => setTimeout(r, opts.retryDelayMs ?? 1500));
@@ -271,7 +273,7 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     // poi gli altri; le altre richieste partono dal modello principale.
     const creative = !!call?.creative;
     const order = creative ? [...models.slice(1), models[0]] : models;
-    const timeoutMs = opts.timeoutMs ?? (creative ? 30_000 : 45_000);
+    const timeoutMs = opts.timeoutMs ?? (creative ? 20_000 : 45_000);
     const body = (model: string, thinking: boolean) =>
       JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
@@ -299,10 +301,11 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
 
     // stesso sforzo su ogni modello, nell'ordine, finché uno risponde
     let reason: Failure['reason'] | null = null;
-    for (const model of order) {
+    for (const [i, model] of order.entries()) {
+      const last = i === order.length - 1;
       // i modelli più vecchi non conoscono thinkingLevel: si riprova senza
-      let r = await generate(model, body(model, true), timeoutMs);
-      if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, body(model, false), timeoutMs);
+      let r = await generate(model, body(model, true), timeoutMs, last);
+      if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, body(model, false), timeoutMs, last);
       if (r.ok || !('tryNext' in r)) return r.ok ? r : { ok: false, reason: r.reason };
       // "quota finita" conta più di "modello di riserva non trovato"
       if (reason !== 'rate_limited') reason = r.reason;

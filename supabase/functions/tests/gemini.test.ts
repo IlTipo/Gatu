@@ -145,7 +145,8 @@ Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo 
   let calls = 0;
   const failing = (() => (calls++, Promise.reject(new TypeError('network')))) as typeof fetch;
   assertEquals(await createGeminiExtractor('k', { fetch: failing })(input), { ok: false, reason: 'api_error' });
-  assertEquals(calls, 4);
+  // 2 tentativi per ognuno dei 3 modelli gratuiti
+  assertEquals(calls, 6);
 });
 
 Deno.test('troppo lento → non si riaspetta lo stesso modello: "overloaded" (o il modello di riserva)', async () => {
@@ -207,7 +208,8 @@ Deno.test('modello principale sovraccarico (503 "high demand") → risponde quel
   }) as unknown as typeof fetch;
   const outcome = await createGeminiExtractor('k', { fetch: busy, retryDelayMs: 0 })(input);
   assertEquals(outcome.ok, true);
-  assertEquals(models, [DEFAULT_MODEL, DEFAULT_MODEL, 'gemini-flash-lite-latest']);
+  // niente attesa sul modello occupato: si passa subito a quello di riserva
+  assertEquals(models, [DEFAULT_MODEL, 'gemini-flash-lite-latest']);
 });
 
 Deno.test('errore momentaneo 503 → il secondo tentativo va a buon fine', async () => {
