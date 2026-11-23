@@ -24,7 +24,7 @@ for (let i = 1; i <= 3; i++) {
 }
 
 // ogni modello di riserva risponde davvero?
-for (const model of ['gemini-flash-lite-latest', 'gemini-2.5-flash-lite']) {
+for (const model of ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3-flash-preview']) {
   const one = createGeminiRecipeTools(Deno.env.get('GEMINI_API_KEY')!, { model, fallbackModels: [] });
   const t0 = Date.now();
   const out = await one.fridgeRecipe(request);

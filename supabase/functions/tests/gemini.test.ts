@@ -6,6 +6,7 @@ import {
   createGeminiDoseEstimator,
   createGeminiExtractor,
   createGeminiRecipeTools,
+  DEFAULT_FALLBACK_MODELS,
   DEFAULT_MODEL,
 } from '../_shared/gemini.ts';
 
@@ -119,13 +120,20 @@ Deno.test('testo che non è JSON → invalid_output', async () => {
   });
 });
 
+const quotaError = (quotaId: string) => ({
+  status: 'RESOURCE_EXHAUSTED',
+  message: 'You exceeded your current quota',
+  details: [{ '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId }] }],
+});
+const dailyQuota = quotaError('GenerateRequestsPerDayPerProjectPerModel-FreeTier');
+const minuteQuota = quotaError('GenerateRequestsPerMinutePerProjectPerModel-FreeTier');
+
 Deno.test("errori dell'API", async () => {
   const run = (status: number, error: unknown) =>
     createGeminiExtractor('k', { fetch: api({ error }, status).fetch })(input);
-  assertEquals(await run(429, { status: 'RESOURCE_EXHAUSTED', message: 'quota' }), {
-    ok: false,
-    reason: 'rate_limited',
-  });
+  assertEquals(await run(429, dailyQuota), { ok: false, reason: 'rate_limited' });
+  // limite al minuto: si dice "riprova tra un minuto", non "domani"
+  assertEquals(await run(429, minuteQuota), { ok: false, reason: 'overloaded' });
   assertEquals(
     await run(400, { status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.' }),
     {
@@ -145,8 +153,8 @@ Deno.test('rete assente → api_error (nessun crash), dopo un secondo tentativo 
   let calls = 0;
   const failing = (() => (calls++, Promise.reject(new TypeError('network')))) as typeof fetch;
   assertEquals(await createGeminiExtractor('k', { fetch: failing })(input), { ok: false, reason: 'api_error' });
-  // 2 tentativi per ognuno dei 2 modelli gratuiti
-  assertEquals(calls, 4);
+  // 2 tentativi per ognuno dei 5 modelli gratuiti
+  assertEquals(calls, 10);
 });
 
 Deno.test('troppo lento → non si riaspetta lo stesso modello: "overloaded" (o il modello di riserva)', async () => {
@@ -303,7 +311,7 @@ function perModel(responses: Record<string, [number, unknown]>) {
   return { fetch: fetchImpl, urls };
 }
 
-const quotaFinished = [429, { error: { status: 'RESOURCE_EXHAUSTED', message: 'quota' } }] as [number, unknown];
+const quotaFinished = [429, { error: dailyQuota }] as [number, unknown];
 
 Deno.test('quota del modello finita → passa da solo al modello "lite"', async () => {
   const fake = perModel({
@@ -317,7 +325,7 @@ Deno.test('quota del modello finita → passa da solo al modello "lite"', async 
 });
 
 Deno.test('quota finita ovunque (o modello di riserva assente) → rate_limited', async () => {
-  const both = perModel({ [DEFAULT_MODEL]: quotaFinished, 'gemini-flash-lite-latest': quotaFinished });
+  const both = perModel(Object.fromEntries([DEFAULT_MODEL, ...DEFAULT_FALLBACK_MODELS].map((m) => [m, quotaFinished])));
   assertEquals(await createGeminiExtractor('k', { fetch: both.fetch })(input), { ok: false, reason: 'rate_limited' });
   const missing = perModel({ [DEFAULT_MODEL]: quotaFinished });
   assertEquals(await createGeminiExtractor('k', { fetch: missing.fetch })(input), {
@@ -421,4 +429,32 @@ Deno.test('ragionamento breve (risposte veloci); i modelli che non lo conoscono 
   assert(again.ok);
   assertEquals(calls, 2);
   assertEquals((bodies[1].generationConfig as Record<string, unknown>).thinkingConfig, undefined);
+});
+
+Deno.test('limite al minuto sul modello veloce → risponde un altro modello gratuito', async () => {
+  const fake = perModel({
+    'gemini-flash-lite-latest': [429, { error: minuteQuota }],
+    'gemini-3.5-flash-lite': [429, { error: minuteQuota }],
+    'gemini-3.6-flash': [200, reply(JSON.stringify(extraction))],
+  });
+  const res = await createGeminiExtractor('k', { fetch: fake.fetch, model: 'gemini-flash-lite-latest' })(input);
+  assertEquals(res.ok, true);
+  assert(fake.urls[2].includes('/gemini-3.6-flash:generateContent'));
+});
+
+Deno.test('tutti occupati per un minuto → "riprova tra un minuto" (non "domani")', async () => {
+  const fake = perModel(Object.fromEntries([DEFAULT_MODEL, ...DEFAULT_FALLBACK_MODELS].map((m) => [m, [429, { error: minuteQuota }]])));
+  assertEquals(await createGeminiExtractor('k', { fetch: fake.fetch })(input), { ok: false, reason: 'overloaded' });
+});
+
+Deno.test('tempo massimo totale: non si provano altri modelli dopo la scadenza', async () => {
+  let calls = 0;
+  const slow = ((_u: string, init?: RequestInit) =>
+    new Promise((_, reject) => {
+      calls++;
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('timeout', 'TimeoutError')));
+    })) as unknown as typeof fetch;
+  const out = await createGeminiExtractor('k', { fetch: slow, timeoutMs: 30, totalMs: 40 })(input);
+  assertEquals(out, { ok: false, reason: 'overloaded' });
+  assert(calls < 5, `troppi modelli provati: ${calls}`);
 });

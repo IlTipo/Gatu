@@ -43,8 +43,14 @@ export const DEFAULT_MODEL = 'gemini-flash-latest';
  * Ogni modello ha la sua quota gratuita giornaliera (per Flash sono poche richieste al giorno).
  * Quando finisce, si passa da solo al modello "lite", che ha una quota separata.
  */
-// gratuiti, con code separate: se uno è sovraccarico spesso un altro risponde
-export const DEFAULT_FALLBACK_MODELS = ['gemini-flash-lite-latest'];
+// gratuiti, ognuno con la sua coda e i suoi limiti: se uno è occupato o ha finito le
+// richieste del minuto, spesso un altro risponde (un modello che non c'è più costa 0,2 s)
+export const DEFAULT_FALLBACK_MODELS = [
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-3-flash-preview',
+];
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 const FILES_API = 'https://generativelanguage.googleapis.com/v1beta';
 const UPLOAD_API = 'https://generativelanguage.googleapis.com/upload/v1beta/files';
@@ -169,6 +175,8 @@ type GeminiOptions = {
   fallbackModels?: string[];
   fetch?: typeof fetch;
   timeoutMs?: number;
+  /** tempo massimo totale, provando tutti i modelli */
+  totalMs?: number;
   /** pausa prima di riprovare dopo un sovraccarico (nei test 0) */
   retryDelayMs?: number;
   /** solo test: attesa tra i controlli del video in elaborazione */
@@ -224,7 +232,11 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as GeminiResponse;
       console.error('Gemini API error', model, res.status, errBody.error?.status, errBody.error?.message);
-      if (res.status === 429) return { ok: false, reason: 'rate_limited', tryNext: true };
+      // 429: "rate_limited" solo se è finita la quota del giorno; il limite al minuto passa in fretta
+      if (res.status === 429) {
+        const daily = /PerDay/i.test(JSON.stringify(errBody));
+        return { ok: false, reason: daily ? 'rate_limited' : 'overloaded', tryNext: true };
+      }
       if (res.status === 404) return { ok: false, reason: 'api_error', tryNext: true };
       if (res.status === 400 && /thinking/i.test(`${errBody.error?.message}`)) {
         return { ok: false, reason: 'api_error', thinkingUnsupported: true };
@@ -299,16 +311,19 @@ function createGeminiJsonClient(apiKey: string, opts: GeminiOptions) {
         },
       });
 
-    // stesso sforzo su ogni modello, nell'ordine, finché uno risponde
+    // stesso sforzo su ogni modello, nell'ordine, finché uno risponde (entro un tempo massimo totale)
+    const deadline = Date.now() + (opts.totalMs ?? (creative ? 50_000 : 110_000));
+    const rank = (r: Failure['reason'] | null) => (r === 'rate_limited' ? 3 : r === 'overloaded' ? 2 : r ? 1 : 0);
     let reason: Failure['reason'] | null = null;
     for (const [i, model] of order.entries()) {
+      if (i > 0 && Date.now() > deadline) break;
       const last = i === order.length - 1;
       // i modelli più vecchi non conoscono thinkingLevel: si riprova senza
       let r = await generate(model, body(model, true), timeoutMs, last);
       if (!r.ok && 'thinkingUnsupported' in r) r = await generate(model, body(model, false), timeoutMs, last);
       if (r.ok || !('tryNext' in r)) return r.ok ? r : { ok: false, reason: r.reason };
-      // "quota finita" conta più di "modello di riserva non trovato"
-      if (reason !== 'rate_limited') reason = r.reason;
+      // "quota del giorno finita" conta più di "occupato", che conta più di "modello non trovato"
+      if (rank(r.reason) > rank(reason)) reason = r.reason;
     }
     return { ok: false, reason: reason ?? 'api_error' };
   };

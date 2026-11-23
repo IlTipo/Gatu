@@ -16,8 +16,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Limiti dei modelli gratuiti
+      - name: Velocità delle ricette (AI vera)
         timeout-minutes: 12
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: deno run --config supabase/functions/deno.json --allow-env --allow-net --allow-read supabase/functions/tests-live/quota.live.ts
+        run: deno run --config supabase/functions/deno.json --allow-env --allow-net --allow-read supabase/functions/tests-live/speed.live.ts
